@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+import "quelware/models/v1/waveform.proto";
+
+enum DirectiveStatus {
+  DIRECTIVE_STATUS_UNSPECIFIED = 0;
+  DIRECTIVE_STATUS_SUCCESS = 1;
+  DIRECTIVE_STATUS_FAILED = 2;
+}
+
+message Directive {
+  oneof command {
+    FixedTimelineDirective fixed_timeline_sampled_waveform = 1;
+  }
+}
+
+message FixedTimelineDirective {
+  oneof command {
+    SetFrequencyDirective set_frequency = 1;
+    SetPhaseOffsetDirective set_phase_offset = 2;
+    SetTimingOffsetDirective set_timing_offset = 3;
+    SetFixedTimelineDirective set_timeline = 4;
+    RepeatConfigDirective repeat_config = 5;
+  }
+}
+
+message SetFrequencyDirective {
+  double frequency = 1;
+}
+
+message SetPhaseOffsetDirective {
+  double phase_offset_rad = 1;
+}
+
+message SetTimingOffsetDirective {
+  int32 offset_samples = 1;
+}
+
+message SetFixedTimelineDirective {
+  repeated quelware.models.v1.Waveform waveform_library = 1;
+  repeated WaveformEvent events = 2;
+  repeated CaptureWindow capture_windows = 3;
+  uint64 length_samples = 4;
+
+  message WaveformEvent {
+    uint32 waveform_index = 1;
+    uint64 start_offset_samples = 2;
+    double gain = 3;
+    double phase_offset_deg = 4;
+  }
+
+  message CaptureWindow {
+    string name = 1;
+    uint64 start_offset_samples = 2;
+    uint64 duration_samples = 3;
+  }
+}
+
+message RepeatConfigDirective {
+  int32 repeat_count = 1;
+}

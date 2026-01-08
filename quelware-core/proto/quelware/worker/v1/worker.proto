@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package quelware.worker.v1;
+
+import "quelware/models/v1/general.proto";
+
+service WorkerSystemService {
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+}
+
+message GetVersionRequest {}
+message GetVersionResponse {
+  quelware.models.v1.VersionInfo info = 1;
+}

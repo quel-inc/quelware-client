@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package quelware.instrument.v1;
+
+import "quelware/models/v1/directive.proto";
+import "quelware/models/v1/instrument.proto";
+import "quelware/models/v1/waveform.proto";
+
+service InstrumentService {
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc Configure(ConfigureRequest) returns (ConfigureResponse);
+  rpc Setup(SetupRequest) returns (SetupResponse);
+  rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
+  rpc ScheduleLaunch(ScheduleLaunchRequest) returns (ScheduleLaunchResponse);
+  rpc FetchResult(FetchResultRequest) returns (FetchResultResponse);
+}
+
+message GetStatusRequest {
+  string resource_id = 1;
+}
+
+message GetStatusResponse {
+  quelware.models.v1.InstrumentStatus status = 1;
+}
+
+message ConfigureRequest {
+  string session_token = 1;
+  string resource_id = 2;
+  quelware.models.v1.Directive directive = 3;
+}
+
+message ConfigureResponse {}
+
+message SetupRequest {
+  string session_token = 1;
+  string resource_id = 2;
+}
+
+message SetupResponse {}
+
+message GetClockSnapshotRequest {}
+
+message GetClockSnapshotResponse {
+  uint64 current_count = 1;
+  uint64 reference_count = 2;
+}
+
+message ScheduleLaunchRequest {
+  string session_token = 1;
+  uint64 count = 2;
+}
+
+message ScheduleLaunchResponse {}
+
+message FetchResultRequest {
+  string session_token = 1;
+  string resource_id = 2;
+}
+
+message FetchResultResponse {
+  string session_token = 1;
+  string resource_id = 2;
+  FixedTimelineResultContainer fixed_timeline_result = 3;
+
+  message IqDataResult {
+    repeated quelware.models.v1.Waveform waveforms = 1;
+  }
+
+  message FixedTimelineResultContainer {
+    map<string, IqDataResult> iq_data = 1;
+  }
+}

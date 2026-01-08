@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package quelware.resource.v1;
+
+import "quelware/models/v1/instrument.proto";
+
+service ResourceService {
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  rpc GetPort(GetPortRequest) returns (GetPortResponse);
+  rpc GetInstrument(GetInstrumentRequest) returns (GetInstrumentResponse);
+  rpc DeployInstruments(DeployInstrumentsRequest) returns (DeployInstrumentsResponse);
+}
+
+enum ResourceType {
+  RESOURCE_TYPE_UNSPECIFIED = 0;
+  RESOURCE_TYPE_PORT = 1;
+  RESOURCE_TYPE_INSTRUMENT = 2;
+}
+
+message Resource {
+  string id = 1;
+  ResourceType type = 2;
+}
+
+message ListResourcesRequest {}
+message ListResourcesResponse {
+  repeated Resource resources = 1;
+}
+
+message GetPortRequest {
+  string id = 1;
+}
+message GetPortResponse {
+  quelware.models.v1.Port port = 1;
+}
+
+message GetInstrumentRequest {
+  string id = 1;
+}
+message GetInstrumentResponse {
+  quelware.models.v1.Instrument instrument = 1;
+}
+
+message DeployInstrumentsRequest {
+  string port_id = 1;
+  repeated quelware.models.v1.InstrumentDefinition definitions = 2;
+  bool append = 3;
+}
+message DeployInstrumentsResponse {
+  string port_id = 1;
+  repeated quelware.models.v1.Instrument instruments = 2;
+}

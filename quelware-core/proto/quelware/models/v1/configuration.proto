@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+message Unit {
+  string label = 1;
+  UnitStatus status = 2;
+}
+
+enum UnitStatus {
+  UNIT_STATUS_UNSPECIFIED = 0;
+  UNIT_STATUS_ACTIVE = 1;
+  UNIT_STATUS_DRAINING = 2;
+  UNIT_STATUS_RELEASED = 3;
+  UNIT_STATUS_UNAVAILABLE = 4;
+}

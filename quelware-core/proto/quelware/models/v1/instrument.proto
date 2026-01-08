@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+message Port {
+  string id = 1;
+  PortRole role = 2;
+}
+
+enum PortRole {
+  PORT_ROLE_UNSPECIFIED = 0;
+  PORT_ROLE_TRANSMITTER = 1;
+  PORT_ROLE_TRANSCEIVER = 2;
+}
+
+enum InstrumentStatus {
+  INSTRUMENT_STATUS_UNSPECIFIED = 0;
+  INSTRUMENT_STATUS_UNCONFIGURED = 1;
+  INSTRUMENT_STATUS_READY = 2;
+  INSTRUMENT_STATUS_RUNNING = 3;
+  INSTRUMENT_STATUS_COMPLETED = 4;
+}
+
+enum InstrumentMode {
+  INSTRUMENT_MODE_UNSPECIFIED = 0;
+  INSTRUMENT_MODE_FIXED_TIMELINE = 1;
+}
+
+enum InstrumentRole {
+  INSTRUMENT_ROLE_UNSPECIFIED = 0;
+  INSTRUMENT_ROLE_TRANSMITTER = 1;
+  INSTRUMENT_ROLE_TRANSCEIVER = 2;
+}
+
+message Instrument {
+  string id = 1;
+  string port_id = 2;
+  InstrumentDefinition definition = 3;
+
+  oneof config {
+    FixedTimelineConfig fixed_timeline_config = 4;
+  }
+}
+
+message InstrumentDefinition {
+  string alias = 1;
+  InstrumentMode mode = 2;
+  InstrumentRole role = 3;
+
+  oneof profile {
+    FixedTimelineProfile fixed_timeline_profile = 4;
+  }
+}
+
+message FixedTimelineConfig {
+  uint32 sampling_period_fs = 1;
+  uint32 bitdepth = 2;
+}
+
+message FixedTimelineProfile {
+  double frequency_range_min = 1;
+  double frequency_range_max = 2;
+}

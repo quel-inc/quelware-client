@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package quelware.session.v1;
+
+service SessionService {
+  rpc OpenSession(OpenSessionRequest) returns (OpenSessionResponse);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+}
+
+message OpenSessionRequest {
+  repeated string resource_ids = 1;
+  int64 tentative_ttl_ms = 2;
+  int64 committed_ttl_ms = 3;
+}
+
+message OpenSessionResponse {
+  string token = 1;
+  repeated string resource_ids = 2;
+}
+
+message CloseSessionRequest {
+  string session_token = 1;
+}
+
+message CloseSessionResponse {
+  bool success = 1;
+}

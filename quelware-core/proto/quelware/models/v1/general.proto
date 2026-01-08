@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+message VersionInfo {
+  string version = 1;
+  string build_hash = 2;
+}

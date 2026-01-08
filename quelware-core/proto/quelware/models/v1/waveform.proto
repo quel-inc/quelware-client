@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+message Waveform {
+  oneof waveform {
+    SampledWaveform sampled = 1;
+  }
+}
+
+message SampledWaveform {
+  repeated double i_samples = 1;
+  repeated double q_samples = 2;
+  int64 sampling_period_fs = 3;
+}

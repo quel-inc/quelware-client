@@ -1,0 +1,46 @@
+[project]
+name = "quelware-core"
+version = "0.1.0.dev0"
+description = ""
+readme = "README.md"
+authors = [
+    {name = "quelware Authors", email = "opensource@quel-inc.com"},
+]
+requires-python = ">=3.12"
+dependencies = [
+    "betterproto2>=0.9.1",
+    "grpclib>=0.4.8",
+    "numpy>=2.4.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "ruff>=0.14.7",
+    "ty>=0.0.1a29",
+]
+
+[tool.ruff]
+exclude = ["src/quelware_core/pb"]
+
+[tool.ty.src]
+exclude = ["src/quelware_core/pb"]
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+select = [
+    "A",  # flake8-builtin
+    "B",  # flake8-bugbear
+    "E",  # pycodestyle error
+    "F",  # Pyflakes
+    "I",  # isort
+    "N",  # pep8-naming
+    "W",  # pycodestyle warning
+    "PL", # Pylint
+    "UP", # pyupgrade
+    "RUF022" # unsorted-dunder-all
+]

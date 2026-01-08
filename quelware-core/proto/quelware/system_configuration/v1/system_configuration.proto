@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package quelware.system_configuration.v1;
+
+import "quelware/models/v1/configuration.proto";
+
+service SystemConfigurationService {
+  rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
+}
+
+message ListUnitsRequest {}
+
+message ListUnitsResponse {
+  repeated quelware.models.v1.Unit units = 1;
+}

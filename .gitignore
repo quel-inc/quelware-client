@@ -1,3 +1,5 @@
+./link_to_quel-proto
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

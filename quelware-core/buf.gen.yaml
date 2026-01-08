@@ -1,0 +1,13 @@
+version: v2
+clean: true
+plugins:
+  - local:
+      - "uvx"
+      - "--from"
+      - "betterproto2_compiler>=0.9.0"
+      - "protoc-gen-python_betterproto2"
+    opt:
+      - server_generation=async
+      - client_generation=async
+    out: "python/src/quelware_core/pb"
+    strategy: all
