@@ -22,16 +22,16 @@ message FixedTimelineDirective {
     SetPhaseOffsetDirective set_phase_offset = 2;
     SetTimingOffsetDirective set_timing_offset = 3;
     SetFixedTimelineDirective set_timeline = 4;
-    RepeatConfigDirective repeat_config = 5;
+    SetLoopDirective set_loop = 5;
   }
 }
 
 message SetFrequencyDirective {
-  double frequency = 1;
+  double frequency_hz = 1;
 }
 
 message SetPhaseOffsetDirective {
-  double phase_offset_rad = 1;
+  double phase_offset_deg = 1;
 }
 
 message SetTimingOffsetDirective {
@@ -58,6 +58,6 @@ message SetFixedTimelineDirective {
   }
 }
 
-message RepeatConfigDirective {
-  int32 repeat_count = 1;
+message SetLoopDirective {
+  int32 loop_count = 1;
 }

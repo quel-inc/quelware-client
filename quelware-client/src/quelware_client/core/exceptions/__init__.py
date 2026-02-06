@@ -43,7 +43,7 @@ class ResourceRoleNotMatchedError(QuelwareClientError, _ErrorWithResourceIdsMixi
     DEFAULT_MESSAGE = "Resource role not matched."
 
 
-class ResourceTypeNotMatchedError(QuelwareClientError, _ErrorWithResourceIdsMixin):
+class ResourceCategoryNotMatchedError(QuelwareClientError, _ErrorWithResourceIdsMixin):
     DEFAULT_MESSAGE = "Resource role not matched."
 
 

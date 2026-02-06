@@ -8,9 +8,9 @@ from quelware_core.entities.instrument import (
     InstrumentRole,
 )
 from quelware_core.entities.resource import (
+    ResourceCategory,
     ResourceId,
     ResourceInfo,
-    ResourceType,
 )
 from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
@@ -67,7 +67,7 @@ async def test_configure_instruments():
     agent = AgentContainer()
     agent.update_resource_agent(
         unit_label,
-        ResourceAgentMock([ResourceInfo(id=port_id, type=ResourceType.PORT)]),
+        ResourceAgentMock([ResourceInfo(id=port_id, category=ResourceCategory.PORT)]),
     )
     session = Session(
         [port_id], agent, ttl_ms=1234, tentative_ttl_ms=56, token=SessionToken("token")

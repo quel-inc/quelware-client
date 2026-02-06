@@ -9,6 +9,7 @@ from quelware_core.entities.directives import (
     FixedTimelineDirective,
     SetFixedTimeline,
     SetFrequency,
+    SetLoop,
     SetPhaseOffset,
     SetTimingOffset,
     WaveformEvent,
@@ -43,7 +44,9 @@ def _waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
             raise ValueError(f"Unsupported waveform type: {type(val)}")
 
 
-def _waveform_event_to_pb(entity: WaveformEvent) -> pb_models.SetFixedTimelineDirectiveWaveformEvent:
+def _waveform_event_to_pb(
+    entity: WaveformEvent,
+) -> pb_models.SetFixedTimelineDirectiveWaveformEvent:
     return pb_models.SetFixedTimelineDirectiveWaveformEvent(
         waveform_index=entity.waveform_index,
         start_offset_samples=entity.start_offset_samples,
@@ -52,7 +55,9 @@ def _waveform_event_to_pb(entity: WaveformEvent) -> pb_models.SetFixedTimelineDi
     )
 
 
-def _waveform_event_from_pb(pb: pb_models.SetFixedTimelineDirectiveWaveformEvent) -> WaveformEvent:
+def _waveform_event_from_pb(
+    pb: pb_models.SetFixedTimelineDirectiveWaveformEvent,
+) -> WaveformEvent:
     return WaveformEvent(
         waveform_index=pb.waveform_index,
         start_offset_samples=pb.start_offset_samples,
@@ -60,7 +65,10 @@ def _waveform_event_from_pb(pb: pb_models.SetFixedTimelineDirectiveWaveformEvent
         phase_offset_deg=pb.phase_offset_deg,
     )
 
-def _capture_window_to_pb(entity: CaptureWindow) -> pb_models.SetFixedTimelineDirectiveCaptureWindow:
+
+def _capture_window_to_pb(
+    entity: CaptureWindow,
+) -> pb_models.SetFixedTimelineDirectiveCaptureWindow:
     return pb_models.SetFixedTimelineDirectiveCaptureWindow(
         name=entity.name,
         start_offset_samples=entity.start_offset_samples,
@@ -68,23 +76,26 @@ def _capture_window_to_pb(entity: CaptureWindow) -> pb_models.SetFixedTimelineDi
     )
 
 
-def _capture_window_from_pb(pb: pb_models.SetFixedTimelineDirectiveCaptureWindow) -> CaptureWindow:
+def _capture_window_from_pb(
+    pb: pb_models.SetFixedTimelineDirectiveCaptureWindow,
+) -> CaptureWindow:
     return CaptureWindow(
         name=pb.name,
         start_offset_samples=pb.start_offset_samples,
-        length_samples=pb.duration_samples
+        length_samples=pb.duration_samples,
     )
+
 
 def directive_to_pb(entity: Directive) -> pb_models.Directive:
     match entity:
         case SetFrequency():
             ft_cmd = pb_models.FixedTimelineDirective(
-                set_frequency=pb_models.SetFrequencyDirective(frequency=entity.hz)
+                set_frequency=pb_models.SetFrequencyDirective(frequency_hz=entity.hz)
             )
         case SetPhaseOffset():
             ft_cmd = pb_models.FixedTimelineDirective(
                 set_phase_offset=pb_models.SetPhaseOffsetDirective(
-                    phase_offset_rad=entity.radian
+                    phase_offset_deg=entity.degree
                 )
             )
         case SetTimingOffset():
@@ -96,15 +107,21 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
         case SetFixedTimeline():
             library_pb = [_waveform_to_pb(w) for w in entity.waveform_library]
             events_pb = [_waveform_event_to_pb(e) for e in entity.events]
-            capture_windows_pb = [_capture_window_to_pb(e) for e in entity.capture_windows]
+            capture_windows_pb = [
+                _capture_window_to_pb(e) for e in entity.capture_windows
+            ]
             length_pb = entity.length
             ft_cmd = pb_models.FixedTimelineDirective(
                 set_timeline=pb_models.SetFixedTimelineDirective(
                     waveform_library=library_pb,
                     events=events_pb,
                     length_samples=length_pb,
-                    capture_windows=capture_windows_pb
+                    capture_windows=capture_windows_pb,
                 )
+            )
+        case SetLoop():
+            ft_cmd = pb_models.FixedTimelineDirective(
+                set_loop=pb_models.SetLoopDirective(loop_count=entity.loop_count)
             )
         case _:
             assert_never(entity)
@@ -129,20 +146,25 @@ def _fixed_timeline_directive_from_pb(
 
     match command:
         case pb_models.SetFrequencyDirective():
-            return SetFrequency(hz=command.frequency)
+            return SetFrequency(hz=command.frequency_hz)
         case pb_models.SetPhaseOffsetDirective():
-            return SetPhaseOffset(radian=command.phase_offset_rad)
+            return SetPhaseOffset(degree=command.phase_offset_deg)
         case pb_models.SetTimingOffsetDirective():
             return SetTimingOffset(offset_samples=command.offset_samples)
         case pb_models.SetFixedTimelineDirective():
             library = [_waveform_from_pb(w) for w in command.waveform_library]
             events = [_waveform_event_from_pb(e) for e in command.events]
-            capture_windows = [_capture_window_from_pb(e) for e in command.capture_windows]
+            capture_windows = [
+                _capture_window_from_pb(e) for e in command.capture_windows
+            ]
             length = command.length_samples
             return SetFixedTimeline(
-                waveform_library=library, events=events, length=length, capture_windows=capture_windows
+                waveform_library=library,
+                events=events,
+                length=length,
+                capture_windows=capture_windows,
             )
+        case pb_models.SetLoopDirective():
+            return SetLoop(loop_count=command.loop_count)
         case _:
-            # This handles cases defined in proto (e.g. SetCaptureDuration)
-            # but not yet implemented in the Python entities.
             raise ValueError(f"Unsupported fixed timeline directive: {type(command)}")

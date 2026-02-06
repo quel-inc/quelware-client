@@ -1,6 +1,6 @@
 import enum
 from dataclasses import dataclass
-from typing import NewType
+from typing import Final, NewType
 
 from ..resource import ResourceId
 
@@ -16,6 +16,7 @@ class InstrumentRole(enum.Enum):
     UNSPECIFIED = enum.auto()
     TRANSMITTER = enum.auto()
     TRANSCEIVER = enum.auto()
+    RECEIVER = enum.auto()
 
 
 class InstrumentStatus(enum.Enum):
@@ -58,7 +59,7 @@ class InstrumentDefinition[P: ProfileVariant]:
 
 @dataclass
 class InstrumentInfo[P: ProfileVariant, C: ConfigVariant]:
-    id: ResourceId
+    id: Final[ResourceId]
     port_id: ResourceId
     definition: InstrumentDefinition[P]
     config: C

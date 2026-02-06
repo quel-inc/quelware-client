@@ -12,12 +12,17 @@ class SetFrequency:
 
 @dataclass
 class SetPhaseOffset:
-    radian: float
+    degree: float
 
 
 @dataclass
 class SetTimingOffset:
     offset_samples: int
+
+
+@dataclass
+class SetLoop:
+    loop_count: int
 
 
 type WaveformLibrary = Sequence[IqWaveform]
@@ -30,11 +35,13 @@ class WaveformEvent:
     gain: float
     phase_offset_deg: float
 
+
 @dataclass
 class CaptureWindow:
     name: str
     start_offset_samples: int
     length_samples: int
+
 
 @dataclass
 class SetFixedTimeline:
@@ -43,8 +50,9 @@ class SetFixedTimeline:
     capture_windows: list[CaptureWindow]
     length: int
 
+
 type FixedTimelineDirective = (
-    SetFrequency | SetPhaseOffset | SetTimingOffset | SetFixedTimeline 
+    SetFrequency | SetPhaseOffset | SetTimingOffset | SetFixedTimeline | SetLoop
 )
 
 type AnotherModeDirective = Never

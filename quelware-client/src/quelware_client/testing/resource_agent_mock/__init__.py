@@ -10,11 +10,11 @@ from quelware_core.entities.instrument import (
     InstrumentRole,
 )
 from quelware_core.entities.port import PortInfo, PortRole
-from quelware_core.entities.resource import ResourceId, ResourceInfo, ResourceType
+from quelware_core.entities.resource import ResourceCategory, ResourceId, ResourceInfo
 
 from quelware_client.core.exceptions import (
+    ResourceCategoryNotMatchedError,
     ResourceNotFoundError,
-    ResourceTypeNotMatchedError,
 )
 from quelware_client.core.interfaces.resource_agent import ResourceAgent
 
@@ -24,7 +24,7 @@ def _build_mock_config(definition: InstrumentDefinition):
         case InstrumentMode.FIXED_TIMELINE:
             return FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16)
         case InstrumentMode.UNSPECIFIED:
-            raise ValueError("Unspecified type")
+            raise ValueError("Unspecified category")
         case _:
             assert_never(definition.mode)
 
@@ -64,11 +64,11 @@ class ResourceAgentMock(ResourceAgent):
             if ri.id == resource_id
         )
         if not all(
-            ri.type == ResourceType.PORT
+            ri.category == ResourceCategory.PORT
             for ri in self.rsrc_infos
             if port.id == resource_id
         ):
-            raise ResourceTypeNotMatchedError().with_resource_ids([resource_id])
+            raise ResourceCategoryNotMatchedError().with_resource_ids([resource_id])
         return port
 
     async def get_instrument_info(self, resource_id: ResourceId) -> InstrumentInfo:
@@ -94,11 +94,11 @@ class ResourceAgentMock(ResourceAgent):
             if ri.id == resource_id
         )
         if not all(
-            ri.type == ResourceType.INSTRUMENT
+            ri.category == ResourceCategory.INSTRUMENT
             for ri in self.rsrc_infos
             if port.id == resource_id
         ):
-            raise ResourceTypeNotMatchedError().with_resource_ids([resource_id])
+            raise ResourceCategoryNotMatchedError().with_resource_ids([resource_id])
         return inst
 
 

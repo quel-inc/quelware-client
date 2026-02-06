@@ -33,7 +33,7 @@ message ConfigureResponse {}
 
 message SetupRequest {
   string session_token = 1;
-  string resource_id = 2;
+  repeated string resource_ids = 2;
 }
 
 message SetupResponse {}

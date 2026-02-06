@@ -1,8 +1,8 @@
 import pytest
 from quelware_core.entities.resource import (
+    ResourceCategory,
     ResourceId,
     ResourceInfo,
-    ResourceType,
 )
 from quelware_core.entities.unit import UnitLabel, UnitStatus
 
@@ -78,7 +78,7 @@ async def test_list_resources():
         UnitLabel("unit-a"),
         ResourceAgentMock(
             resource_infos=[
-                ResourceInfo(id=ResourceId("unit-a:p1"), type=ResourceType.PORT)
+                ResourceInfo(id=ResourceId("unit-a:p1"), category=ResourceCategory.PORT)
             ]
         ),
     )
@@ -86,9 +86,15 @@ async def test_list_resources():
         UnitLabel("unit-b"),
         ResourceAgentMock(
             resource_infos=[
-                ResourceInfo(id=ResourceId("unit-b:p1"), type=ResourceType.PORT),
-                ResourceInfo(id=ResourceId("unit-b:i1"), type=ResourceType.INSTRUMENT),
-                ResourceInfo(id=ResourceId("unit-b:i2"), type=ResourceType.INSTRUMENT),
+                ResourceInfo(
+                    id=ResourceId("unit-b:p1"), category=ResourceCategory.PORT
+                ),
+                ResourceInfo(
+                    id=ResourceId("unit-b:i1"), category=ResourceCategory.INSTRUMENT
+                ),
+                ResourceInfo(
+                    id=ResourceId("unit-b:i2"), category=ResourceCategory.INSTRUMENT
+                ),
             ]
         ),
     )
@@ -123,7 +129,7 @@ async def test_get_port():
     agent = AgentContainer()
     agent.update_resource_agent(
         unit_label,
-        ResourceAgentMock([ResourceInfo(id=port_id, type=ResourceType.PORT)]),
+        ResourceAgentMock([ResourceInfo(id=port_id, category=ResourceCategory.PORT)]),
     )
     client = QuelwareClient(
         agent=agent,
@@ -139,7 +145,9 @@ async def test_get_instrument():
     agent = AgentContainer()
     agent.update_resource_agent(
         unit_label,
-        ResourceAgentMock([ResourceInfo(id=inst_id, type=ResourceType.INSTRUMENT)]),
+        ResourceAgentMock(
+            [ResourceInfo(id=inst_id, category=ResourceCategory.INSTRUMENT)]
+        ),
     )
     client = QuelwareClient(
         agent=agent,

@@ -50,7 +50,7 @@ class Sequencer:
     ):
         if sampling_period_ns is None:
             sampling_period_ns = self._default_sampling_period_ns
-        if np.any(np.abs(waveform)) > 1:
+        if np.any(np.abs(waveform) > 1):
             raise ValueError("The amplitude must be in the range -1 to 1.")
         self._waveform_library[name] = _Waveform(
             sampling_period_ns=sampling_period_ns,
