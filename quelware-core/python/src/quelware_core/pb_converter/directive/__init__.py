@@ -42,7 +42,7 @@ def capture_mode_from_pb(pb: pb_models.CaptureMode) -> CaptureMode:
     return _CAPTURE_MODE_FROM_PB[pb]
 
 
-def _waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
+def iq_waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
     return pb_models.Waveform(
         sampled=pb_models.SampledWaveform(
             i_samples=iq_array_to_in_phase_list(entity.iq_array),
@@ -52,7 +52,7 @@ def _waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
     )
 
 
-def _waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
+def iq_waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
     _, val = betterproto2.which_one_of(pb, "waveform")
     match val:
         case pb_models.SampledWaveform():
@@ -125,7 +125,7 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
                 )
             )
         case SetFixedTimeline():
-            library_pb = [_waveform_to_pb(w) for w in entity.waveform_library]
+            library_pb = [iq_waveform_to_pb(w) for w in entity.waveform_library]
             events_pb = [_waveform_event_to_pb(e) for e in entity.events]
             capture_windows_pb = [
                 _capture_window_to_pb(e) for e in entity.capture_windows
@@ -178,7 +178,7 @@ def _fixed_timeline_directive_from_pb(
         case pb_models.SetTimingOffsetDirective():
             return SetTimingOffset(offset_samples=command.offset_samples)
         case pb_models.SetFixedTimelineDirective():
-            library = [_waveform_from_pb(w) for w in command.waveform_library]
+            library = [iq_waveform_from_pb(w) for w in command.waveform_library]
             events = [_waveform_event_from_pb(e) for e in command.events]
             capture_windows = [
                 _capture_window_from_pb(e) for e in command.capture_windows

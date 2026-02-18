@@ -44,3 +44,10 @@ select = [
     "UP", # pyupgrade
     "RUF022" # unsorted-dunder-all
 ]
+ignore = [
+    "PLR2004", # magic-value-comparison
+    "PLR0913", # too-many-arguments
+    "PLR0912", # too-many-branches
+    "PLR0915", # too-many-statements
+]
+
