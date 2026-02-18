@@ -12,5 +12,8 @@ format-check:
 	uv run ruff check --select I .
 	uv run ruff format --check .
 
+unittest:
+	uv run pytest -v tests
+
 typecheck:
 	uv run ty check

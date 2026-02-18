@@ -24,7 +24,7 @@ def iq_array_to_quadrature_phase_list(array: IqArray):
 def iq_array_from_lists(
     in_phase_list: Sequence[float], quadrature_phase_list: Sequence[float]
 ):
-    return np.array(in_phase_list, dtype=np.complex128) + np.array(
+    return np.array(in_phase_list, dtype=np.complex128) + 1j * np.array(
         quadrature_phase_list, dtype=np.complex128
     )
 
