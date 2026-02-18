@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from typing import Protocol
 
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
@@ -22,15 +23,14 @@ class InstrumentAgent(Protocol):
     async def setup(
         self,
         token: SessionToken,
-        resource_id: ResourceId,
+        resource_ids: Collection[ResourceId],
     ) -> bool: ...
 
     async def get_clock_snapshot(
         self,
     ) -> tuple[CurrentCount, ReferenceCount]: ...
 
-    async def schedule_launch(self, target_time: int) -> bool: ...
-
+    async def schedule_trigger(self, token: SessionToken, target_time: int) -> bool: ...
     async def fetch_result(
         self,
         token: SessionToken,

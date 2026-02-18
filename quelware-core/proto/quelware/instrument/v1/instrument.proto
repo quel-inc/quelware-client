@@ -11,7 +11,7 @@ service InstrumentService {
   rpc Configure(ConfigureRequest) returns (ConfigureResponse);
   rpc Setup(SetupRequest) returns (SetupResponse);
   rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
-  rpc ScheduleLaunch(ScheduleLaunchRequest) returns (ScheduleLaunchResponse);
+  rpc ScheduleTrigger(ScheduleTriggerRequest) returns (ScheduleTriggerResponse);
   rpc FetchResult(FetchResultRequest) returns (FetchResultResponse);
 }
 
@@ -45,12 +45,12 @@ message GetClockSnapshotResponse {
   uint64 reference_count = 2;
 }
 
-message ScheduleLaunchRequest {
+message ScheduleTriggerRequest {
   string session_token = 1;
-  uint64 count = 2;
+  uint64 clock_count = 2;
 }
 
-message ScheduleLaunchResponse {}
+message ScheduleTriggerResponse {}
 
 message FetchResultRequest {
   string session_token = 1;

@@ -8,11 +8,11 @@ from quelware_core.entities.directives import (
     CaptureWindow,
     Directive,
     FixedTimelineDirective,
+    SetCaptureMode,
     SetFixedTimeline,
     SetFrequency,
     SetLoop,
     SetPhaseOffset,
-    SetCaptureMode,
     SetTimingOffset,
     WaveformEvent,
 )
@@ -33,11 +33,14 @@ _CAPTURE_MODE_TO_PB = {
 
 _CAPTURE_MODE_FROM_PB = {v: k for k, v in _CAPTURE_MODE_TO_PB.items()}
 
+
 def capture_mode_to_pb(val: CaptureMode) -> pb_models.CaptureMode:
     return _CAPTURE_MODE_TO_PB[val]
 
+
 def capture_mode_from_pb(pb: pb_models.CaptureMode) -> CaptureMode:
     return _CAPTURE_MODE_FROM_PB[pb]
+
 
 def _waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
     return pb_models.Waveform(
@@ -59,6 +62,7 @@ def _waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
             )
         case _:
             raise ValueError(f"Unsupported waveform type: {type(val)}")
+
 
 def _waveform_event_to_pb(
     entity: WaveformEvent,

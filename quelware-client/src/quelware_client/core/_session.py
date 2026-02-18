@@ -94,5 +94,7 @@ class Session:
         async with asyncio.TaskGroup() as tg:
             for ul in self.unit_labels:
                 unit_to_tasks[ul] = tg.create_task(
-                    self._agent.instrument(ul).schedule_launch(target_time=target)
+                    self._agent.instrument(ul).schedule_trigger(
+                        self.token, target_time=target
+                    )
                 )

@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 import quelware_core.pb.quelware.instrument.v1 as pb_inst
 from grpclib.client import Channel
 from quelware_core.entities import directives
@@ -50,9 +52,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
     async def setup(
         self,
         token: SessionToken,
-        resource_id: ResourceId,
+        resource_ids: Collection[ResourceId],
     ) -> bool:
-        req = pb_inst.SetupRequest(session_token=token, resource_id=resource_id)
+        req = pb_inst.SetupRequest(session_token=token, resource_ids=list(resource_ids))
         await self._service.setup(req)  # TODO: error handling
         return True
 
@@ -63,9 +65,11 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resp = await self._service.get_clock_snapshot(req)
         return (resp.current_count, resp.reference_count)
 
-    async def schedule_launch(self, target_time: int) -> bool:
-        req = pb_inst.ScheduleLaunchRequest()
-        await self._service.schedule_launch(req)  # TODO: error handling
+    async def schedule_trigger(self, token: SessionToken, target_time: int) -> bool:
+        req = pb_inst.ScheduleTriggerRequest(
+            session_token=str(token), clock_count=target_time
+        )
+        await self._service.schedule_trigger(req)  # TODO: error handling
         return True
 
     async def fetch_result(

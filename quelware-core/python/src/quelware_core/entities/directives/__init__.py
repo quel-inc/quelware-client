@@ -1,6 +1,6 @@
+import enum
 from collections.abc import Sequence
 from dataclasses import dataclass
-import enum
 from typing import Never
 
 from quelware_core.entities.waveform.sampled import IqWaveform
@@ -25,6 +25,7 @@ class SetTimingOffset:
 class SetLoop:
     loop_count: int
 
+
 class CaptureMode(enum.Enum):
     UNSPECIFIED = enum.auto()
     RAW_WAVEFORMS = enum.auto()
@@ -32,9 +33,11 @@ class CaptureMode(enum.Enum):
     AVERAGED_VALUE = enum.auto()
     VALUES_PER_LOOP = enum.auto()
 
+
 @dataclass
 class SetCaptureMode:
     mode: CaptureMode
+
 
 type WaveformLibrary = Sequence[IqWaveform]
 
@@ -63,7 +66,12 @@ class SetFixedTimeline:
 
 
 type FixedTimelineDirective = (
-    SetFrequency | SetPhaseOffset | SetTimingOffset | SetFixedTimeline | SetLoop | SetCaptureMode
+    SetFrequency
+    | SetPhaseOffset
+    | SetTimingOffset
+    | SetFixedTimeline
+    | SetLoop
+    | SetCaptureMode
 )
 
 type AnotherModeDirective = Never

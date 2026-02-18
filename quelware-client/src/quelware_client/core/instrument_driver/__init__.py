@@ -68,7 +68,7 @@ class InstrumentDriver[
         return self._config
 
     async def setup(self) -> bool:
-        return await self._agent.setup(self._token, self._id)
+        return await self._agent.setup(self._token, [self._id])
 
     async def fetch_result(self) -> R:
         res = await self._agent.fetch_result(self._token, self._id)

@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.directives import Directive
 from quelware_core.entities.instrument import InstrumentStatus
@@ -26,7 +28,7 @@ class InstrumentAgentMock(InstrumentAgent):
     async def setup(
         self,
         token: SessionToken,
-        resource_id: ResourceId,
+        resource_ids: Collection[ResourceId],
     ) -> bool:
         return True
 
