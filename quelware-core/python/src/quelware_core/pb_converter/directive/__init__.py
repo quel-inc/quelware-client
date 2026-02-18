@@ -4,6 +4,7 @@ import betterproto2
 
 import quelware_core.pb.quelware.models.v1 as pb_models
 from quelware_core.entities.directives import (
+    CaptureMode,
     CaptureWindow,
     Directive,
     FixedTimelineDirective,
@@ -11,6 +12,7 @@ from quelware_core.entities.directives import (
     SetFrequency,
     SetLoop,
     SetPhaseOffset,
+    SetCaptureMode,
     SetTimingOffset,
     WaveformEvent,
 )
@@ -21,6 +23,21 @@ from quelware_core.entities.waveform.sampled import (
     iq_array_to_quadrature_phase_list,
 )
 
+_CAPTURE_MODE_TO_PB = {
+    CaptureMode.UNSPECIFIED: pb_models.CaptureMode.UNSPECIFIED,
+    CaptureMode.RAW_WAVEFORMS: pb_models.CaptureMode.RAW_WAVEFORMS,
+    CaptureMode.AVERAGED_WAVEFORM: pb_models.CaptureMode.AVERAGED_WAVEFORM,
+    CaptureMode.AVERAGED_VALUE: pb_models.CaptureMode.AVERAGED_VALUE,
+    CaptureMode.VALUES_PER_LOOP: pb_models.CaptureMode.VALUES_PER_LOOP,
+}
+
+_CAPTURE_MODE_FROM_PB = {v: k for k, v in _CAPTURE_MODE_TO_PB.items()}
+
+def capture_mode_to_pb(val: CaptureMode) -> pb_models.CaptureMode:
+    return _CAPTURE_MODE_TO_PB[val]
+
+def capture_mode_from_pb(pb: pb_models.CaptureMode) -> CaptureMode:
+    return _CAPTURE_MODE_FROM_PB[pb]
 
 def _waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
     return pb_models.Waveform(
@@ -42,7 +59,6 @@ def _waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
             )
         case _:
             raise ValueError(f"Unsupported waveform type: {type(val)}")
-
 
 def _waveform_event_to_pb(
     entity: WaveformEvent,
@@ -123,6 +139,12 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
             ft_cmd = pb_models.FixedTimelineDirective(
                 set_loop=pb_models.SetLoopDirective(loop_count=entity.loop_count)
             )
+        case SetCaptureMode():
+            ft_cmd = pb_models.FixedTimelineDirective(
+                set_capture_mode=pb_models.SetCaptureModeDirective(
+                    mode=capture_mode_to_pb(entity.mode)
+                )
+            )
         case _:
             assert_never(entity)
 
@@ -164,6 +186,8 @@ def _fixed_timeline_directive_from_pb(
                 length=length,
                 capture_windows=capture_windows,
             )
+        case pb_models.SetCaptureModeDirective():
+            return SetCaptureMode(mode=capture_mode_from_pb(command.mode))
         case pb_models.SetLoopDirective():
             return SetLoop(loop_count=command.loop_count)
         case _:

@@ -23,6 +23,7 @@ message FixedTimelineDirective {
     SetTimingOffsetDirective set_timing_offset = 3;
     SetFixedTimelineDirective set_timeline = 4;
     SetLoopDirective set_loop = 5;
+    SetCaptureModeDirective set_capture_mode = 6;
   }
 }
 
@@ -60,4 +61,16 @@ message SetFixedTimelineDirective {
 
 message SetLoopDirective {
   int32 loop_count = 1;
+}
+
+enum CaptureMode {
+  CAPTURE_MODE_UNSPECIFIED = 0;
+  CAPTURE_MODE_RAW_WAVEFORMS = 1;
+  CAPTURE_MODE_AVERAGED_WAVEFORM = 2;
+  CAPTURE_MODE_AVERAGED_VALUE = 3;
+  CAPTURE_MODE_VALUES_PER_LOOP = 4;
+}
+
+message SetCaptureModeDirective {
+  CaptureMode mode = 1;
 }
