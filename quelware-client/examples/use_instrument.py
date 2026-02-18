@@ -43,7 +43,7 @@ async def main(server_host: str, server_port: int):
             await driver.apply(
                 [
                     directives.SetFrequency(hz=4_000_000_000),
-                    directives.SetPhaseOffset(radian=0),
+                    directives.SetPhaseOffset(degree=0),
                 ]
             )
             await driver.apply(
