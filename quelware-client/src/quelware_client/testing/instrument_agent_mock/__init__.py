@@ -37,7 +37,12 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> tuple[CurrentCount, ReferenceCount]:
         return 1234, 1000
 
-    async def schedule_trigger(self, token: SessionToken, target_time: int) -> bool:
+    async def schedule_trigger(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+        target_time: int,
+    ) -> bool:
         return True
 
     async def fetch_result(

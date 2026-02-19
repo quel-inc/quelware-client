@@ -61,9 +61,16 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resp = await self._service.get_clock_snapshot(req)
         return (resp.current_count, resp.reference_count)
 
-    async def schedule_trigger(self, token: SessionToken, target_time: int) -> bool:
+    async def schedule_trigger(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+        target_time: int,
+    ) -> bool:
         req = pb_inst.ScheduleTriggerRequest(
-            session_token=str(token), clock_count=target_time
+            session_token=str(token),
+            resource_ids=list(resource_ids),
+            clock_count=target_time,
         )
         await self._service.schedule_trigger(req)  # TODO: error handling
         return True

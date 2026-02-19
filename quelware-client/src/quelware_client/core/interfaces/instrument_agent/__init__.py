@@ -30,7 +30,12 @@ class InstrumentAgent(Protocol):
         self,
     ) -> tuple[CurrentCount, ReferenceCount]: ...
 
-    async def schedule_trigger(self, token: SessionToken, target_time: int) -> bool: ...
+    async def schedule_trigger(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+        target_time: int,
+    ) -> bool: ...
     async def fetch_result(
         self,
         token: SessionToken,

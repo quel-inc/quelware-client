@@ -13,6 +13,8 @@ from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
 
+from ._utils import create_unit_to_ids_map
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,16 +87,22 @@ class Session:
         )
         return insts
 
-    async def trigger(self, wait=1000000):
-        reference_unit = self.unit_labels[0]
+    async def trigger(self, instrument_ids: Collection[ResourceId], wait=1000000):
+        unit_to_ids = create_unit_to_ids_map(instrument_ids)
+        async with asyncio.TaskGroup() as tg:
+            for unit_label, ids in unit_to_ids.items():
+                tg.create_task(
+                    self._agent.instrument(unit_label).setup(self.token, ids)
+                )
+
+        reference_unit = extract_unit_label(next(iter(instrument_ids)))
         cur, _ = await self._agent.instrument(reference_unit).get_clock_snapshot()
 
-        target = cur + wait
-        unit_to_tasks = {}
+        target_time = cur + wait
         async with asyncio.TaskGroup() as tg:
-            for ul in self.unit_labels:
-                unit_to_tasks[ul] = tg.create_task(
-                    self._agent.instrument(ul).schedule_trigger(
-                        self.token, target_time=target
+            for unit_label, ids in unit_to_ids.items():
+                tg.create_task(
+                    self._agent.instrument(unit_label).schedule_trigger(
+                        self.token, ids, target_time
                     )
                 )

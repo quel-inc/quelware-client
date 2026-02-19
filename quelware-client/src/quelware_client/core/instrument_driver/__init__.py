@@ -61,9 +61,6 @@ class InstrumentDriver[
     def instrument_config(self) -> C:
         return self._config
 
-    async def setup(self) -> bool:
-        return await self._agent.setup(self._token, [self._id])
-
     async def fetch_result(self) -> ResultContainer:
         res = await self._agent.fetch_result(self._token, self._id)
         return res
