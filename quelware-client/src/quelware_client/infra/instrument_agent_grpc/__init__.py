@@ -6,14 +6,10 @@ from quelware_core.entities import directives
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.instrument import InstrumentStatus
 from quelware_core.entities.resource import ResourceId
-from quelware_core.entities.result import FixedTimelineResult
 from quelware_core.entities.session import SessionToken
-from quelware_core.entities.waveform.sampled import (
-    IqWaveform,
-    iq_array_from_lists,
-)
 from quelware_core.pb_converter.directive import directive_to_pb
 from quelware_core.pb_converter.instrument import instrument_status_from_pb
+from quelware_core.pb_converter.result import result_container_from_pb
 
 from quelware_client.core.interfaces.instrument_agent import (
     InstrumentAgent,
@@ -77,26 +73,15 @@ class InstrumentAgentGrpc(InstrumentAgent):
         token: SessionToken,
         resource_id: ResourceId,
     ) -> ResultContainer:
-        req = pb_inst.FetchResultRequest()
-        resp = await self._service.fetch_result(req)  # TODO: error handling
+        req = pb_inst.FetchResultRequest(
+            session_token=str(token), resource_id=str(resource_id)
+        )
+        resp = await self._service.fetch_result(req)
 
-        res = ResultContainer()
-        if resp.fixed_timeline_result:
-            iq_datas = {}
-            for name, waveforms in resp.fixed_timeline_result.iq_data.items():
-                if name not in iq_datas:
-                    iq_datas[name] = []
-                for wf in waveforms.waveforms:
-                    if wf.sampled:
-                        iq_waveform = IqWaveform(
-                            sampling_period_fs=wf.sampled.sampling_period_fs,
-                            iq_array=iq_array_from_lists(
-                                wf.sampled.i_samples, wf.sampled.q_samples
-                            ),
-                        )
-                        iq_datas[name].append(iq_waveform)
-            res.fixed_timeline = FixedTimelineResult(iq_datas=iq_datas)
-        return res
+        if resp.result_container:
+            return result_container_from_pb(resp.result_container)
+
+        return ResultContainer()
 
 
 __all__ = ["InstrumentAgentGrpc"]

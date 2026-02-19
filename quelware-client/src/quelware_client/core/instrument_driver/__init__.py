@@ -1,4 +1,4 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import overload
 
 from quelware_core.entities.directives import Directive, FixedTimelineDirective
@@ -13,10 +13,7 @@ from quelware_core.entities.instrument import (
 )
 from quelware_core.entities.resource import ResourceId, extract_unit_label
 from quelware_core.entities.result import (
-    FixedTimelineResult,
     ResultContainer,
-    ResultVariant,
-    result_extractor_fixed_timeline,
 )
 from quelware_core.entities.session import SessionToken
 
@@ -28,7 +25,6 @@ class InstrumentDriver[
     D: Directive,
     C: ConfigVariant,
     P: ProfileVariant,
-    R: ResultVariant,
 ]:
     def __init__(  # noqa: PLR0913
         self,
@@ -38,7 +34,6 @@ class InstrumentDriver[
         definition: InstrumentDefinition[P],
         config: C,
         instrument_agent: InstrumentAgent,
-        result_extractor: Callable[[ResultContainer], R],
     ):
         self._token = session_token
         self._id = instrument_id
@@ -46,7 +41,6 @@ class InstrumentDriver[
         self._definition = definition
         self._config = config
         self._agent = instrument_agent
-        self._result_extractor = result_extractor
 
     @overload
     async def apply(self, directive: D) -> bool: ...
@@ -70,16 +64,15 @@ class InstrumentDriver[
     async def setup(self) -> bool:
         return await self._agent.setup(self._token, [self._id])
 
-    async def fetch_result(self) -> R:
+    async def fetch_result(self) -> ResultContainer:
         res = await self._agent.fetch_result(self._token, self._id)
-        return self._result_extractor(res)
+        return res
 
 
 type FixedTimelineInstrumentDriver = InstrumentDriver[
     FixedTimelineDirective,
     FixedTimelineConfig,
     FixedTimelineProfile,
-    FixedTimelineResult,
 ]
 
 
@@ -104,7 +97,6 @@ def create_instrument_driver_fixed_timeline(
         instrument_info.definition,
         instrument_info.config,
         session.agent_container.instrument(extract_unit_label(instrument_info.id)),
-        result_extractor_fixed_timeline,
     )
 
 

@@ -54,7 +54,7 @@ async def main(server_host: str, server_port: int):
             await session.trigger()
 
             result = await driver.fetch_result()
-            iq_datas = result.iq_datas["window1"]
+            iq_datas = result.iq_result["window1"]
             iq_data = iq_datas[0]
 
 

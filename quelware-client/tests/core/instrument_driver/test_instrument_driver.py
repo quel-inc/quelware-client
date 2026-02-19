@@ -9,7 +9,6 @@ from quelware_core.entities.instrument import (
     InstrumentRole,
 )
 from quelware_core.entities.resource import ResourceId
-from quelware_core.entities.result import result_extractor_fixed_timeline
 from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
 
@@ -38,7 +37,6 @@ def _create_inst_driver():
         ),
         FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16),
         inst_agent,
-        result_extractor_fixed_timeline,
     )
     return inst_driver
 
