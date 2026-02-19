@@ -5,7 +5,6 @@ package quelware.instrument.v1;
 import "quelware/models/v1/directive.proto";
 import "quelware/models/v1/instrument.proto";
 import "quelware/models/v1/result.proto";
-import "quelware/models/v1/waveform.proto";
 
 service InstrumentService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);

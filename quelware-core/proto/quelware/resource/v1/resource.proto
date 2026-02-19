@@ -45,6 +45,7 @@ message DeployInstrumentsRequest {
   string port_id = 1;
   repeated quelware.models.v1.InstrumentDefinition definitions = 2;
   bool append = 3;
+  string session_token = 4;
 }
 message DeployInstrumentsResponse {
   string port_id = 1;
