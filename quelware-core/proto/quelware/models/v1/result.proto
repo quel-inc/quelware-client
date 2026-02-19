@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+import "quelware/models/v1/waveform.proto";
+
+message IqPointList {
+  repeated quelware.models.v1.IqPoint iq_points = 1;
+}
+
+message WaveformList {
+  repeated quelware.models.v1.SampledWaveform waveforms = 1;
+}
+
+message IqResult {
+  oneof result {
+    WaveformList waveforms = 1;
+    IqPointList iq_points = 2;
+  }
+}
+
+message IntegerResult {
+  repeated int64 integers = 1;
+}
+
+message ResultContainer {
+  map<string, IqResult> iq_result = 1;
+  map<string, IntegerResult> integer_result = 2;
+}

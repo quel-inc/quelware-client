@@ -4,6 +4,7 @@ package quelware.instrument.v1;
 
 import "quelware/models/v1/directive.proto";
 import "quelware/models/v1/instrument.proto";
+import "quelware/models/v1/result.proto";
 import "quelware/models/v1/waveform.proto";
 
 service InstrumentService {
@@ -60,13 +61,5 @@ message FetchResultRequest {
 message FetchResultResponse {
   string session_token = 1;
   string resource_id = 2;
-  FixedTimelineResultContainer fixed_timeline_result = 3;
-
-  message IqDataResult {
-    repeated quelware.models.v1.Waveform waveforms = 1;
-  }
-
-  message FixedTimelineResultContainer {
-    map<string, IqDataResult> iq_data = 1;
-  }
+  quelware.models.v1.ResultContainer result_container = 3;
 }

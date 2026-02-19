@@ -13,3 +13,8 @@ message SampledWaveform {
   repeated double q_samples = 2;
   int64 sampling_period_fs = 3;
 }
+
+message IqPoint {
+  double i = 1;
+  double q = 2;
+}

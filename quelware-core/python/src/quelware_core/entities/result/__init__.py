@@ -1,24 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from quelware_core.entities.waveform.sampled import IqWaveform
+from quelware_core.entities.waveform.sampled import IqPoint, IqWaveform
 
 type CaptureWindowName = str
-
-
-@dataclass
-class FixedTimelineResult:
-    iq_datas: dict[CaptureWindowName, list[IqWaveform]]
-
-
-type ResultVariant = FixedTimelineResult
+type IqResult = list[IqWaveform] | list[IqPoint]
 
 
 @dataclass
 class ResultContainer:
-    fixed_timeline: FixedTimelineResult | None = None
-
-
-def result_extractor_fixed_timeline(container: ResultContainer) -> FixedTimelineResult:
-    if container.fixed_timeline is not None:
-        return container.fixed_timeline
-    raise ValueError("Result not available.")
+    iq_result: dict[CaptureWindowName, IqResult] = field(default_factory=dict)
+    integer_result: dict[CaptureWindowName, list[int]] = field(default_factory=dict)

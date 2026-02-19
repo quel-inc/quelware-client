@@ -5,6 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 type IqArray = npt.NDArray[np.complex128]
+type IqPoint = complex
 
 
 @dataclass
@@ -31,6 +32,7 @@ def iq_array_from_lists(
 
 __all__ = [
     "IqArray",
+    "IqPoint",
     "IqWaveform",
     "iq_array_from_lists",
     "iq_array_to_in_phase_list",

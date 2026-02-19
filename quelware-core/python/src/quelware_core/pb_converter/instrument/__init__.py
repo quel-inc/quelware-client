@@ -1,5 +1,3 @@
-from typing import assert_never
-
 import quelware_core.pb.quelware.models.v1 as pb_models
 from quelware_core.entities.instrument import (
     FixedTimelineConfig,
@@ -80,7 +78,7 @@ def instrument_definition_to_pb(
                 frequency_range_max=entity.profile.frequency_range_max,
             )
         case _:
-            assert_never(entity.profile)
+            raise ValueError(f"Unknown profile: {entity.profile}")
 
     return pb
 
@@ -118,7 +116,7 @@ def instrument_to_pb(entity: InstrumentInfo) -> pb_models.Instrument:
                 bitdepth=entity.config.bitdepth,
             )
         case _:
-            assert_never(entity.config)
+            raise ValueError(f"Unknown config: {entity.config}")
     return pb
 
 
