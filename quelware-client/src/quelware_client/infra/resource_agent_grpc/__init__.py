@@ -8,6 +8,7 @@ from quelware_core.entities.instrument import (
 )
 from quelware_core.entities.port import PortInfo
 from quelware_core.entities.resource import ResourceId, ResourceInfo
+from quelware_core.entities.session import SessionToken
 from quelware_core.pb_converter.instrument import (
     instrument_definition_to_pb,
     instrument_from_pb,
@@ -33,10 +34,14 @@ class ResourceAgentGrpc(ResourceAgent):
         port_id: ResourceId,
         definitions: Collection[InstrumentDefinition],
         append: bool,
+        session_token: SessionToken,
     ) -> list[InstrumentInfo]:
         definitions_pb = list(map(instrument_definition_to_pb, definitions))
         req = pb_res.DeployInstrumentsRequest(
-            port_id=port_id, definitions=definitions_pb, append=append
+            port_id=port_id,
+            definitions=definitions_pb,
+            append=append,
+            session_token=str(session_token),
         )
         resp = await self._service.deploy_instruments(req)
         insts = list(map(instrument_from_pb, resp.instruments))

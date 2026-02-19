@@ -11,6 +11,7 @@ from quelware_core.entities.instrument import (
 )
 from quelware_core.entities.port import PortInfo, PortRole
 from quelware_core.entities.resource import ResourceCategory, ResourceId, ResourceInfo
+from quelware_core.entities.session import SessionToken
 
 from quelware_client.core.exceptions import (
     ResourceCategoryNotMatchedError,
@@ -43,6 +44,7 @@ class ResourceAgentMock(ResourceAgent):
         port_id: ResourceId,
         definitions: Collection[InstrumentDefinition],
         append: bool,
+        session_token: SessionToken,
     ) -> list[InstrumentInfo]:
         if port_id not in (rinfo.id for rinfo in self.rsrc_infos):
             raise ResourceNotFoundError().with_resource_ids([port_id])

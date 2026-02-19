@@ -83,7 +83,7 @@ class Session:
         port_id = ResourceId(port_id)
         unit_label = extract_unit_label(port_id)
         insts = await self._agent.resource(unit_label).deploy_instruments(
-            port_id, list(definitions), append=append
+            port_id, list(definitions), append, self.token
         )
         return insts
 

@@ -8,6 +8,7 @@ from quelware_core.entities.instrument import (
 )
 from quelware_core.entities.port import PortInfo
 from quelware_core.entities.resource import ResourceId, ResourceInfo
+from quelware_core.entities.session import SessionToken
 
 
 class ResourceAgent(Protocol):
@@ -18,6 +19,7 @@ class ResourceAgent(Protocol):
         port_id: ResourceId,
         definitions: Collection[InstrumentDefinition[ProfileVariant]],
         append: bool,
+        session_token: SessionToken,
     ) -> list[InstrumentInfo]: ...
 
     async def get_port_info(self, resource_id: ResourceId) -> PortInfo: ...
