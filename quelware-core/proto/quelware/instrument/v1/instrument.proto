@@ -48,7 +48,8 @@ message GetClockSnapshotResponse {
 
 message ScheduleTriggerRequest {
   string session_token = 1;
-  uint64 clock_count = 2;
+  repeated string resource_ids = 2;
+  uint64 clock_count = 3;
 }
 
 message ScheduleTriggerResponse {}
