@@ -11,6 +11,7 @@ dependencies = [
     "betterproto2>=0.9.1",
     "grpclib>=0.4.8",
     "numpy>=2.4.1",
+    "googleapis-common-protos>=1.66.0",
 ]
 
 [build-system]
