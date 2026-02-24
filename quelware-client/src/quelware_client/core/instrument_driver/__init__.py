@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import overload
+from typing import Generic, TypeAlias, TypeVar, overload
 
 from quelware_core.entities.directives import Directive, FixedTimelineDirective
 from quelware_core.entities.instrument import (
@@ -20,12 +20,12 @@ from quelware_core.entities.session import SessionToken
 from quelware_client.core import Session
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 
+D = TypeVar("D", bound="Directive")
+C = TypeVar("C", bound="ConfigVariant")
+P = TypeVar("P", bound="ProfileVariant")
 
-class InstrumentDriver[
-    D: Directive,
-    C: ConfigVariant,
-    P: ProfileVariant,
-]:
+
+class InstrumentDriver(Generic[D, C, P]):
     def __init__(  # noqa: PLR0913
         self,
         session_token: SessionToken,
@@ -66,7 +66,7 @@ class InstrumentDriver[
         return res
 
 
-type FixedTimelineInstrumentDriver = InstrumentDriver[
+FixedTimelineInstrumentDriver: TypeAlias = InstrumentDriver[
     FixedTimelineDirective,
     FixedTimelineConfig,
     FixedTimelineProfile,

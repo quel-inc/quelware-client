@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Callable, Collection
-from typing import cast
+from typing import TypeAlias, TypeVar, cast
 
 from quelware_core.entities.instrument import InstrumentInfo
 from quelware_core.entities.port import PortInfo
@@ -17,9 +17,9 @@ from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 from ._session import Session
 from .interfaces.resource_agent import ResourceAgent
 
-type AgentFactory[A] = Callable[[UnitLabel], A]
-
-type _ResourceId = ResourceId | str
+A = TypeVar("A")
+AgentFactory: TypeAlias = Callable[[UnitLabel], A]
+_ResourceId: TypeAlias = ResourceId | str
 
 
 class QuelwareClient:
@@ -63,13 +63,13 @@ class QuelwareClient:
         )
 
     async def list_resource_infos(self) -> list[ResourceInfo]:
-        tasks = []
-        async with asyncio.TaskGroup() as tg:
-            for inst_agent in (self._agent.resource(ul) for ul in self._unit_labels):
-                tasks.append(tg.create_task(inst_agent.list_resource_infos()))
+        coros = [
+            self._agent.resource(ul).list_resource_infos() for ul in self._unit_labels
+        ]
+        results = await asyncio.gather(*coros)
         rsrc_infos: list[ResourceInfo] = []
-        for t in tasks:
-            rsrc_infos.extend(t.result())
+        for res in results:
+            rsrc_infos.extend(res)
         return rsrc_infos
 
     async def get_port_info(self, port_id: ResourceId) -> PortInfo:

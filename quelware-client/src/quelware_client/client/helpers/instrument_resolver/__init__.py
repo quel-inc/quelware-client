@@ -1,5 +1,5 @@
+import asyncio
 import logging
-from asyncio import TaskGroup
 
 from quelware_core.entities.instrument import InstrumentInfo
 from quelware_core.entities.resource import (
@@ -23,13 +23,10 @@ class InstrumentResolver:
             for rinfo in await client.list_resource_infos()
             if rinfo.category is ResourceCategory.INSTRUMENT
         )
-        tasks = []
-        async with TaskGroup() as tg:
-            for rinfo in resource_infos:
-                tasks.append(tg.create_task(client.get_instrument_info(rinfo.id)))
-        inst_infos: list[InstrumentInfo] = []
-        for t in tasks:
-            inst_infos.append(t.result())
+
+        coros = [client.get_instrument_info(rinfo.id) for rinfo in resource_infos]
+
+        inst_infos: list[InstrumentInfo] = await asyncio.gather(*coros)
 
         new_id_to_inst_info = {}
         new_alias_to_id = {}

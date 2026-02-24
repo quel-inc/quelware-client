@@ -1,8 +1,8 @@
 from abc import ABC
-from typing import Self
 
 from quelware_core.entities.resource import ResourceId
 from quelware_core.entities.unit import UnitLabel
+from typing_extensions import Self
 
 
 class QuelwareClientError(Exception):

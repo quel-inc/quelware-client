@@ -1,5 +1,4 @@
 from collections.abc import Collection
-from typing import assert_never
 
 from quelware_core.entities.instrument import (
     FixedTimelineConfig,
@@ -12,6 +11,7 @@ from quelware_core.entities.instrument import (
 from quelware_core.entities.port import PortInfo, PortRole
 from quelware_core.entities.resource import ResourceCategory, ResourceId, ResourceInfo
 from quelware_core.entities.session import SessionToken
+from typing_extensions import assert_never
 
 from quelware_client.core.exceptions import (
     ResourceCategoryNotMatchedError,

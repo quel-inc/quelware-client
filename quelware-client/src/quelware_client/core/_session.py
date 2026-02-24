@@ -91,20 +91,21 @@ class Session:
 
     async def trigger(self, instrument_ids: Collection[ResourceId], wait=1000000):
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
-        async with asyncio.TaskGroup() as tg:
-            for unit_label, ids in unit_to_ids.items():
-                tg.create_task(
-                    self._agent.instrument(unit_label).setup(self.token, ids)
-                )
+
+        setup_coros = [
+            self._agent.instrument(unit_label).setup(self.token, ids)
+            for unit_label, ids in unit_to_ids.items()
+        ]
+        await asyncio.gather(*setup_coros)
 
         reference_unit = extract_unit_label(next(iter(instrument_ids)))
         cur, _ = await self._agent.instrument(reference_unit).get_clock_snapshot()
-
         target_time = cur + wait
-        async with asyncio.TaskGroup() as tg:
-            for unit_label, ids in unit_to_ids.items():
-                tg.create_task(
-                    self._agent.instrument(unit_label).schedule_trigger(
-                        self.token, ids, target_time
-                    )
-                )
+
+        trigger_coros = [
+            self._agent.instrument(unit_label).schedule_trigger(
+                self.token, ids, target_time
+            )
+            for unit_label, ids in unit_to_ids.items()
+        ]
+        await asyncio.gather(*trigger_coros)
