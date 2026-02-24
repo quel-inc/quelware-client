@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "betterproto2>=0.9.1",
     "grpclib>=0.4.8",
-    "numpy>=2.4.1",
+    "numpy>=1.26.0,<2",
     "googleapis-common-protos>=1.66.0",
 ]
 
