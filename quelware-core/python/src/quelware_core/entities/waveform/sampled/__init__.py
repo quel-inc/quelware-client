@@ -1,11 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TypeAlias
 
 import numpy as np
 import numpy.typing as npt
 
-type IqArray = npt.NDArray[np.complex128]
-type IqPoint = complex
+IqArray: TypeAlias = npt.NDArray[np.complex128]
+IqPoint: TypeAlias = complex
 
 
 @dataclass

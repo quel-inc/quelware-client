@@ -1,6 +1,6 @@
 import enum
 from dataclasses import dataclass
-from typing import Final, NewType
+from typing import Final, Generic, NewType, TypeAlias, TypeVar
 
 from ..resource import ResourceId
 
@@ -46,12 +46,15 @@ class FixedTimelineProfile:
     frequency_range_max: float
 
 
-type ConfigVariant = FixedTimelineConfig
-type ProfileVariant = FixedTimelineProfile
+ConfigVariant: TypeAlias = FixedTimelineConfig
+ProfileVariant: TypeAlias = FixedTimelineProfile
+
+P = TypeVar("P", bound=ProfileVariant)
+C = TypeVar("C", bound=ConfigVariant)
 
 
 @dataclass
-class InstrumentDefinition[P: ProfileVariant]:
+class InstrumentDefinition(Generic[P]):
     alias: str
     mode: InstrumentMode
     role: InstrumentRole
@@ -59,7 +62,7 @@ class InstrumentDefinition[P: ProfileVariant]:
 
 
 @dataclass
-class InstrumentInfo[P: ProfileVariant, C: ConfigVariant]:
+class InstrumentInfo(Generic[P, C]):
     id: Final[ResourceId]
     port_id: ResourceId
     definition: InstrumentDefinition[P]

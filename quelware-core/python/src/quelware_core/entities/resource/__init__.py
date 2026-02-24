@@ -1,7 +1,7 @@
 import enum
 from collections.abc import Collection
 from dataclasses import dataclass
-from typing import Final, NewType, Protocol
+from typing import Final, NewType, Protocol, TypeAlias
 
 from ..unit import UnitLabel
 
@@ -28,7 +28,7 @@ class _ResourceAsReadOnlyProperty(Protocol):
     def depends_on(self) -> list[ResourceId]: ...
 
 
-type Resource = _ResourceAsField | _ResourceAsReadOnlyProperty
+Resource: TypeAlias = _ResourceAsField | _ResourceAsReadOnlyProperty
 
 
 @dataclass

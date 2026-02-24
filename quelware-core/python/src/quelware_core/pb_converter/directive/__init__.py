@@ -1,6 +1,5 @@
-from typing import assert_never
-
 import betterproto2
+from typing_extensions import assert_never
 
 import quelware_core.pb.quelware.models.v1 as pb_models
 from quelware_core.entities.directives import (

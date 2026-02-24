@@ -1,2 +1,4 @@
-type CurrentCount = int
-type ReferenceCount = int
+from typing import TypeAlias
+
+CurrentCount: TypeAlias = int
+ReferenceCount: TypeAlias = int

@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
+from typing import TypeAlias
 
 from quelware_core.entities.waveform.sampled import IqPoint, IqWaveform
 
-type CaptureWindowName = str
-type IqResult = list[IqWaveform] | list[IqPoint]
+CaptureWindowName: TypeAlias = str
+IqResult: TypeAlias = list[IqWaveform] | list[IqPoint]
 
 
 @dataclass

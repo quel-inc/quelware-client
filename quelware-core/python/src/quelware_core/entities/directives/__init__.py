@@ -1,7 +1,9 @@
 import enum
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Never
+from typing import TypeAlias
+
+from typing_extensions import Never
 
 from quelware_core.entities.waveform.sampled import IqWaveform
 
@@ -39,7 +41,7 @@ class SetCaptureMode:
     mode: CaptureMode
 
 
-type WaveformLibrary = Sequence[IqWaveform]
+WaveformLibrary: TypeAlias = Sequence[IqWaveform]
 
 
 @dataclass
@@ -65,7 +67,7 @@ class SetFixedTimeline:
     length: int
 
 
-type FixedTimelineDirective = (
+FixedTimelineDirective: TypeAlias = (
     SetFrequency
     | SetPhaseOffset
     | SetTimingOffset
@@ -74,6 +76,6 @@ type FixedTimelineDirective = (
     | SetCaptureMode
 )
 
-type AnotherModeDirective = Never
+AnotherModeDirective: TypeAlias = Never
 
-type Directive = FixedTimelineDirective | AnotherModeDirective
+Directive: TypeAlias = FixedTimelineDirective | AnotherModeDirective
