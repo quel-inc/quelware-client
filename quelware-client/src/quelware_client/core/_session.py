@@ -40,6 +40,7 @@ class Session:
             committed_ttl_ms=self._ttl_ms,
         )
         self._token = token
+        logger.info(f"Session opened successfully. session_token={token}")
 
     @property
     def available_resource_ids(self) -> set[ResourceId]:
@@ -61,6 +62,7 @@ class Session:
 
     async def close(self):
         await self._agent.session.close_session(self.token)
+        logger.info(f"Session closed. session_token={self.token}")
 
     async def __aenter__(self):
         await self.open()
