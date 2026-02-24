@@ -16,6 +16,7 @@ class InstrumentRole(enum.Enum):
     UNSPECIFIED = enum.auto()
     TRANSMITTER = enum.auto()
     TRANSCEIVER = enum.auto()
+    TRANSCEIVER_LOOPBACK = enum.auto()
     RECEIVER = enum.auto()
 
 

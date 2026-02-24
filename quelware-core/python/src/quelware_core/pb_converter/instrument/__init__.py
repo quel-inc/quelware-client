@@ -30,6 +30,7 @@ _INSTRUMENT_ROLE_TO_PB = {
     InstrumentRole.UNSPECIFIED: pb_models.InstrumentRole.UNSPECIFIED,
     InstrumentRole.TRANSMITTER: pb_models.InstrumentRole.TRANSMITTER,
     InstrumentRole.TRANSCEIVER: pb_models.InstrumentRole.TRANSCEIVER,
+    InstrumentRole.TRANSCEIVER_LOOPBACK: pb_models.InstrumentRole.TRANSCEIVER_LOOPBACK,
 }
 
 _INSTRUMENT_ROLE_FROM_PB = {v: k for k, v in _INSTRUMENT_ROLE_TO_PB.items()}
