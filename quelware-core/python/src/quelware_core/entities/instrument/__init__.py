@@ -38,6 +38,7 @@ class InstrumentLockStatus(enum.Enum):
 class FixedTimelineConfig:
     sampling_period_fs: int
     bitdepth: int
+    timeline_step_samples: int
 
 
 @dataclass
