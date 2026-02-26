@@ -23,7 +23,9 @@ from quelware_client.core.interfaces.resource_agent import ResourceAgent
 def _build_mock_config(definition: InstrumentDefinition):
     match definition.mode:
         case InstrumentMode.FIXED_TIMELINE:
-            return FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16)
+            return FixedTimelineConfig(
+                sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+            )
         case InstrumentMode.UNSPECIFIED:
             raise ValueError("Unspecified category")
         case _:
@@ -87,7 +89,9 @@ class ResourceAgentMock(ResourceAgent):
                 frequency_range_min=100, frequency_range_max=1000
             ),
         )
-        config = FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16)
+        config = FixedTimelineConfig(
+            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+        )
         inst = next(
             InstrumentInfo(
                 id=ri.id, port_id=port.id, definition=definition, config=config

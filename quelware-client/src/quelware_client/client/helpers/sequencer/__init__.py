@@ -41,6 +41,7 @@ class Sequencer:
         )
         self._length_ns: float = 0
         self._default_sampling_period_ns: float = default_sampling_period_ns
+        self._iterations: int = 1
 
     def register_waveform(
         self,
@@ -102,6 +103,9 @@ class Sequencer:
     def length_ns(self) -> float:
         return self._length_ns
 
+    def set_iterations(self, iterations: int):
+        self._iterations = iterations
+
     def export_set_fixed_timeline_directive(
         self, instrument_alias: str, sampling_period_fs: int
     ) -> SetFixedTimeline:
@@ -155,6 +159,7 @@ class Sequencer:
             events=local_events,
             capture_windows=local_capwins,
             length=length_sample,
+            iterations=self._iterations,
         )
 
 

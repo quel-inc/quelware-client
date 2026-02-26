@@ -35,7 +35,9 @@ def _create_inst_driver():
                 frequency_range_min=5_000_000_000, frequency_range_max=5_100_000_000
             ),
         ),
-        FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16),
+        FixedTimelineConfig(
+            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+        ),
         inst_agent,
     )
     return inst_driver
@@ -70,7 +72,9 @@ def test_create_instrument_driver_fixed_timeline():
                 frequency_range_min=5_000_000_000, frequency_range_max=5_100_000_000
             ),
         ),
-        config=FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16),
+        config=FixedTimelineConfig(
+            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=64
+        ),
     )
     create_instrument_driver_fixed_timeline(session, instrument_info)
 
@@ -95,7 +99,9 @@ def test_create_instrument_driver_fixed_timeline_with_invalid_id_raises_error():
                 frequency_range_min=5_000_000_000, frequency_range_max=5_100_000_000
             ),
         ),
-        config=FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16),
+        config=FixedTimelineConfig(
+            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+        ),
     )
 
     with pytest.raises(ValueError):
@@ -122,7 +128,9 @@ def test_create_instrument_driver_fixed_timeline_with_mismatched_mode_raises_err
                 frequency_range_min=5_000_000_000, frequency_range_max=5_100_000_000
             ),
         ),
-        config=FixedTimelineConfig(sampling_period_fs=400_000, bitdepth=16),
+        config=FixedTimelineConfig(
+            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+        ),
     )
 
     with pytest.raises(ValueError):
