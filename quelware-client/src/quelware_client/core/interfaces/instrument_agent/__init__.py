@@ -20,7 +20,7 @@ class InstrumentAgent(Protocol):
         self, token: SessionToken, resource_id: ResourceId, directive: Directive
     ) -> bool: ...
 
-    async def setup(
+    async def apply(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],

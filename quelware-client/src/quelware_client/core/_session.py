@@ -93,7 +93,7 @@ class Session:
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         setup_coros = [
-            self._agent.instrument(unit_label).setup(self.token, ids)
+            self._agent.instrument(unit_label).apply(self.token, ids)
             for unit_label, ids in unit_to_ids.items()
         ]
         await asyncio.gather(*setup_coros)

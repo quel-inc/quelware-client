@@ -25,7 +25,7 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> bool:
         return True
 
-    async def setup(
+    async def apply(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],

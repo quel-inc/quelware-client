@@ -10,6 +10,7 @@ from quelware_core.entities.session import SessionToken
 from quelware_core.pb_converter.directive import directive_to_pb
 from quelware_core.pb_converter.instrument import instrument_status_from_pb
 from quelware_core.pb_converter.result import result_container_from_pb
+from typing_extensions import override
 
 from quelware_client.core.interfaces.instrument_agent import (
     InstrumentAgent,
@@ -22,6 +23,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         self._channel = grpc_channel
         self._service = pb_inst.InstrumentServiceStub(self._channel, metadata=metadata)
 
+    @override
     async def get_status(
         self,
         token: SessionToken,
@@ -31,6 +33,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resp = await self._service.get_status(req)
         return instrument_status_from_pb(resp.status)
 
+    @override
     async def configure(
         self,
         token: SessionToken,
@@ -45,15 +48,17 @@ class InstrumentAgentGrpc(InstrumentAgent):
         await self._service.configure(req)  # TODO: error handling
         return True
 
-    async def setup(
+    @override
+    async def apply(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],
     ) -> bool:
-        req = pb_inst.SetupRequest(session_token=token, resource_ids=list(resource_ids))
-        await self._service.setup(req)  # TODO: error handling
+        req = pb_inst.ApplyRequest(session_token=token, resource_ids=list(resource_ids))
+        await self._service.apply(req)  # TODO: error handling
         return True
 
+    @override
     async def get_clock_snapshot(
         self,
     ) -> tuple[CurrentCount, ReferenceCount]:
@@ -61,6 +66,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resp = await self._service.get_clock_snapshot(req)
         return (resp.current_count, resp.reference_count)
 
+    @override
     async def schedule_trigger(
         self,
         token: SessionToken,
@@ -75,6 +81,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         await self._service.schedule_trigger(req)  # TODO: error handling
         return True
 
+    @override
     async def fetch_result(
         self,
         token: SessionToken,
