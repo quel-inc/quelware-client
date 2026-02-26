@@ -38,6 +38,7 @@ def test_set_fixed_timeline_roundtrip():
             CaptureWindow(name="cap1", start_offset_samples=20, length_samples=100)
         ],
         length=200,
+        iterations=4,
     )
 
     pb = directive_to_pb(original)

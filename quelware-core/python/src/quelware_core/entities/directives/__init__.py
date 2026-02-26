@@ -23,17 +23,12 @@ class SetTimingOffset:
     offset_samples: int
 
 
-@dataclass
-class SetLoop:
-    loop_count: int
-
-
 class CaptureMode(enum.Enum):
     UNSPECIFIED = enum.auto()
     RAW_WAVEFORMS = enum.auto()
     AVERAGED_WAVEFORM = enum.auto()
     AVERAGED_VALUE = enum.auto()
-    VALUES_PER_LOOP = enum.auto()
+    VALUES_PER_ITER = enum.auto()
 
 
 @dataclass
@@ -65,15 +60,11 @@ class SetFixedTimeline:
     events: list[WaveformEvent]
     capture_windows: list[CaptureWindow]
     length: int
+    iterations: int
 
 
 FixedTimelineDirective: TypeAlias = (
-    SetFrequency
-    | SetPhaseOffset
-    | SetTimingOffset
-    | SetFixedTimeline
-    | SetLoop
-    | SetCaptureMode
+    SetFrequency | SetPhaseOffset | SetTimingOffset | SetFixedTimeline | SetCaptureMode
 )
 
 AnotherModeDirective: TypeAlias = Never

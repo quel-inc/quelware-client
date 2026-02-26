@@ -10,7 +10,6 @@ from quelware_core.entities.directives import (
     SetCaptureMode,
     SetFixedTimeline,
     SetFrequency,
-    SetLoop,
     SetPhaseOffset,
     SetTimingOffset,
     WaveformEvent,
@@ -27,7 +26,7 @@ _CAPTURE_MODE_TO_PB = {
     CaptureMode.RAW_WAVEFORMS: pb_models.CaptureMode.RAW_WAVEFORMS,
     CaptureMode.AVERAGED_WAVEFORM: pb_models.CaptureMode.AVERAGED_WAVEFORM,
     CaptureMode.AVERAGED_VALUE: pb_models.CaptureMode.AVERAGED_VALUE,
-    CaptureMode.VALUES_PER_LOOP: pb_models.CaptureMode.VALUES_PER_LOOP,
+    CaptureMode.VALUES_PER_ITER: pb_models.CaptureMode.VALUES_PER_ITER,
 }
 
 _CAPTURE_MODE_FROM_PB = {v: k for k, v in _CAPTURE_MODE_TO_PB.items()}
@@ -138,10 +137,6 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
                     capture_windows=capture_windows_pb,
                 )
             )
-        case SetLoop():
-            ft_cmd = pb_models.FixedTimelineDirective(
-                set_loop=pb_models.SetLoopDirective(loop_count=entity.loop_count)
-            )
         case SetCaptureMode():
             ft_cmd = pb_models.FixedTimelineDirective(
                 set_capture_mode=pb_models.SetCaptureModeDirective(
@@ -183,15 +178,15 @@ def _fixed_timeline_directive_from_pb(
                 _capture_window_from_pb(e) for e in command.capture_windows
             ]
             length = command.length_samples
+            iterations = command.iterations
             return SetFixedTimeline(
                 waveform_library=library,
                 events=events,
                 length=length,
                 capture_windows=capture_windows,
+                iterations=iterations,
             )
         case pb_models.SetCaptureModeDirective():
             return SetCaptureMode(mode=capture_mode_from_pb(command.mode))
-        case pb_models.SetLoopDirective():
-            return SetLoop(loop_count=command.loop_count)
         case _:
             raise ValueError(f"Unsupported fixed timeline directive: {type(command)}")
