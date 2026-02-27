@@ -28,15 +28,36 @@ class QuelwareClient:
         agent: AgentContainer,
         resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
         instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
+        close_handlers: list[Callable[[], None]] | None = None,
     ):
         self._agent = agent
         self._rsrc_agent_factory = resource_agent_factory
         self._inst_agent_factory = instrument_agent_factory
         self._unit_labels: list[UnitLabel] = []
+        self._close_handlers = close_handlers or []
 
     @property
     def agent(self) -> AgentContainer:
         return self._agent
+
+    async def start(self):
+        self._unit_labels = await self._agent.system_configuration.list_active_units()
+        for ul in self._unit_labels:
+            if self._rsrc_agent_factory:
+                self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
+            if self._inst_agent_factory:
+                self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
+
+    async def stop(self):
+        for handler in self._close_handlers:
+            handler()
+
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.stop()
 
     async def initialize(self):
         self._unit_labels = await self._agent.system_configuration.list_active_units()

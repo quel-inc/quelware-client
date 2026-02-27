@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from grpclib.client import Channel
 from quelware_core.entities.unit import UnitLabel
 
@@ -34,8 +32,7 @@ def _create_default_instrument_agent_factory(channel):
     return _default_command_agent_factory
 
 
-@asynccontextmanager
-async def create_quelware_client(  # noqa: PLR0913
+def create_quelware_client(  # noqa: PLR0913
     endpoint: str = "localhost",
     port: int = 50051,
     session_agent: SessionAgent | None = None,
@@ -51,18 +48,14 @@ async def create_quelware_client(  # noqa: PLR0913
     if instrument_agent_factory is None:
         instrument_agent_factory = _create_default_instrument_agent_factory(channel)
 
-    try:
-        agent_container = AgentContainer()
-        if session_agent is None:
-            agent_container.session = SessionAgentGrpc(channel)
-        if configuration_agent is None:
-            agent_container.system_configuration = SystemConfigurationAgentGrpc(channel)
-        client = QuelwareClient(
-            agent=agent_container,
-            resource_agent_factory=resource_agent_factory,
-            instrument_agent_factory=instrument_agent_factory,
-        )
-        await client.initialize()
-        yield client
-    finally:
-        channel.close()
+    agent_container = AgentContainer()
+    if session_agent is None:
+        agent_container.session = SessionAgentGrpc(channel)
+    if configuration_agent is None:
+        agent_container.system_configuration = SystemConfigurationAgentGrpc(channel)
+    return QuelwareClient(
+        agent=agent_container,
+        resource_agent_factory=resource_agent_factory,
+        instrument_agent_factory=instrument_agent_factory,
+        close_handlers=[channel.close],
+    )

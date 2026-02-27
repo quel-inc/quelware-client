@@ -18,7 +18,8 @@ from quelware_client.core.instrument_driver import (
 async def _main_async(server_host: str, server_port: int):
     inst_resolver = InstrumentResolver()
 
-    async with create_quelware_client(server_host, server_port) as qc:
+    qc = create_quelware_client(server_host, server_port)
+    async with qc:
         port_id = "quel3-00-123:p0p1trx"
         instrument_alias = "readout"
         async with qc.create_session(port_id) as session:

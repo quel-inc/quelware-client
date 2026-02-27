@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from quelware_core.entities.resource import ResourceInfo
 from quelware_core.entities.unit import UnitLabel, UnitStatus
 
@@ -12,8 +10,7 @@ from quelware_client.testing.system_configuration_agent_mock import (
 )
 
 
-@asynccontextmanager
-async def create_mock_quelware_client(
+def create_mock_quelware_client(
     unit_to_status: dict[UnitLabel, UnitStatus],
     unit_to_resources: dict[UnitLabel, list[ResourceInfo]],
 ):
@@ -30,15 +27,8 @@ async def create_mock_quelware_client(
     def instrument_agent_factory(ul: UnitLabel) -> InstrumentAgentMock:
         return InstrumentAgentMock()
 
-    client = QuelwareClient(
+    return QuelwareClient(
         agent=agent_container,
         resource_agent_factory=resource_agent_factory,
         instrument_agent_factory=instrument_agent_factory,
     )
-
-    await client.initialize()
-
-    try:
-        yield client
-    finally:
-        pass

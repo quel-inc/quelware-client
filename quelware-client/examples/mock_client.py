@@ -25,7 +25,8 @@ async def _main_async():
         ]
     }
 
-    async with create_mock_quelware_client(unit_status, rsrcs) as client:
+    client = create_mock_quelware_client(unit_status, rsrcs)
+    async with client:
         infos = await client.list_resource_infos()
         assert len(infos) == 1
         port_id = infos[0].id
