@@ -1,3 +1,5 @@
+import logging
+
 from grpclib.client import Channel
 from quelware_core.entities.unit import UnitLabel, UnitStatus
 
@@ -8,6 +10,8 @@ from quelware_client.testing.session_agent_mock import SessionAgentMock
 from quelware_client.testing.system_configuration_agent_mock import (
     SystemConfigurationAgentMock,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_standalone_client(
@@ -33,6 +37,8 @@ def create_standalone_client(
     agent_container = AgentContainer()
     agent_container.session = session_agent
     agent_container.system_configuration = conf_agent
+
+    logging.warning("NOTE: Standalone client is for testing purposes.")
 
     return QuelwareClient(
         agent=agent_container,
