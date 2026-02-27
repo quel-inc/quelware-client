@@ -16,6 +16,12 @@ class InstrumentAgent(Protocol):
         resource_id: ResourceId,
     ) -> InstrumentStatus: ...
 
+    async def initialize(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+    ) -> None: ...
+
     async def configure(
         self, token: SessionToken, resource_id: ResourceId, directive: Directive
     ) -> bool: ...

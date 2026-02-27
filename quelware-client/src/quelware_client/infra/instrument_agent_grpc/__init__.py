@@ -34,6 +34,18 @@ class InstrumentAgentGrpc(InstrumentAgent):
         return instrument_status_from_pb(resp.status)
 
     @override
+    async def initialize(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+    ) -> None:
+        req = pb_inst.InitializeRequest(
+            session_token=token,
+            resource_ids=list(resource_ids),
+        )
+        await self._service.initialize(req)
+
+    @override
     async def configure(
         self,
         token: SessionToken,

@@ -57,6 +57,9 @@ class InstrumentDriver(Generic[D, C, P]):
         else:
             return await self._agent.configure(self._token, self._id, directive)
 
+    async def initialize(self):
+        await self._agent.initialize(self._token, [self._id])
+
     @property
     def instrument_config(self) -> C:
         return self._config
