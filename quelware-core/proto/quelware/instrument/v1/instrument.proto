@@ -8,6 +8,7 @@ import "quelware/models/v1/result.proto";
 
 service InstrumentService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc Initialize(InitializeRequest) returns (InitializeResponse);
   rpc Configure(ConfigureRequest) returns (ConfigureResponse);
   rpc Apply(ApplyRequest) returns (ApplyResponse);
   rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
@@ -22,6 +23,13 @@ message GetStatusRequest {
 message GetStatusResponse {
   quelware.models.v1.InstrumentStatus status = 1;
 }
+
+message InitializeRequest {
+  string session_token = 1;
+  repeated string resource_ids = 2;
+}
+
+message InitializeResponse {}
 
 message ConfigureRequest {
   string session_token = 1;

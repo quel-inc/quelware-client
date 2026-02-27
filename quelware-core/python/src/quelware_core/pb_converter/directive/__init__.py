@@ -129,12 +129,14 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
                 _capture_window_to_pb(e) for e in entity.capture_windows
             ]
             length_pb = entity.length
+            iterations = entity.iterations
             ft_cmd = pb_models.FixedTimelineDirective(
                 set_timeline=pb_models.SetFixedTimelineDirective(
                     waveform_library=library_pb,
                     events=events_pb,
                     length_samples=length_pb,
                     capture_windows=capture_windows_pb,
+                    iterations=iterations
                 )
             )
         case SetCaptureMode():
