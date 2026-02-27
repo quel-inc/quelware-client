@@ -63,55 +63,49 @@ async def generate_readout_pulse(
         print(f"sampling_period_fs\t= {deployed_inst_info.config.sampling_period_fs}")
         print("------------------------")
 
-        pulse_len_ns = 200.0
-        wait_len_ns = 100_000.0
-        total_cycle_ns = pulse_len_ns + wait_len_ns
-
-        seq = Sequencer(default_sampling_period_ns=0.4)
-
-        num_samples = int(pulse_len_ns / 0.4)
-        rectangular_pulse = np.array([1.0 + 0j] * num_samples)
-        seq.register_waveform("rect_pulse", rectangular_pulse)
-
-        seq.add_event(instrument_alias, "rect_pulse", start_offset_ns=0.0)
-        seq.add_capture_window(
-            instrument_alias, "window1", start_offset_ns=0.0, length_ns=pulse_len_ns
-        )
-
-        iterations = 1000
-        seq.set_iterations(iterations)
-
-        ttl_ms = int(10 * total_cycle_ns / 1e6 * iterations)
-        logger.info(f"{ttl_ms=}")
-        async with qc.create_session([inst_id], ttl_ms=ttl_ms) as session:
+        async with qc.create_session([inst_id]) as session:
             resolver = InstrumentResolver()
             await resolver.refresh(qc)
 
-            deployed_inst_info = resolver.find_inst_info_by_alias(instrument_alias)
-            driver = create_instrument_driver_fixed_timeline(
-                session, deployed_inst_info
+            inst_info = resolver.find_inst_info_by_alias(instrument_alias)
+            driver = create_instrument_driver_fixed_timeline(session, inst_info)
+
+            seq = Sequencer(default_sampling_period_ns=0.4, enforce_sample_grid=True)
+
+            seq.bind(
+                alias=instrument_alias,
+                sampling_period_fs=driver.instrument_config.sampling_period_fs,
+                step_samples=driver.instrument_config.timeline_step_samples,
             )
-            await driver.initialize()
-            print(f"{deployed_inst_info=}")
+
+            pulse_len_ns = 200.0
+            wait_len_ns = 100_000.0
+
+            num_samples = int(pulse_len_ns / 0.4)
+            seq.register_waveform("rect_pulse", np.array([1.0 + 0j] * num_samples))
+
+            seq.add_event(instrument_alias, "rect_pulse", start_offset_ns=0.0)
+            # start_offset_ns=0.1 fails when enforce_sample_grid=True
+            seq.add_capture_window(
+                instrument_alias, "window1", start_offset_ns=0.0, length_ns=pulse_len_ns
+            )
+
+            seq.extend_length_ns(wait_len_ns)
+            seq.set_iterations(1000)
 
             await driver.apply([directives.SetFrequency(hz=6.0e9)])
-
             if average_on_dsp:
                 await driver.apply(
-                    directives.SetCaptureMode(mode=CaptureMode.VALUES_PER_ITER)
+                    directives.SetCaptureMode(mode=CaptureMode.AVERAGED_VALUE)
                 )
             else:
                 await driver.apply(
                     directives.SetCaptureMode(mode=CaptureMode.RAW_WAVEFORMS)
                 )
 
-            timeline = seq.export_set_fixed_timeline_directive(
-                instrument_alias, driver.instrument_config.sampling_period_fs
-            )
-            timeline.length = round(
-                total_cycle_ns * 1e6 / driver.instrument_config.sampling_period_fs
-            )
-
+            timeline = seq.export_set_fixed_timeline_directive(instrument_alias)
+            print(timeline.length % 128)
+            print(timeline.length)
             await driver.apply(timeline)
 
             await session.trigger([inst_id])

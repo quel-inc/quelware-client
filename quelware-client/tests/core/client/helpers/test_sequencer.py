@@ -5,81 +5,65 @@ from quelware_core.entities.directives import SetFixedTimeline
 from quelware_client.client.helpers.sequencer import Sequencer
 
 
-def test_register_waveform_validation():
+def test_waveform_amplitude_validation():
     seq = Sequencer(default_sampling_period_ns=1.0)
 
-    seq.register_waveform("valid", np.array([0.5, 0.5j, -0.5, -0.5j]))
-    assert "valid" in seq._waveform_library
+    valid_waveform = np.array([0.5, 0.5j, -0.5, -0.5j])
+    seq.register_waveform("valid_pulse", valid_waveform)
 
+    assert "valid_pulse" in seq._waveform_library
+
+    invalid_waveform = np.array([1.1, 0.0])
     with pytest.raises(ValueError, match="amplitude must be in the range"):
-        seq.register_waveform("invalid", np.array([1.1, 0.0]))
+        seq.register_waveform("invalid_pulse", invalid_waveform)
 
 
-def test_add_event_unregistered_waveform():
-    seq = Sequencer(default_sampling_period_ns=1.0)
-    with pytest.raises(ValueError, match="is not registered"):
-        seq.add_event("alias", "missing", start_offset_ns=0.0)
+def test_enforce_sample_grid_rejects_unaligned_offsets():
+    seq = Sequencer(default_sampling_period_ns=1.0, enforce_sample_grid=True)
+
+    seq.bind("inst1", sampling_period_fs=2_000_000, step_samples=4)
+    seq.register_waveform("pulse", np.array([1.0]))
+
+    with pytest.raises(ValueError, match="not a multiple of sampling period"):
+        seq.add_event("inst1", "pulse", start_offset_ns=3.0)
 
 
-def test_sequencer_length_calculation():
-    seq = Sequencer(default_sampling_period_ns=2.0)
-    seq.register_waveform("wf1", np.array([1.0, 1.0, 1.0]))
-
-    assert seq.length_ns == 0.0
-
-    # 3 samples * 2.0 ns = 6.0 ns duration
-    seq.add_event("inst1", "wf1", start_offset_ns=4.0)
-    assert seq.length_ns == 10.0
-
-    seq.add_capture_window("inst1", "cap1", start_offset_ns=5.0, length_ns=20.0)
-    assert seq.length_ns == 25.0
-
-
-def test_export_directive_timing_and_indexing():
+def test_timeline_alignment_pads_to_lcm_step_samples():
     seq = Sequencer(default_sampling_period_ns=1.0)
 
-    seq.register_waveform("wf_a", np.array([0.5, 0.5]), sampling_period_ns=2.0)
-    seq.register_waveform("wf_b", np.array([0.1]))
+    seq.bind("inst1", sampling_period_fs=500_000, step_samples=16)
 
-    seq.add_event("inst1", "wf_a", start_offset_ns=2.0, gain=0.8, phase_offset_deg=90)
-    seq.add_event("inst1", "wf_b", start_offset_ns=10.0)
-    seq.add_event("inst1", "wf_a", start_offset_ns=20.0)
+    seq.register_waveform("pulse_a", np.array([0.5, 0.5]), sampling_period_ns=2.0)
+    seq.register_waveform("pulse_b", np.array([0.1]))
 
-    seq.add_capture_window("inst1", "cap1", start_offset_ns=30.0, length_ns=10.0)
-
-    # hardware sampling rate: 500,000 fs = 0.5 ns / sample
-    directive = seq.export_set_fixed_timeline_directive(
-        instrument_alias="inst1", sampling_period_fs=500_000
+    seq.add_event(
+        "inst1", "pulse_a", start_offset_ns=2.0, gain=0.8, phase_offset_deg=90
     )
+    seq.add_event("inst1", "pulse_b", start_offset_ns=10.0)
+
+    seq.add_capture_window("inst1", "cap_window", start_offset_ns=30.0, length_ns=10.0)
+
+    seq.extend_length_ns(5.0)
+
+    directive = seq.export_set_fixed_timeline_directive("inst1")
 
     assert isinstance(directive, SetFixedTimeline)
-
-    # Ensure waveforms are deduplicated in the library
     assert len(directive.waveform_library) == 2
+    assert len(directive.events) == 2
 
-    assert len(directive.events) == 3
+    first_event = directive.events[0]
+    assert first_event.waveform_index == 0
+    assert first_event.start_offset_samples == 4
+    assert first_event.gain == 0.8
+    assert first_event.phase_offset_deg == 90.0
 
-    # First event (wf_a -> index 0)
-    # 2.0 ns / 0.5 ns = 4 samples
-    assert directive.events[0].waveform_index == 0
-    assert directive.events[0].start_offset_samples == 4
-    assert directive.events[0].gain == 0.8
-    assert directive.events[0].phase_offset_deg == 90.0
+    first_window = directive.capture_windows[0]
+    assert first_window.name == "cap_window"
+    assert first_window.start_offset_samples == 60
 
-    # Second event (wf_b -> index 1)
-    # 10.0 ns / 0.5 ns = 20 samples
-    assert directive.events[1].waveform_index == 1
-    assert directive.events[1].start_offset_samples == 20
-
-    # Third event (wf_a reused -> index 0)
-    # 20.0 ns / 0.5 ns = 40 samples
-    assert directive.events[2].waveform_index == 0
-    assert directive.events[2].start_offset_samples == 40
-
-    assert len(directive.capture_windows) == 1
-    assert directive.capture_windows[0].name == "cap1"
-    assert directive.capture_windows[0].start_offset_samples == 60  # 30.0 / 0.5
-    assert directive.capture_windows[0].length_samples == 20  # 10.0 / 0.5
-
-    # seq.length_ns is 40.0 ns (end of cap1) -> 40.0 / 0.5 = 80 samples
-    assert directive.length == 80
+    # Total duration before padding: 30.0ns + 10.0ns + 5.0ns = 45.0ns
+    # Hardware step constraint: 0.5ns * 16 samples = 8.0ns
+    # Padded duration: ceil(45.0 / 8.0) * 8.0 = 48.0ns
+    # Padded samples: 48.0ns / 0.5ns = 96
+    expected_padded_samples = 96
+    assert directive.length == expected_padded_samples

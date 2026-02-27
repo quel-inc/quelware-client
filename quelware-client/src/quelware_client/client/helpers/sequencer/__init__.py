@@ -1,3 +1,5 @@
+import logging
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -9,6 +11,8 @@ from quelware_core.entities.directives import (
     WaveformEvent,
 )
 from quelware_core.entities.waveform.sampled import IqArray, IqWaveform
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,16 +36,59 @@ class _Waveform:
     iq_array: IqArray
 
 
+@dataclass
+class _AliasBinding:
+    sampling_period_fs: int
+    step_samples: int
+
+
 class Sequencer:
-    def __init__(self, default_sampling_period_ns: float):
+    def __init__(
+        self, default_sampling_period_ns: float, enforce_sample_grid: bool = True
+    ):
         self._waveform_library: dict[str, _Waveform] = {}
         self._alias_to_events: dict[str, list[_SequencerEvent]] = defaultdict(list)
         self._alias_to_capwin: dict[str, list[_SequencerCaptureWindow]] = defaultdict(
             list
         )
-        self._length_ns: float = 0
+
         self._default_sampling_period_ns: float = default_sampling_period_ns
         self._iterations: int = 1
+
+        self._bindings: dict[str, _AliasBinding] = {}
+        self._enforce_sample_grid: bool = enforce_sample_grid
+        self._length_ns: float = 0.0
+
+    def bind(self, alias: str, sampling_period_fs: int, step_samples: int):
+        self._bindings[alias] = _AliasBinding(
+            sampling_period_fs=sampling_period_fs,
+            step_samples=step_samples,
+        )
+
+    def _check_and_convert_to_samples(
+        self, alias: str, time_ns: float, name_for_log: str
+    ) -> int:
+        if alias not in self._bindings:
+            raise ValueError(
+                f"Alias '{alias}' is not bound to the sequencer. Call bind() first."
+            )
+
+        period_fs = self._bindings[alias].sampling_period_fs
+        time_fs = time_ns * 1e6
+        samples = time_fs / period_fs
+        rounded_samples = round(samples)
+
+        if abs(samples - rounded_samples) > 0.001:
+            msg = (
+                f"{name_for_log} ({time_ns} ns) is not a multiple of sampling period "
+                f"({period_fs} fs) for alias '{alias}'. Calculated samples: {samples}"
+            )
+            if self._enforce_sample_grid:
+                raise ValueError(msg)
+            else:
+                logger.warning(f"{msg}. Rounding to {rounded_samples} samples.")
+
+        return rounded_samples
 
     def register_waveform(
         self,
@@ -68,6 +115,11 @@ class Sequencer:
     ):
         if waveform_name not in self._waveform_library:
             raise ValueError(f"waveform '{waveform_name}' is not registered.")
+
+        self._check_and_convert_to_samples(
+            instrument_alias, start_offset_ns, "Event start_offset_ns"
+        )
+
         event = _SequencerEvent(
             waveform_name=waveform_name,
             start_offset_ns=start_offset_ns,
@@ -89,30 +141,54 @@ class Sequencer:
         start_offset_ns: float,
         length_ns: float,
     ):
+        self._check_and_convert_to_samples(
+            instrument_alias,
+            start_offset_ns,
+            f"Capture window '{window_name}' start_offset_ns",
+        )
+        self._check_and_convert_to_samples(
+            instrument_alias, length_ns, f"Capture window '{window_name}' length_ns"
+        )
+
         capwin = _SequencerCaptureWindow(
             name=window_name,
             start_offset_ns=start_offset_ns,
             length_ns=length_ns,
         )
         self._alias_to_capwin[instrument_alias].append(capwin)
-
         end_at_ns = start_offset_ns + length_ns
         self._length_ns = max(self._length_ns, end_at_ns)
 
-    @property
-    def length_ns(self) -> float:
-        return self._length_ns
+    def extend_length_ns(self, additional_ns: float):
+        self._length_ns += additional_ns
 
     def set_iterations(self, iterations: int):
-        if iterations <= 0:
-            raise ValueError(
-                f"Iterations must be a positive value. given: {iterations}"
-            )
         self._iterations = iterations
 
+    @property
+    def aligned_length_fs(self) -> int:
+        if not self._bindings:
+            return math.ceil(self._length_ns * 1e6)
+
+        lcm_step_fs = 1
+        for b in self._bindings.values():
+            step_fs = b.sampling_period_fs * b.step_samples
+            lcm_step_fs = math.lcm(lcm_step_fs, step_fs)
+
+        length_fs = math.ceil(self._length_ns * 1e6)
+        remainder = length_fs % lcm_step_fs
+        if remainder != 0:
+            length_fs += lcm_step_fs - remainder
+        return length_fs
+
     def export_set_fixed_timeline_directive(
-        self, instrument_alias: str, sampling_period_fs: int
+        self, instrument_alias: str
     ) -> SetFixedTimeline:
+        if instrument_alias not in self._bindings:
+            raise ValueError(f"Alias '{instrument_alias}' is not bound.")
+
+        sampling_period_fs = self._bindings[instrument_alias].sampling_period_fs
+
         name_to_index: dict[str, int] = {}
         counter = 0
         local_library: list[IqWaveform] = []
@@ -133,8 +209,8 @@ class Sequencer:
                 name_to_index[event.waveform_name] = index
                 counter += 1
 
-            start_offset_samples = round(
-                event.start_offset_ns * 1e6 / sampling_period_fs
+            start_offset_samples = self._check_and_convert_to_samples(
+                instrument_alias, event.start_offset_ns, "Export event"
             )
             local_events.append(
                 WaveformEvent(
@@ -150,14 +226,19 @@ class Sequencer:
             local_capwins.append(
                 CaptureWindow(
                     name=capwin.name,
-                    start_offset_samples=round(
-                        capwin.start_offset_ns * 1e6 / sampling_period_fs
+                    start_offset_samples=self._check_and_convert_to_samples(
+                        instrument_alias, capwin.start_offset_ns, "Export capwin start"
                     ),
-                    length_samples=round(capwin.length_ns * 1e6 / sampling_period_fs),
+                    length_samples=self._check_and_convert_to_samples(
+                        instrument_alias, capwin.length_ns, "Export capwin length"
+                    ),
                 )
             )
 
-        length_sample = round(self.length_ns * 1e6 / sampling_period_fs)
+        length_sample = (
+            self.aligned_length_fs + sampling_period_fs - 1
+        ) // sampling_period_fs
+
         return SetFixedTimeline(
             waveform_library=local_library,
             events=local_events,
@@ -165,6 +246,3 @@ class Sequencer:
             length=length_sample,
             iterations=self._iterations,
         )
-
-
-__all__ = ["Sequencer"]
