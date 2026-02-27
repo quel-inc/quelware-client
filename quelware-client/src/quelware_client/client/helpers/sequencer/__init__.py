@@ -104,6 +104,10 @@ class Sequencer:
         return self._length_ns
 
     def set_iterations(self, iterations: int):
+        if iterations <= 0:
+            raise ValueError(
+                f"Iterations must be a positive value. given: {iterations}"
+            )
         self._iterations = iterations
 
     def export_set_fixed_timeline_directive(
