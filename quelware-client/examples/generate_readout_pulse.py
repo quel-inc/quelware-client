@@ -105,8 +105,6 @@ async def generate_readout_pulse(
                 )
 
             timeline = seq.export_set_fixed_timeline_directive(instrument_alias)
-            print(timeline.length % 128)
-            print(timeline.length)
             await driver.apply(timeline)
 
             await session.trigger([inst_id])
