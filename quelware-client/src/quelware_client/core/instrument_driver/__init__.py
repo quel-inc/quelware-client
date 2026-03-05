@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from typing import Generic, TypeAlias, TypeVar, overload
 
@@ -19,6 +20,8 @@ from quelware_core.entities.session import SessionToken
 
 from quelware_client.core import Session
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
+
+logger = logging.getLogger(__name__)
 
 D = TypeVar("D", bound="Directive")
 C = TypeVar("C", bound="ConfigVariant")
