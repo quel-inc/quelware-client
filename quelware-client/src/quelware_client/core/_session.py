@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Collection
+import math
 from types import TracebackType
 
 from quelware_core.entities.instrument import InstrumentDefinition, InstrumentInfo
@@ -12,11 +13,14 @@ from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
+from quelware_client.core.trigger_count_proposer import FixedOffsetTriggerCountProposer, TriggerCountProposer
 
 from ._utils import create_unit_to_ids_map
 
 logger = logging.getLogger(__name__)
 
+_default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=16)
+_CLOCK_FREQUENCY_HZ = 312_000_000
 
 class Session:
     def __init__(  # noqa: PLR0913
@@ -26,12 +30,16 @@ class Session:
         ttl_ms: int = 4000,
         tentative_ttl_ms: int = 1000,
         token: SessionToken | None = None,
+        trigger_count_proposer: TriggerCountProposer | None = None
     ):
         self._rsrc_ids = set(resource_ids)
         self._ttl_ms = ttl_ms
         self._tentative_ttl_ms = tentative_ttl_ms
         self._agent = agent
         self._token = token
+        if trigger_count_proposer is None:
+            trigger_count_proposer = _default_count_proposer
+        self._trigger_count_proposer = trigger_count_proposer
 
     async def open(self):
         token, _ = await self._agent.session.open_session(
@@ -89,7 +97,7 @@ class Session:
         )
         return insts
 
-    async def trigger(self, instrument_ids: Collection[ResourceId], wait=1000000):
+    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=500):
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         setup_coros = [
@@ -99,8 +107,9 @@ class Session:
         await asyncio.gather(*setup_coros)
 
         reference_unit = extract_unit_label(next(iter(instrument_ids)))
-        cur, _ = await self._agent.instrument(reference_unit).get_clock_snapshot()
-        target_time = cur + wait
+        cur, ref = await self._agent.instrument(reference_unit).get_clock_snapshot()
+        wait_count = math.ceil(1000 * _CLOCK_FREQUENCY_HZ / wait_ms)
+        target_time = self._trigger_count_proposer.propose_count(cur, ref, wait_count)
 
         trigger_coros = [
             self._agent.instrument(unit_label).schedule_trigger(
