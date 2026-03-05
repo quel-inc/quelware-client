@@ -63,7 +63,7 @@ async def generate_readout_pulse(
         print(f"sampling_period_fs\t= {deployed_inst_info.config.sampling_period_fs}")
         print("------------------------")
 
-        async with qc.create_session([inst_id]) as session:
+        async with qc.create_session([inst_id], ttl_ms=10000) as session:
             resolver = InstrumentResolver()
             await resolver.refresh(qc)
 
@@ -93,6 +93,7 @@ async def generate_readout_pulse(
             seq.extend_length_ns(wait_len_ns)
             seq.set_iterations(1000)
 
+            await driver.initialize()
             await driver.apply([directives.SetFrequency(hz=6.0e9)])
             if average_on_dsp:
                 await driver.apply(
