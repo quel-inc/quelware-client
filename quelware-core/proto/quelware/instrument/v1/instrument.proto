@@ -34,7 +34,8 @@ message InitializeResponse {}
 message ConfigureRequest {
   string session_token = 1;
   string resource_id = 2;
-  quelware.models.v1.Directive directive = 3;
+  repeated quelware.models.v1.Directive directives = 3;
+  bool apply_at_end = 4;
 }
 
 message ConfigureResponse {}
@@ -55,8 +56,7 @@ message GetClockSnapshotResponse {
 
 message ScheduleTriggerRequest {
   string session_token = 1;
-  repeated string resource_ids = 2;
-  uint64 clock_count = 3;
+  uint64 clock_count = 2;
 }
 
 message ScheduleTriggerResponse {}
