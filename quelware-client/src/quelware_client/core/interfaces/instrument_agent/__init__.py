@@ -1,4 +1,4 @@
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from typing import Protocol
 
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
@@ -23,7 +23,7 @@ class InstrumentAgent(Protocol):
     ) -> None: ...
 
     async def configure(
-        self, token: SessionToken, resource_id: ResourceId, directive: Directive
+        self, token: SessionToken, resource_id: ResourceId, directives: Sequence[Directive]
     ) -> bool: ...
 
     async def apply(
@@ -39,8 +39,8 @@ class InstrumentAgent(Protocol):
     async def schedule_trigger(
         self,
         token: SessionToken,
-        resource_ids: Collection[ResourceId],
         target_time: int,
+
     ) -> bool: ...
     async def fetch_result(
         self,

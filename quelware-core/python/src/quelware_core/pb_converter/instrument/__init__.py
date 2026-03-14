@@ -116,6 +116,7 @@ def instrument_to_pb(entity: InstrumentInfo) -> pb_models.Instrument:
                 sampling_period_fs=entity.config.sampling_period_fs,
                 bitdepth=entity.config.bitdepth,
                 timeline_step_samples=entity.config.timeline_step_samples,
+                samples_per_tick=entity.config.samples_per_tick
             )
         case _:
             raise ValueError(f"Unknown config: {entity.config}")
@@ -131,6 +132,7 @@ def instrument_from_pb(pb: pb_models.Instrument) -> InstrumentInfo:
             sampling_period_fs=pb.fixed_timeline_config.sampling_period_fs,
             bitdepth=pb.fixed_timeline_config.bitdepth,
             timeline_step_samples=pb.fixed_timeline_config.timeline_step_samples,
+            samples_per_tick=pb.fixed_timeline_config.samples_per_tick
         )
     else:
         raise ValueError("Config field is unspecified in InstrumentProfile")

@@ -57,6 +57,7 @@ message FixedTimelineConfig {
   uint32 sampling_period_fs = 1;
   uint32 bitdepth = 2;
   uint32 timeline_step_samples = 3;
+  uint32 samples_per_tick = 4;
 }
 
 message FixedTimelineProfile {

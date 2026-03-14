@@ -41,6 +41,7 @@ class FixedTimelineConfig:
     sampling_period_fs: int
     bitdepth: int
     timeline_step_samples: int
+    samples_per_tick: int
 
 
 @dataclass

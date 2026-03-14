@@ -49,16 +49,13 @@ class InstrumentDriver(Generic[D, C, P]):
     async def apply(self, directive: D) -> bool: ...
 
     @overload
-    async def apply(self, directive: Sequence[D]) -> list[bool]: ...
+    async def apply(self, directive: Sequence[D]) -> bool: ...
 
-    async def apply(self, directive) -> bool | list[bool]:
+    async def apply(self, directive) -> bool:
         if isinstance(directive, Sequence):
-            results = []
-            for d in directive:
-                results.append(await self._agent.configure(self._token, self._id, d))
-            return results
-        else:
             return await self._agent.configure(self._token, self._id, directive)
+        else:
+            return await self._agent.configure(self._token, self._id, [directive])
 
     async def initialize(self):
         await self._agent.initialize(self._token, [self._id])

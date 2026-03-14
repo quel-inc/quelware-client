@@ -101,7 +101,7 @@ class Session:
         )
         return insts
 
-    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=500):
+    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=100):
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         logger.info(f"starting application (token= {self.token} )")
@@ -114,12 +114,12 @@ class Session:
 
         reference_unit = extract_unit_label(next(iter(instrument_ids)))
         cur, ref = await self._agent.instrument(reference_unit).get_clock_snapshot()
-        wait_count = math.ceil(1000 * _CLOCK_FREQUENCY_HZ / wait_ms)
+        wait_count = math.ceil(wait_ms * _CLOCK_FREQUENCY_HZ / 1000)
         target_time = self._trigger_count_proposer.propose_count(cur, ref, wait_count)
 
         trigger_coros = [
             self._agent.instrument(unit_label).schedule_trigger(
-                self.token, ids, target_time
+                self.token, target_time
             )
             for unit_label, ids in unit_to_ids.items()
         ]

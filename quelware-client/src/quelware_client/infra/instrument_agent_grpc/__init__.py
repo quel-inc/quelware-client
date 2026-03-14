@@ -1,4 +1,4 @@
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
 import quelware_core.pb.quelware.instrument.v1 as pb_inst
 from grpclib.client import Channel
@@ -50,12 +50,12 @@ class InstrumentAgentGrpc(InstrumentAgent):
         self,
         token: SessionToken,
         resource_id: ResourceId,
-        directive: directives.Directive,
+        directives: Sequence[directives.Directive],
     ) -> bool:
         req = pb_inst.ConfigureRequest(
             session_token=token,
             resource_id=resource_id,
-            directive=directive_to_pb(directive),
+            directives=[directive_to_pb(d) for d in directives],
         )
         await self._service.configure(req)  # TODO: error handling
         return True
@@ -82,12 +82,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
     async def schedule_trigger(
         self,
         token: SessionToken,
-        resource_ids: Collection[ResourceId],
         target_time: int,
     ) -> bool:
         req = pb_inst.ScheduleTriggerRequest(
             session_token=str(token),
-            resource_ids=list(resource_ids),
             clock_count=target_time,
         )
         await self._service.schedule_trigger(req)  # TODO: error handling
