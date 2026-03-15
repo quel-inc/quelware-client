@@ -38,7 +38,7 @@ def create_standalone_client(
     agent_container.session = session_agent
     agent_container.system_configuration = conf_agent
 
-    logging.warning("NOTE: Standalone client is for testing purposes.")
+    logger.warning("NOTE: Standalone client is for testing purposes.")
 
     return QuelwareClient(
         agent=agent_container,
