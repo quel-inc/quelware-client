@@ -10,7 +10,7 @@ _UNIT_STATUS_TO_PB = {
     UnitStatus.MAINTENANCE: pb_models.UnitStatus.MAINTENANCE,
 }
 
-_UNIT_STATUS_FORM_PB = {v: k for k, v in _UNIT_STATUS_TO_PB.items()}
+_UNIT_STATUS_FROM_PB = {v: k for k, v in _UNIT_STATUS_TO_PB.items()}
 
 
 def unit_status_to_pb(unit_status: UnitStatus) -> pb_models.UnitStatus:
@@ -18,4 +18,4 @@ def unit_status_to_pb(unit_status: UnitStatus) -> pb_models.UnitStatus:
 
 
 def unit_status_from_pb(pb: pb_models.UnitStatus) -> UnitStatus:
-    return _UNIT_STATUS_FORM_PB[pb]
+    return _UNIT_STATUS_FROM_PB[pb]

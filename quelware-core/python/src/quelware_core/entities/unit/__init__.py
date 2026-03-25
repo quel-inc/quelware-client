@@ -10,6 +10,8 @@ class UnitStatus(enum.Enum):
     DRAINING = enum.auto()
     RELEASED = enum.auto()
     UNAVAILABLE = enum.auto()
+    INITIALIZING = enum.auto()
+    MAINTENANCE = enum.auto()
 
 
 @dataclass
