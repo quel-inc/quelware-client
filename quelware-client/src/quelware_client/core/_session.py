@@ -118,9 +118,7 @@ class Session:
         target_time = self._trigger_count_proposer.propose_count(cur, ref, wait_count)
 
         trigger_coros = [
-            self._agent.instrument(unit_label).schedule_trigger(
-                self.token, target_time
-            )
+            self._agent.instrument(unit_label).schedule_trigger(self.token, target_time)
             for unit_label, ids in unit_to_ids.items()
         ]
         await asyncio.gather(*trigger_coros)

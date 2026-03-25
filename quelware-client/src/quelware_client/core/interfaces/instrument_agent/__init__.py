@@ -23,7 +23,10 @@ class InstrumentAgent(Protocol):
     ) -> None: ...
 
     async def configure(
-        self, token: SessionToken, resource_id: ResourceId, directives: Sequence[Directive]
+        self,
+        token: SessionToken,
+        resource_id: ResourceId,
+        directives: Sequence[Directive],
     ) -> bool: ...
 
     async def apply(
@@ -40,7 +43,6 @@ class InstrumentAgent(Protocol):
         self,
         token: SessionToken,
         target_time: int,
-
     ) -> bool: ...
     async def fetch_result(
         self,

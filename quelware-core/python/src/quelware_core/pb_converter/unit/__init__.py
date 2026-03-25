@@ -6,6 +6,8 @@ _UNIT_STATUS_TO_PB = {
     UnitStatus.DRAINING: pb_models.UnitStatus.DRAINING,
     UnitStatus.RELEASED: pb_models.UnitStatus.RELEASED,
     UnitStatus.UNAVAILABLE: pb_models.UnitStatus.UNAVAILABLE,
+    UnitStatus.INITIALIZING: pb_models.UnitStatus.INITIALIZING,
+    UnitStatus.MAINTENANCE: pb_models.UnitStatus.MAINTENANCE,
 }
 
 _UNIT_STATUS_FORM_PB = {v: k for k, v in _UNIT_STATUS_TO_PB.items()}

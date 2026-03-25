@@ -136,7 +136,7 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
                     events=events_pb,
                     length_samples=length_pb,
                     capture_windows=capture_windows_pb,
-                    iterations=iterations
+                    iterations=iterations,
                 )
             )
         case SetCaptureMode():

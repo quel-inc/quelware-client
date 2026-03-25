@@ -1,20 +1,86 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Optional
 
-from ..unit import UnitLabel
+import dacite
+
+
+class ClockUnitType(Enum):
+    UNKNOWN = "UNKNOWN"
+    GENERATOR = "GENERATOR"
+    RELAY = "RELAY"
+
+
+class ControlUnitType(Enum):
+    UNKNOWN = "UNKNOWN"
+    QUEL3 = "QUEL3"
+
+
+class MiscellaneousUnitType(Enum):
+    UNKNOWN = "UNKNOWN"
+    PLC = "PLC"
+    NETWORK_SWITCH = "NETWORK_SWITCH"
 
 
 @dataclass
-class UnitConfiguration:
-    label: UnitLabel
+class GatewayServer:
+    name: str
+    ipaddress: str = ""
+
+
+@dataclass
+class ClockUnit:
+    name: str
     macaddress: str
-    type: str
+    ipaddress: str
+    type: ClockUnitType = ClockUnitType.UNKNOWN
+
+
+@dataclass
+class ControlUnit:
+    name: str
+    macaddress: str
+    ipaddress: str
+    type: ControlUnitType = ControlUnitType.UNKNOWN
+    options: dict[str, str] = field(default_factory=dict)
     ignored: bool = False
-    options: dict[str, str] = {}
+
+
+@dataclass
+class MiscellaneousUnit:
+    name: str = ""
+    type: MiscellaneousUnitType = MiscellaneousUnitType.UNKNOWN
+    macaddress: str = ""
+    ipaddress: str = ""
 
 
 @dataclass
 class SystemConfiguration:
-    units: list[UnitConfiguration]
+    version: int = 0
+    gateway_server: Optional[GatewayServer] = None
+    clock_units: list[ClockUnit] = field(default_factory=list)
+    control_units: list[ControlUnit] = field(default_factory=list)
+    miscellaneous_units: list[MiscellaneousUnit] = field(default_factory=list)
 
 
-__all__ = ["SystemConfiguration", "UnitConfiguration"]
+def sysconf_from_dict(dic) -> SystemConfiguration:
+    return dacite.from_dict(
+        data_class=SystemConfiguration,
+        data=dic,
+        config=dacite.Config(
+            cast=[ClockUnitType, ControlUnitType, MiscellaneousUnitType]
+        ),
+    )
+
+
+__all__ = [
+    "sysconf_from_dict",
+    "SystemConfiguration",
+    "GatewayServer",
+    "ClockUnit",
+    "ClockUnitType",
+    "ControlUnit",
+    "ControlUnitType",
+    "MiscellaneousUnit",
+    "MiscellaneousUnitType",
+]

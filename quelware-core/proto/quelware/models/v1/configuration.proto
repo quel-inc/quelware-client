@@ -5,6 +5,13 @@ package quelware.models.v1;
 message Unit {
   string label = 1;
   UnitStatus status = 2;
+  WorkerStatus worker_status = 3;
+}
+
+message WorkerStatus {
+  bool can_accept_tasks = 1;
+  bool is_linked_up = 2;
+  bool is_synchronized = 3;
 }
 
 enum UnitStatus {
@@ -13,4 +20,6 @@ enum UnitStatus {
   UNIT_STATUS_DRAINING = 2;
   UNIT_STATUS_RELEASED = 3;
   UNIT_STATUS_UNAVAILABLE = 4;
+  UNIT_STATUS_INITIALIZING = 5;
+  UNIT_STATUS_MAINTENANCE = 6;
 }
