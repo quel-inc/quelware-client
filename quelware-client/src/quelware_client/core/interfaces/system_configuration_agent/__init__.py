@@ -5,7 +5,7 @@ from quelware_core.entities.unit import UnitLabel
 
 class SystemConfigurationAgent(ABC):
     @abstractmethod
-    async def list_active_units(self) -> list[UnitLabel]: ...
+    async def list_units(self) -> list[UnitLabel]: ...
 
 
 __all__ = ["SystemConfigurationAgent"]

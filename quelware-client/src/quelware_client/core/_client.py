@@ -41,12 +41,7 @@ class QuelwareClient:
         return self._agent
 
     async def start(self):
-        self._unit_labels = await self._agent.system_configuration.list_active_units()
-        for ul in self._unit_labels:
-            if self._rsrc_agent_factory:
-                self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
-            if self._inst_agent_factory:
-                self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
+        await self.initialize()
 
     async def stop(self):
         for handler in self._close_handlers:
@@ -60,7 +55,7 @@ class QuelwareClient:
         await self.stop()
 
     async def initialize(self):
-        self._unit_labels = await self._agent.system_configuration.list_active_units()
+        self._unit_labels = await self._agent.system_configuration.list_units()
         for ul in self._unit_labels:
             if self._rsrc_agent_factory:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))

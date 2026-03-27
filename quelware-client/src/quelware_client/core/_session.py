@@ -3,6 +3,7 @@ import logging
 import math
 from collections.abc import Collection
 from types import TracebackType
+from typing import cast
 
 from quelware_core.entities.instrument import InstrumentDefinition, InstrumentInfo
 from quelware_core.entities.resource import (
@@ -19,6 +20,7 @@ from quelware_client.core.trigger_count_proposer import (
 )
 
 from ._utils import create_unit_to_ids_map
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,11 @@ class Session:
             trigger_count_proposer = _default_count_proposer
         self._trigger_count_proposer = trigger_count_proposer
 
+        self._unit_to_ids:dict[UnitLabel, list[ResourceId]] = {}
+        for rid in self._rsrc_ids:
+            ul = extract_unit_label(rid)
+            self._unit_to_ids.setdefault(ul, []).append(rid)
+
     async def open(self):
         token, _ = await self._agent.session.open_session(
             self._rsrc_ids,
@@ -52,7 +59,25 @@ class Session:
             committed_ttl_ms=self._ttl_ms,
         )
         self._token = token
+        await self._ensure_target_resources_locked()
         logger.info(f"Session opened successfully. session_token={token}")
+
+    async def _ensure_target_resources_locked(self):
+        unit_to_task = {}
+        async with asyncio.TaskGroup() as tg:
+            for unit in self._unit_to_ids:
+                unit_to_task[unit] = tg.create_task(self._agent.resource(unit).list_locked_resources(self.token))
+
+        not_locked = []
+        for unit, task in unit_to_task.items():
+            locked_rids = cast(list[ResourceId], task.result())
+            target_rids = self._unit_to_ids[unit]
+            locked_set = set(locked_rids)
+            for target_rid in target_rids:
+                if target_rid not in locked_set:
+                    not_locked.append(target_rid)
+        if not_locked:
+            raise ValueError(f"Some resources are not locked: {not_locked}")
 
     @property
     def available_resource_ids(self) -> set[ResourceId]:
@@ -60,7 +85,7 @@ class Session:
 
     @property
     def unit_labels(self) -> list[UnitLabel]:
-        return list(set(extract_unit_label(rid) for rid in self._rsrc_ids))
+        return list(self._unit_to_ids)
 
     @property
     def agent_container(self) -> AgentContainer:

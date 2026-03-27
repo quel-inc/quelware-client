@@ -13,14 +13,13 @@ class SystemConfigurationAgentGrpc(SystemConfigurationAgent):
         self._channel = grpc_channel
         self._service = pb_conf.SystemConfigurationServiceStub(self._channel)
 
-    async def list_active_units(self) -> list[UnitLabel]:
+    async def list_units(self) -> list[UnitLabel]:
         req = pb_conf.ListUnitsRequest()
         response = await self._service.list_units(req)
 
         return list(
             UnitLabel(u.label)
             for u in response.units
-            if u.status is pb_models.UnitStatus.ACTIVE
         )
 
 

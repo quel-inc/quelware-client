@@ -63,5 +63,9 @@ class ResourceAgentGrpc(ResourceAgent):
             raise ValueError("instrument is not set.")
         return instrument_from_pb(resp.instrument)
 
+    async def list_locked_resources(self, session_token:SessionToken) -> list[ResourceId]:
+        req = pb_res.ListLockedResourcesRequest(session_token=session_token)
+        resq = await self._service.list_locked_resources(req)
+        return list(ResourceId(rid) for rid in resq.resource_ids)
 
 __all__ = ["ResourceAgentGrpc"]

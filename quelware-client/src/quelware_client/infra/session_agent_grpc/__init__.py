@@ -11,6 +11,7 @@ from quelware_core.grpc_helper.error import extract_obj
 
 from quelware_client.core.exceptions import (
     InvalidTokenError,
+    InvalidUnitStatusError,
     LockConflictError,
     QuelwareClientError,
     ResourceNotFoundError,
@@ -47,7 +48,6 @@ class SessionAgentGrpc(SessionAgent):
 
         except GRPCError as e:
             self._handle_grpc_error(e)
-            raise QuelwareClientError(f"Unexpected gRPC error: {e}") from e
 
     def _handle_grpc_error(self, e: GRPCError):
         resource_ids = []
@@ -64,7 +64,9 @@ class SessionAgentGrpc(SessionAgent):
             raise ResourceNotFoundError(e.message).with_resource_ids(
                 resource_ids
             ) from e
-        elif e.status is Status.FAILED_PRECONDITION:
+        elif e.status is Status.FAILED_PRECONDITION and unit_labels:
+            raise InvalidUnitStatusError(e.message).with_unit_labels(resource_ids) from e
+        elif e.status is Status.FAILED_PRECONDITION and resource_ids:
             raise LockConflictError(e.message).with_resource_ids(resource_ids) from e
         elif e.status is Status.UNAUTHENTICATED:
             raise InvalidTokenError(e.message) from e
