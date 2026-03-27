@@ -57,7 +57,7 @@ class MiscellaneousUnit:
 @dataclass
 class SystemConfiguration:
     version: int = 0
-    gateway_server: Optional[GatewayServer] = None
+    gateway_server: GatewayServer | None = None
     clock_units: list[ClockUnit] = field(default_factory=list)
     control_units: list[ControlUnit] = field(default_factory=list)
     miscellaneous_units: list[MiscellaneousUnit] = field(default_factory=list)
@@ -74,13 +74,13 @@ def sysconf_from_dict(dic) -> SystemConfiguration:
 
 
 __all__ = [
-    "sysconf_from_dict",
-    "SystemConfiguration",
-    "GatewayServer",
     "ClockUnit",
     "ClockUnitType",
     "ControlUnit",
     "ControlUnitType",
+    "GatewayServer",
     "MiscellaneousUnit",
     "MiscellaneousUnitType",
+    "SystemConfiguration",
+    "sysconf_from_dict",
 ]

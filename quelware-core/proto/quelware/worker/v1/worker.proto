@@ -2,13 +2,20 @@ syntax = "proto3";
 
 package quelware.worker.v1;
 
+import "quelware/models/v1/configuration.proto";
 import "quelware/models/v1/general.proto";
 
-service WorkerSystemService {
+service WorkerService {
   rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+  rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
 }
 
 message GetVersionRequest {}
 message GetVersionResponse {
   quelware.models.v1.VersionInfo info = 1;
+}
+
+message GetWorkerStatusRequest {}
+message GetWorkerStatusResponse {
+  quelware.models.v1.WorkerStatus worker_status = 1;
 }
