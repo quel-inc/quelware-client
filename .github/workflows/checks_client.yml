@@ -1,0 +1,62 @@
+name: Checks for quelware-client
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'quelware-client/**'
+      - 'quelware-core/**'
+      - '.github/workflows/checks_client.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'quelware-client/**'
+      - 'quelware-core/**'
+      - '.github/workflows/checks_client.yml'
+
+jobs:
+  checks-and-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quelware-client
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.10'
+          enable-cache: true
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate codes
+        run: |
+          make -C ../quelware-core generate
+
+      - name: Install the project
+        run: uv sync --locked
+
+      - name: Check format
+        run: make format-check
+        env:
+          RUFF_OUTPUT_FORMAT: github
+        if: always()
+
+      - name: Run linter
+        run: make lint
+        env:
+          RUFF_OUTPUT_FORMAT: github
+        if: always()
+
+      - name: Run typechecker
+        run: make typecheck
+        if: always()
+
+      - name: Run unittest
+        run: make unittest
+        if: always()

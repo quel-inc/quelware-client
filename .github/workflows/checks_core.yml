@@ -1,0 +1,70 @@
+name: Checks for quelware-core
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'quelware-core/**'
+      - '.github/workflows/checks_core.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'quelware-core/**'
+      - '.github/workflows/checks_core.yml'
+
+jobs:
+  checks-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.10'
+          enable-cache: true
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate codes
+        run: make generate
+        working-directory: ./quelware-core
+
+      - name: Check format on proto
+        run: make format
+        working-directory: ./quelware-core
+
+      - name: run lint on proto
+        run: make lint
+        working-directory: ./quelware-core
+
+      - name: Install the project
+        run: uv sync --locked
+        working-directory: ./quelware-core/python
+
+      - name: Check format on python
+        run: make format-check
+        working-directory: ./quelware-core/python
+        env:
+          RUFF_OUTPUT_FORMAT: github
+        if: always()
+
+      - name: Run linter on python
+        run: make lint
+        working-directory: ./quelware-core/python
+        env:
+          RUFF_OUTPUT_FORMAT: github
+        if: always()
+
+      - name: Run typechecker on python
+        run: make typecheck
+        working-directory: ./quelware-core/python
+        if: always()
+
+      - name: Run unittest on python
+        run: make unittest
+        working-directory: ./quelware-core/python
+        if: always()
