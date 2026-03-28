@@ -113,5 +113,13 @@ class ResourceAgentMock(ResourceAgent):
             raise ResourceCategoryNotMatchedError().with_resource_ids([resource_id])
         return inst
 
+    async def list_locked_resources(
+        self, session_token: SessionToken
+    ) -> list[ResourceId]:
+        return self.locked_rsrcs
+
+    def set_locked_resources(self, resource_ids: list[ResourceId]):
+        self.locked_rsrcs = list(resource_ids)
+
 
 __all__ = ["ResourceAgentMock"]

@@ -9,12 +9,8 @@ class SystemConfigurationAgentMock(SystemConfigurationAgent):
     def __init__(self, unit_to_status: dict[UnitLabel, UnitStatus]):
         self._unit_to_status = unit_to_status
 
-    async def list_active_units(self) -> list[UnitLabel]:
-        return list(
-            ul
-            for ul, status in self._unit_to_status.items()
-            if status is UnitStatus.ACTIVE
-        )
+    async def list_units(self) -> list[UnitLabel]:
+        return list(self._unit_to_status)
 
 
 __all__ = ["SystemConfigurationAgentMock"]

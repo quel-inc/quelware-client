@@ -60,9 +60,8 @@ async def test_list_unit_labels():
     client = QuelwareClient(agent=agent)
     await client.initialize()
     res = client.list_unit_labels()
-    assert set(res) == set(
-        ul for ul, s in unit_to_status.items() if s is UnitStatus.ACTIVE
-    )
+    expected = unit_to_status.keys()
+    assert set(res) == expected
 
 
 @pytest.mark.asyncio

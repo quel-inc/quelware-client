@@ -27,13 +27,29 @@ async def test_open_and_close():
         ResourceId("unit-c:i2"),
         ResourceId("unit-d:i1"),
     ]
-    agent = AgentContainer()
+    agents = AgentContainer()
+    rsrc_agent_c = ResourceAgentMock(
+        [
+            ResourceInfo(rsrc_id, ResourceCategory.INSTRUMENT)
+            for rsrc_id in resource_ids[0:2]
+        ]
+    )
+    rsrc_agent_c.set_locked_resources(resource_ids[0:2])
+    agents.update_resource_agent(UnitLabel("unit-c"), rsrc_agent_c)
+    rsrc_agent_d = ResourceAgentMock(
+        [
+            ResourceInfo(rsrc_id, ResourceCategory.INSTRUMENT)
+            for rsrc_id in resource_ids[2:3]
+        ]
+    )
+    rsrc_agent_d.set_locked_resources(resource_ids[2:3])
+    agents.update_resource_agent(UnitLabel("unit-d"), rsrc_agent_d)
     session_agent_mock = SessionAgentMock()
     session_agent_mock.open_session_result = (SessionToken("token1"), resource_ids)
     session_agent_mock.close_session = AsyncMock()  # type: ignore
     session_agent_mock.close_session.return_value = True  # type: ignore
-    agent.session = session_agent_mock
-    session = Session(resource_ids, agent, ttl_ms=1234, tentative_ttl_ms=56)
+    agents.session = session_agent_mock
+    session = Session(resource_ids, agents, ttl_ms=1234, tentative_ttl_ms=56)
 
     await session.open()
     await session.close()
@@ -47,14 +63,30 @@ async def test_open_and_close_with_context():
         ResourceId("unit-c:i2"),
         ResourceId("unit-d:i1"),
     ]
-    agent = AgentContainer()
+    agents = AgentContainer()
+    rsrc_agent_c = ResourceAgentMock(
+        [
+            ResourceInfo(rsrc_id, ResourceCategory.INSTRUMENT)
+            for rsrc_id in resource_ids[0:2]
+        ]
+    )
+    rsrc_agent_c.set_locked_resources(resource_ids[0:2])
+    agents.update_resource_agent(UnitLabel("unit-c"), rsrc_agent_c)
+    rsrc_agent_d = ResourceAgentMock(
+        [
+            ResourceInfo(rsrc_id, ResourceCategory.INSTRUMENT)
+            for rsrc_id in resource_ids[2:3]
+        ]
+    )
+    rsrc_agent_d.set_locked_resources(resource_ids[2:3])
+    agents.update_resource_agent(UnitLabel("unit-d"), rsrc_agent_d)
     session_agent_mock = SessionAgentMock()
     session_agent_mock.open_session_result = (SessionToken("token1"), resource_ids)
     session_agent_mock.close_session = AsyncMock()  # type: ignore
     session_agent_mock.close_session.return_value = True  # type: ignore
-    agent.session = session_agent_mock
+    agents.session = session_agent_mock
     async with Session(
-        resource_ids, agent, ttl_ms=1234, tentative_ttl_ms=56
+        resource_ids, agents, ttl_ms=1234, tentative_ttl_ms=56
     ) as session:
         assert session.token is not None
     session_agent_mock.close_session.assert_called_once()  # type: ignore
