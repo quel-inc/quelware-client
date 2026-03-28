@@ -21,7 +21,6 @@ from quelware_client.core.trigger_count_proposer import (
 
 from ._utils import create_unit_to_ids_map
 
-
 logger = logging.getLogger(__name__)
 
 _default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=16)
@@ -47,7 +46,7 @@ class Session:
             trigger_count_proposer = _default_count_proposer
         self._trigger_count_proposer = trigger_count_proposer
 
-        self._unit_to_ids:dict[UnitLabel, list[ResourceId]] = {}
+        self._unit_to_ids: dict[UnitLabel, list[ResourceId]] = {}
         for rid in self._rsrc_ids:
             ul = extract_unit_label(rid)
             self._unit_to_ids.setdefault(ul, []).append(rid)
@@ -63,14 +62,17 @@ class Session:
         logger.info(f"Session opened successfully. session_token={token}")
 
     async def _ensure_target_resources_locked(self):
-        unit_to_task = {}
-        async with asyncio.TaskGroup() as tg:
-            for unit in self._unit_to_ids:
-                unit_to_task[unit] = tg.create_task(self._agent.resource(unit).list_locked_resources(self.token))
+        units = list(self._unit_to_ids.keys())
+
+        tasks = [
+            self._agent.resource(unit).list_locked_resources(self.token)
+            for unit in units
+        ]
+        results = await asyncio.gather(*tasks)
 
         not_locked = []
-        for unit, task in unit_to_task.items():
-            locked_rids = cast(list[ResourceId], task.result())
+        for unit, locked_rids in zip(units, results, strict=True):
+            locked_rids = cast(list[ResourceId], locked_rids)
             target_rids = self._unit_to_ids[unit]
             locked_set = set(locked_rids)
             for target_rid in target_rids:

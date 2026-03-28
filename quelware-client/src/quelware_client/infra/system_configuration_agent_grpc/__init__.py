@@ -1,4 +1,3 @@
-import quelware_core.pb.quelware.models.v1 as pb_models
 import quelware_core.pb.quelware.system_configuration.v1 as pb_conf
 from grpclib.client import Channel
 from quelware_core.entities.unit import UnitLabel
@@ -17,10 +16,7 @@ class SystemConfigurationAgentGrpc(SystemConfigurationAgent):
         req = pb_conf.ListUnitsRequest()
         response = await self._service.list_units(req)
 
-        return list(
-            UnitLabel(u.label)
-            for u in response.units
-        )
+        return list(UnitLabel(u.label) for u in response.units)
 
 
 __all__ = ["SystemConfigurationAgentGrpc"]

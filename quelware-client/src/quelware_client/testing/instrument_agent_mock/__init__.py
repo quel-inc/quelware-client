@@ -1,4 +1,4 @@
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.directives import Directive
@@ -27,7 +27,10 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> None: ...
 
     async def configure(
-        self, token: SessionToken, resource_id: ResourceId, directive: Directive
+        self,
+        token: SessionToken,
+        resource_id: ResourceId,
+        directives: Sequence[Directive],
     ) -> bool:
         return True
 
@@ -46,7 +49,6 @@ class InstrumentAgentMock(InstrumentAgent):
     async def schedule_trigger(
         self,
         token: SessionToken,
-        resource_ids: Collection[ResourceId],
         target_time: int,
     ) -> bool:
         return True

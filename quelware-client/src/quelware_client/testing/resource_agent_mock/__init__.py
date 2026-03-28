@@ -24,7 +24,10 @@ def _build_mock_config(definition: InstrumentDefinition):
     match definition.mode:
         case InstrumentMode.FIXED_TIMELINE:
             return FixedTimelineConfig(
-                sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+                sampling_period_fs=400_000,
+                bitdepth=16,
+                timeline_step_samples=256,
+                samples_per_tick=4,
             )
         case InstrumentMode.UNSPECIFIED:
             raise ValueError("Unspecified category")
@@ -90,7 +93,10 @@ class ResourceAgentMock(ResourceAgent):
             ),
         )
         config = FixedTimelineConfig(
-            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+            sampling_period_fs=400_000,
+            bitdepth=16,
+            timeline_step_samples=256,
+            samples_per_tick=4,
         )
         inst = next(
             InstrumentInfo(

@@ -1,4 +1,5 @@
 from collections.abc import Collection
+from typing import NoReturn
 
 import quelware_core.pb.quelware.session.v1 as pb_session
 from grpclib.client import Channel
@@ -49,7 +50,7 @@ class SessionAgentGrpc(SessionAgent):
         except GRPCError as e:
             self._handle_grpc_error(e)
 
-    def _handle_grpc_error(self, e: GRPCError):
+    def _handle_grpc_error(self, e: GRPCError) -> NoReturn:
         resource_ids = []
         unit_labels = []
         if obj := extract_obj(e.details):
@@ -65,7 +66,7 @@ class SessionAgentGrpc(SessionAgent):
                 resource_ids
             ) from e
         elif e.status is Status.FAILED_PRECONDITION and unit_labels:
-            raise InvalidUnitStatusError(e.message).with_unit_labels(resource_ids) from e
+            raise InvalidUnitStatusError(e.message).with_unit_labels(unit_labels) from e
         elif e.status is Status.FAILED_PRECONDITION and resource_ids:
             raise LockConflictError(e.message).with_resource_ids(resource_ids) from e
         elif e.status is Status.UNAUTHENTICATED:

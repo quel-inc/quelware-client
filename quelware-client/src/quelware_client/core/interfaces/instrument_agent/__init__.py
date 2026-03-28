@@ -44,6 +44,7 @@ class InstrumentAgent(Protocol):
         token: SessionToken,
         target_time: int,
     ) -> bool: ...
+
     async def fetch_result(
         self,
         token: SessionToken,

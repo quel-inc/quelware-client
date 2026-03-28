@@ -26,6 +26,9 @@ class ResourceAgent(Protocol):
 
     async def get_instrument_info(self, resource_id: ResourceId) -> InstrumentInfo: ...
 
-    async def list_locked_resources(self, session_token:SessionToken) -> list[ResourceId]:...
+    async def list_locked_resources(
+        self, session_token: SessionToken
+    ) -> list[ResourceId]: ...
+
 
 __all__ = ["ResourceAgent"]

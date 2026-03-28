@@ -36,7 +36,10 @@ def _create_inst_driver():
             ),
         ),
         FixedTimelineConfig(
-            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+            sampling_period_fs=400_000,
+            bitdepth=16,
+            timeline_step_samples=256,
+            samples_per_tick=4,
         ),
         inst_agent,
     )
@@ -73,7 +76,10 @@ def test_create_instrument_driver_fixed_timeline():
             ),
         ),
         config=FixedTimelineConfig(
-            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=64
+            sampling_period_fs=400_000,
+            bitdepth=16,
+            timeline_step_samples=64,
+            samples_per_tick=4,
         ),
     )
     create_instrument_driver_fixed_timeline(session, instrument_info)
@@ -100,7 +106,10 @@ def test_create_instrument_driver_fixed_timeline_with_invalid_id_raises_error():
             ),
         ),
         config=FixedTimelineConfig(
-            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+            sampling_period_fs=400_000,
+            bitdepth=16,
+            timeline_step_samples=256,
+            samples_per_tick=4,
         ),
     )
 
@@ -129,7 +138,10 @@ def test_create_instrument_driver_fixed_timeline_with_mismatched_mode_raises_err
             ),
         ),
         config=FixedTimelineConfig(
-            sampling_period_fs=400_000, bitdepth=16, timeline_step_samples=256
+            sampling_period_fs=400_000,
+            bitdepth=16,
+            timeline_step_samples=256,
+            samples_per_tick=4,
         ),
     )
 
