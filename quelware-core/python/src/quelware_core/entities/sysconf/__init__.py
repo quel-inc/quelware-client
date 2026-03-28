@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Optional
+from enum import Enum
 
 import dacite
 
