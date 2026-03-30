@@ -28,6 +28,8 @@ jobs:
 
       - name: Setup Buf
         uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
 
       - name: Generate codes
         run: make generate
