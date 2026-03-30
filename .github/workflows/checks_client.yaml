@@ -7,14 +7,14 @@ on:
     paths:
       - 'quelware-client/**'
       - 'quelware-core/**'
-      - '.github/workflows/checks_client.yml'
+      - '.github/workflows/checks_client.yaml'
   pull_request:
     branches:
       - main
     paths:
       - 'quelware-client/**'
       - 'quelware-core/**'
-      - '.github/workflows/checks_client.yml'
+      - '.github/workflows/checks_client.yaml'
 
 jobs:
   checks-and-tests:

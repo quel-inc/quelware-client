@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - 'quelware-core/**'
-      - '.github/workflows/checks_core.yml'
+      - '.github/workflows/checks_core.yaml'
   pull_request:
     branches:
       - main
     paths:
       - 'quelware-core/**'
-      - '.github/workflows/checks_core.yml'
+      - '.github/workflows/checks_core.yaml'
 
 jobs:
   checks-and-tests:
