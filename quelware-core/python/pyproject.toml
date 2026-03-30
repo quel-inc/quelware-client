@@ -21,6 +21,7 @@ license-files = ["LICENSE"]
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"
 Documentation = "https://quel-inc.github.io/quelware-client/"
+"Changelog" = "https://github.com/quel-inc/quelware-client/blob/main/quelware-core/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
