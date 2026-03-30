@@ -16,4 +16,4 @@ unittest:
 	uv run pytest -v tests
 
 typecheck:
-	uv run ty check
+	uv run ty check src tests

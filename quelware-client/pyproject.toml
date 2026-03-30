@@ -1,6 +1,6 @@
 [project]
 name = "quelware-client"
-version = "0.1.0a2"
+version = "0.1.0"
 description = ""
 readme = "README.md"
 authors = [
@@ -9,15 +9,15 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "betterproto2>=0.9.1",
-    "quelware-core",
+    "quelware-core>=0.1.0",
     "grpclib>=0.4.8",
     "typer>=0.21.1",
     "typing_extensions>=4.1.0"
 ]
 
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
