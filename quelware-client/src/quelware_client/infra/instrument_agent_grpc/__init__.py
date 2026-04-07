@@ -30,7 +30,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resource_id: ResourceId,
     ) -> InstrumentStatus:
         req = pb_inst.GetStatusRequest(resource_id=resource_id)
-        resp = await self._service.get_status(req)
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        resp = await self._service.get_status(req, metadata=metadata)
         return instrument_status_from_pb(resp.status)
 
     @override
@@ -40,10 +42,11 @@ class InstrumentAgentGrpc(InstrumentAgent):
         resource_ids: Collection[ResourceId],
     ) -> None:
         req = pb_inst.InitializeRequest(
-            session_token=token,
             resource_ids=list(resource_ids),
         )
-        await self._service.initialize(req)
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        await self._service.initialize(req, metadata=metadata)
 
     @override
     async def configure(
@@ -53,11 +56,12 @@ class InstrumentAgentGrpc(InstrumentAgent):
         directives: Sequence[directives.Directive],
     ) -> bool:
         req = pb_inst.ConfigureRequest(
-            session_token=token,
             resource_id=resource_id,
             directives=[directive_to_pb(d) for d in directives],
         )
-        await self._service.configure(req)  # TODO: error handling
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        await self._service.configure(req, metadata=metadata)  # TODO: error handling
         return True
 
     @override
@@ -66,8 +70,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         token: SessionToken,
         resource_ids: Collection[ResourceId],
     ) -> bool:
-        req = pb_inst.ApplyRequest(session_token=token, resource_ids=list(resource_ids))
-        await self._service.apply(req)  # TODO: error handling
+        req = pb_inst.ApplyRequest(resource_ids=list(resource_ids))
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        await self._service.apply(req, metadata=metadata)  # TODO: error handling
         return True
 
     @override
@@ -85,10 +91,13 @@ class InstrumentAgentGrpc(InstrumentAgent):
         target_time: int,
     ) -> bool:
         req = pb_inst.ScheduleTriggerRequest(
-            session_token=str(token),
             clock_count=target_time,
         )
-        await self._service.schedule_trigger(req)  # TODO: error handling
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        await self._service.schedule_trigger(
+            req, metadata=metadata
+        )  # TODO: error handling
         return True
 
     @override
@@ -97,10 +106,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         token: SessionToken,
         resource_id: ResourceId,
     ) -> ResultContainer:
-        req = pb_inst.FetchResultRequest(
-            session_token=str(token), resource_id=str(resource_id)
-        )
-        resp = await self._service.fetch_result(req)
+        req = pb_inst.FetchResultRequest(resource_id=str(resource_id))
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        resp = await self._service.fetch_result(req, metadata=metadata)
 
         if resp.result_container:
             return result_container_from_pb(resp.result_container)

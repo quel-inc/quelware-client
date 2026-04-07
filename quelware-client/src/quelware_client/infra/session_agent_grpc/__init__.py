@@ -75,8 +75,10 @@ class SessionAgentGrpc(SessionAgent):
         raise QuelwareClientError(e.message) from e
 
     async def close_session(self, token: SessionToken) -> bool:
-        req = pb_session.CloseSessionRequest(session_token=token)
-        await self._service.close_session(message=req)
+        req = pb_session.CloseSessionRequest()
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        await self._service.close_session(req, metadata=metadata)
         return True
 
 

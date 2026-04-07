@@ -41,9 +41,10 @@ class ResourceAgentGrpc(ResourceAgent):
             port_id=port_id,
             definitions=definitions_pb,
             append=append,
-            session_token=str(session_token),
         )
-        resp = await self._service.deploy_instruments(req)
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(session_token)
+        resp = await self._service.deploy_instruments(req, metadata=metadata)
         insts = list(map(instrument_from_pb, resp.instruments))
         return insts
 
@@ -66,8 +67,10 @@ class ResourceAgentGrpc(ResourceAgent):
     async def list_locked_resources(
         self, session_token: SessionToken
     ) -> list[ResourceId]:
-        req = pb_res.ListLockedResourcesRequest(session_token=session_token)
-        resq = await self._service.list_locked_resources(req)
+        req = pb_res.ListLockedResourcesRequest()
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(session_token)
+        resq = await self._service.list_locked_resources(req, metadata=metadata)
         return list(ResourceId(rid) for rid in resq.resource_ids)
 
 
