@@ -2,6 +2,7 @@ import logging
 
 from quelware_core.entities.unit import UnitLabel
 
+from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 from quelware_client.core.interfaces.resource_agent import ResourceAgent
 from quelware_client.core.interfaces.session_agent import SessionAgent
@@ -16,8 +17,18 @@ class AgentContainer:
     def __init__(self):
         self._session: SessionAgent | None = None
         self._conf: SystemConfigurationAgent | None = None
+        self._health: dict[UnitLabel, HealthAgent] = {}
         self._rsrc: dict[UnitLabel, ResourceAgent] = {}
         self._inst: dict[UnitLabel, InstrumentAgent] = {}
+
+    def update_health_agent(self, unit_label: UnitLabel, agent: HealthAgent | None):
+        if agent is None:
+            if unit_label in self._health:
+                self._health[unit_label]
+            else:
+                logger.warning(f"ResourceAgent for '{unit_label}' not found. Continue.")
+        else:
+            self._health[unit_label] = agent
 
     def update_resource_agent(self, unit_label: UnitLabel, agent: ResourceAgent | None):
         if agent is None:
@@ -60,6 +71,11 @@ class AgentContainer:
     @system_configuration.setter
     def system_configuration(self, val: SystemConfigurationAgent):
         self._conf = val
+
+    def health(self, unit_label: UnitLabel) -> HealthAgent:
+        if unit_label not in self._health:
+            raise ValueError(f"HealthAgent for '{unit_label}' not set.")
+        return self._health[unit_label]
 
     def resource(self, unit_label: UnitLabel) -> ResourceAgent:
         if unit_label not in self._rsrc:

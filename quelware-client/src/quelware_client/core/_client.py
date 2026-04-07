@@ -1,7 +1,9 @@
 import asyncio
+import logging
 from collections.abc import Callable, Collection
 from typing import TypeAlias, TypeVar, cast
 
+from grpclib import GRPCError
 from quelware_core.entities.instrument import InstrumentInfo
 from quelware_core.entities.port import PortInfo
 from quelware_core.entities.resource import (
@@ -12,10 +14,13 @@ from quelware_core.entities.resource import (
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core._agent_container import AgentContainer
+from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 
 from ._session import Session
 from .interfaces.resource_agent import ResourceAgent
+
+logger = logging.getLogger(__name__)
 
 A = TypeVar("A")
 AgentFactory: TypeAlias = Callable[[UnitLabel], A]
@@ -26,15 +31,19 @@ class QuelwareClient:
     def __init__(
         self,
         agent: AgentContainer,
+        health_agent_factory: AgentFactory[HealthAgent] | None = None,
         resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
         instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
         close_handlers: list[Callable[[], None]] | None = None,
+        skip_lock_check: bool = False,
     ):
         self._agent = agent
+        self._health_agent_factory = health_agent_factory
         self._rsrc_agent_factory = resource_agent_factory
         self._inst_agent_factory = instrument_agent_factory
         self._unit_labels: list[UnitLabel] = []
         self._close_handlers = close_handlers or []
+        self._skip_lock_check = skip_lock_check
 
     @property
     def agent(self) -> AgentContainer:
@@ -57,6 +66,14 @@ class QuelwareClient:
     async def initialize(self):
         self._unit_labels = await self._agent.system_configuration.list_units()
         for ul in self._unit_labels:
+            if self._health_agent_factory:
+                self._agent.update_health_agent(ul, self._health_agent_factory(ul))
+                if await self._agent.health(ul).check():
+                    logger.info("Passed initial health check")
+                else:
+                    raise ValueError(
+                        f"Health check on {ul} failed with unexpected status."
+                    )
             if self._rsrc_agent_factory:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
             if self._inst_agent_factory:
@@ -76,6 +93,7 @@ class QuelwareClient:
             agent=self._agent,
             ttl_ms=ttl_ms,
             tentative_ttl_ms=tentative_ttl_ms,
+            skip_lock_check=self._skip_lock_check,
         )
 
     async def list_resource_infos(self) -> list[ResourceInfo]:

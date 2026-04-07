@@ -2,6 +2,7 @@ from collections.abc import Collection
 from typing import NoReturn
 
 import quelware_core.pb.quelware.session.v1 as pb_session
+from betterproto2.grpclib.grpclib_client import MetadataLike
 from grpclib.client import Channel
 from grpclib.const import Status
 from grpclib.exceptions import GRPCError
@@ -24,9 +25,9 @@ from quelware_client.core.interfaces.session_agent import (
 
 
 class SessionAgentGrpc(SessionAgent):
-    def __init__(self, grpc_channel: Channel):
+    def __init__(self, grpc_channel: Channel, metadata: MetadataLike | None = None):
         self._channel = grpc_channel
-        self._service = pb_session.SessionServiceStub(self._channel)
+        self._service = pb_session.SessionServiceStub(self._channel, metadata=metadata)
 
     async def open_session(
         self,

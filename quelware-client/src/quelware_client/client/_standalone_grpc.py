@@ -15,7 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_standalone_client(
-    endpoint: str = "localhost", port: int = 50051, unit_label: str = "mock-unit"
+    endpoint: str = "localhost",
+    port: int = 50051,
+    unit_label: str = "mock-unit",
+    skip_lock_check=True,
 ):
     """Create a standalone client.
 
@@ -45,4 +48,5 @@ def create_standalone_client(
         resource_agent_factory=resource_agent_factory,
         instrument_agent_factory=instrument_agent_factory,
         close_handlers=[channel.close],
+        skip_lock_check=skip_lock_check,
     )
