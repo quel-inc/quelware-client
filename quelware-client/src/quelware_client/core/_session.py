@@ -24,7 +24,7 @@ from ._utils import create_unit_to_ids_map
 logger = logging.getLogger(__name__)
 
 _default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=16)
-_CLOCK_FREQUENCY_HZ = 312_000_000
+_CLOCK_FREQUENCY_HZ = 312_500_000
 
 
 class Session:
@@ -36,6 +36,7 @@ class Session:
         tentative_ttl_ms: int = 1000,
         token: SessionToken | None = None,
         trigger_count_proposer: TriggerCountProposer | None = None,
+        skip_lock_check: bool = False,
     ):
         self._rsrc_ids = set(resource_ids)
         self._ttl_ms = ttl_ms
@@ -51,6 +52,8 @@ class Session:
             ul = extract_unit_label(rid)
             self._unit_to_ids.setdefault(ul, []).append(rid)
 
+        self._check_lock = not skip_lock_check
+
     async def open(self):
         token, _ = await self._agent.session.open_session(
             self._rsrc_ids,
@@ -58,7 +61,8 @@ class Session:
             committed_ttl_ms=self._ttl_ms,
         )
         self._token = token
-        await self._ensure_target_resources_locked()
+        if self._check_lock:
+            await self._ensure_target_resources_locked()
         logger.info(f"Session opened successfully. session_token={token}")
 
     async def _ensure_target_resources_locked(self):
@@ -128,7 +132,7 @@ class Session:
         )
         return insts
 
-    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=100):
+    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=400):
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         logger.info(f"starting application (token= {self.token} )")
