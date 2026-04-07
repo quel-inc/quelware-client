@@ -3,7 +3,6 @@ import logging
 from collections.abc import Callable, Collection
 from typing import TypeAlias, TypeVar, cast
 
-from grpclib import GRPCError
 from quelware_core.entities.instrument import InstrumentInfo
 from quelware_core.entities.port import PortInfo
 from quelware_core.entities.resource import (

@@ -1,6 +1,5 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
 
 import betterproto2
 from betterproto2 import grpclib as betterproto2_grpclib
@@ -35,8 +34,8 @@ class HealthServiceStub(betterproto2_grpclib.ServiceStub):
         self,
         *,
         service: str = "",
-        timeout: Optional[float] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        timeout: float | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> HealthCheckResponse:
         return await self._unary_unary(
             "/grpc.health.v1.Health/Check",
