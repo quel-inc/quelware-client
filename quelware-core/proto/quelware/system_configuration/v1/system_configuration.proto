@@ -6,10 +6,46 @@ import "quelware/models/v1/configuration.proto";
 
 service SystemConfigurationService {
   rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
+  rpc GetUnitStatus(GetUnitStatusRequest) returns (GetUnitStatusResponse);
+  rpc ActivateUnit(ActivateUnitRequest) returns (ActivateUnitResponse);
+  rpc DrainUnit(DrainUnitRequest) returns (DrainUnitResponse);
+  rpc MaintainUnit(MaintainUnitRequest) returns (MaintainUnitResponse);
 }
 
 message ListUnitsRequest {}
 
 message ListUnitsResponse {
   repeated quelware.models.v1.Unit units = 1;
+}
+
+message GetUnitStatusRequest {
+  string label = 1;
+}
+
+message GetUnitStatusResponse {
+  quelware.models.v1.UnitStatus status = 1;
+}
+
+message ActivateUnitRequest {
+  string label = 1;
+}
+
+message ActivateUnitResponse {
+  quelware.models.v1.Unit unit = 1;
+}
+
+message DrainUnitRequest {
+  string label = 1;
+}
+
+message DrainUnitResponse {
+  quelware.models.v1.Unit unit = 1;
+}
+
+message MaintainUnitRequest {
+  string label = 1;
+}
+
+message MaintainUnitResponse {
+  quelware.models.v1.Unit unit = 1;
 }

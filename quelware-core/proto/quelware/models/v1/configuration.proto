@@ -5,7 +5,6 @@ package quelware.models.v1;
 message Unit {
   string label = 1;
   UnitStatus status = 2;
-  WorkerStatus worker_status = 3;
 }
 
 message WorkerStatus {
