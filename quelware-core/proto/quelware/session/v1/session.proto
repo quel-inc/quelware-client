@@ -19,7 +19,7 @@ message OpenSessionResponse {
 }
 
 message CloseSessionRequest {
-  string session_token = 1;
+  reserved 1;
 }
 
 message CloseSessionResponse {

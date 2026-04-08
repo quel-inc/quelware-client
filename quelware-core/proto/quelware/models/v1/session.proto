@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package quelware.models.v1;
-
-message SessionToken {
-  string body = 1;
-}

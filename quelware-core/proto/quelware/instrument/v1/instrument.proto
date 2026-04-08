@@ -25,14 +25,14 @@ message GetStatusResponse {
 }
 
 message InitializeRequest {
-  string session_token = 1;
+  reserved 1;
   repeated string resource_ids = 2;
 }
 
 message InitializeResponse {}
 
 message ConfigureRequest {
-  string session_token = 1;
+  reserved 1;
   string resource_id = 2;
   repeated quelware.models.v1.Directive directives = 3;
   bool apply_at_end = 4;
@@ -41,7 +41,7 @@ message ConfigureRequest {
 message ConfigureResponse {}
 
 message ApplyRequest {
-  string session_token = 1;
+  reserved 1;
   repeated string resource_ids = 2;
 }
 
@@ -55,19 +55,19 @@ message GetClockSnapshotResponse {
 }
 
 message ScheduleTriggerRequest {
-  string session_token = 1;
+  reserved 1;
   uint64 clock_count = 2;
 }
 
 message ScheduleTriggerResponse {}
 
 message FetchResultRequest {
-  string session_token = 1;
+  reserved 1;
   string resource_id = 2;
 }
 
 message FetchResultResponse {
-  string session_token = 1;
+  reserved 1;
   string resource_id = 2;
   quelware.models.v1.ResultContainer result_container = 3;
 }
