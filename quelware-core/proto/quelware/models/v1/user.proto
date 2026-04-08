@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package quelware.models.v1;
+
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_NORMAL_USER = 1;
+  USER_ROLE_PRIVILEGED_USER = 2;
+  USER_ROLE_ADMIN = 3;
+}
+
+message User {
+  string user_id = 1;
+  UserRole role = 2;
+}

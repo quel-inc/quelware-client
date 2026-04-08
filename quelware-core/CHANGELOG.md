@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `AdminService` to control the access.
+- Add unit management methods.
+
 ### Changed
 
 - Remove `session_token` field.

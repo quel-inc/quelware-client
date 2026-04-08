@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package quelware.user.v1;
+
+import "quelware/models/v1/user.proto";
+
+service UserService {
+  rpc AddUser(AddUserRequest) returns (AddUserResponse);
+  rpc UpdateUserRole(UpdateUserRoleRequest) returns (UpdateUserRoleResponse);
+  rpc RevokeUser(RevokeUserRequest) returns (RevokeUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+message AddUserRequest {
+  string user_id = 1;
+  quelware.models.v1.UserRole role = 2;
+}
+
+message AddUserResponse {
+  string user_id = 1;
+  string generated_pat = 2;
+}
+
+message UpdateUserRoleRequest {
+  string user_id = 1;
+  quelware.models.v1.UserRole new_role = 2;
+}
+
+message UpdateUserRoleResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RevokeUserRequest {
+  string user_id = 1;
+}
+
+message RevokeUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  repeated quelware.models.v1.User users = 1;
+}
