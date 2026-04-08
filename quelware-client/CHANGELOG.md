@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Check connection when starting QuelwareClient.
+- Ensure that target resources are locked when opening a session.
+
+### Changed
+
+- Use gRPC metadata to pass the `session_token` to the servers.
+
 ## [0.1.0] - 2026-03-30
 
 ### Added
