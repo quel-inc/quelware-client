@@ -6,6 +6,7 @@
 
 - Check connection when starting QuelwareClient.
 - Ensure that target resources are locked when opening a session.
+- Set Personal Access Token (PAT) in metadata.
 
 ### Changed
 
