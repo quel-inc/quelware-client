@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-09
+
 ### Added
 
 - Check connection when starting QuelwareClient.
