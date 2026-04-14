@@ -8,6 +8,7 @@ _UNIT_STATUS_TO_PB = {
     UnitStatus.UNAVAILABLE: pb_models.UnitStatus.UNAVAILABLE,
     UnitStatus.INITIALIZING: pb_models.UnitStatus.INITIALIZING,
     UnitStatus.MAINTENANCE: pb_models.UnitStatus.MAINTENANCE,
+    UnitStatus.STANDBY: pb_models.UnitStatus.STANDBY,
 }
 
 _UNIT_STATUS_FROM_PB = {v: k for k, v in _UNIT_STATUS_TO_PB.items()}

@@ -12,6 +12,7 @@ class UnitStatus(enum.Enum):
     UNAVAILABLE = enum.auto()
     INITIALIZING = enum.auto()
     MAINTENANCE = enum.auto()
+    STANDBY = enum.auto()
 
 
 @dataclass

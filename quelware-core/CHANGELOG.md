@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `STANDBY` to UnitStatus.
+
 ## [0.1.1] - 2026-04-09
 
 ### Added
