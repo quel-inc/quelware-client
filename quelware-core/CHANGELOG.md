@@ -4,18 +4,18 @@
 
 ### Added
 
-- Add `STANDBY` to UnitStatus.
+- `STANDBY` status for UnitStatus.
 
 ## [0.1.1] - 2026-04-09
 
 ### Added
 
-- Add `AdminService` to control the access.
-- Add unit management methods.
+- `AdminService` for access control.
+- Unit management methods.
 
-### Changed
+### Removed
 
-- Remove `session_token` field.
+- `session_token` field.
 
 ## [0.1.0] - 2026-03-30
 
