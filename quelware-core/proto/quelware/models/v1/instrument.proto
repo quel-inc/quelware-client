@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package quelware.models.v1;
 
+option go_package = "quelware-core-go/quelware/models/v1";
+
 message Port {
   string id = 1;
   PortRole role = 2;

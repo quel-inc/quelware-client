@@ -5,6 +5,7 @@
 ### Added
 
 - `STANDBY` status for UnitStatus.
+- Go code generation support.
 
 ## [0.1.1] - 2026-04-09
 

@@ -4,6 +4,8 @@ package quelware.user.v1;
 
 import "quelware/models/v1/user.proto";
 
+option go_package = "quelware-core-go/quelware/user/v1";
+
 service UserService {
   rpc AddUser(AddUserRequest) returns (AddUserResponse);
   rpc UpdateUserRole(UpdateUserRoleRequest) returns (UpdateUserRoleResponse);
