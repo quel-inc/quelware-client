@@ -1,0 +1,31 @@
+name: Release quelware-admin
+
+on:
+  push:
+    tags:
+      - 'quelware-admin/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: quelware-admin/go.mod
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          distribution: goreleaser
+          args: release --clean
+          workdir: quelware-admin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

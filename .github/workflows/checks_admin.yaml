@@ -1,0 +1,54 @@
+name: Checks for quelware-admin
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'quelware-admin/**'
+      - 'quelware-core/proto/**'
+      - '.github/workflows/checks_admin.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'quelware-admin/**'
+      - 'quelware-core/proto/**'
+      - '.github/workflows/checks_admin.yaml'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quelware-admin
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: quelware-admin/go.mod
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+
+      - name: Generate codes
+        run: make -C ../quelware-core generate-go
+
+      - name: Check format
+        run: test -z "$(gofmt -l .)"
+        if: always()
+
+      - name: Lint
+        run: go vet ./...
+        if: always()
+
+      - name: Build
+        run: go build ./...
+        if: always()
+
+      - name: Test
+        run: go test ./...
+        if: always()
