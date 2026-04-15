@@ -42,6 +42,10 @@ func contextWithPAT() (context.Context, error) {
 }
 
 func loadPAT() (string, error) {
+	if pat := os.Getenv("QUELWARE_ADMIN_PAT"); pat != "" {
+		return pat, nil
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
@@ -49,7 +53,7 @@ func loadPAT() (string, error) {
 	path := filepath.Join(home, ".config", "quelware-admin", "pat")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read PAT from %s: %w", path, err)
+		return "", fmt.Errorf("failed to read PAT from %s (or set QUELWARE_ADMIN_PAT): %w", path, err)
 	}
 	pat := strings.TrimSpace(string(data))
 	if pat == "" {
