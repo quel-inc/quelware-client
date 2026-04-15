@@ -1,0 +1,26 @@
+version: 2
+
+project_name: quelware-admin
+
+monorepo:
+  tag_prefix: quelware-admin/
+  dir: quelware-admin
+
+builds:
+  - main: .
+    binary: quelware-admin
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
