@@ -9,6 +9,8 @@ monorepo:
 builds:
   - main: .
     binary: quelware-admin
+    ldflags:
+      - -s -w -X quelware-admin/cmd.version={{.Version}}
     goos:
       - linux
       - darwin

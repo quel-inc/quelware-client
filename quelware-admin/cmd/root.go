@@ -13,7 +13,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-var address string
+var (
+	address string
+	version = "dev"
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "quelware-admin",
@@ -21,6 +24,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.Version = version
 	rootCmd.PersistentFlags().StringVar(&address, "address", "localhost:50051", "gRPC server address (host:port)")
 }
 
