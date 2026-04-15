@@ -37,6 +37,10 @@ jobs:
       - name: Generate codes
         run: make -C ../quelware-core generate-go
 
+      - name: Check go.mod/go.sum
+        run: go mod tidy -diff
+        if: always()
+
       - name: Check format
         run: test -z "$(gofmt -l .)"
         if: always()
