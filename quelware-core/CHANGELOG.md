@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-18
+
 ### Added
 
 - `STANDBY` status for UnitStatus.
