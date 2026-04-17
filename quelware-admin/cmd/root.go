@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	address string
-	version = "dev"
+	address   string
+	unitLabel string
+	version   = "dev"
 )
 
 var rootCmd = &cobra.Command{
@@ -26,6 +27,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Version = version
 	rootCmd.PersistentFlags().StringVar(&address, "address", "localhost:50051", "gRPC server address (host:port)")
+	rootCmd.PersistentFlags().StringVar(&unitLabel, "unit-label", "central-server", "Unit label for x-unit-label metadata")
 }
 
 func Execute() error {
@@ -41,7 +43,7 @@ func contextWithPAT() (context.Context, error) {
 	if err != nil {
 		return nil, err
 	}
-	md := metadata.Pairs("x-pat", pat)
+	md := metadata.Pairs("x-pat", pat, "x-unit-label", unitLabel)
 	return metadata.NewOutgoingContext(context.Background(), md), nil
 }
 
