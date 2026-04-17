@@ -68,11 +68,9 @@ class QuelwareClient:
             if self._health_agent_factory:
                 self._agent.update_health_agent(ul, self._health_agent_factory(ul))
                 if await self._agent.health(ul).check():
-                    logger.info("Passed initial health check")
+                    logger.info("Passed initial health check on %s", ul)
                 else:
-                    raise ValueError(
-                        f"Health check on {ul} failed with unexpected status."
-                    )
+                    logger.warning("Health check on %s failed, skipping", ul)
             if self._rsrc_agent_factory:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
             if self._inst_agent_factory:
