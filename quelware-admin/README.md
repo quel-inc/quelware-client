@@ -28,16 +28,16 @@ quelware-admin --address <host:port> user <command> [flags]
 
 ```sh
 # List all users
-quelware-admin --address localhost:50051 user list
+quelware-admin --address <server-address>:50051 user list
 
 # Add a user
-quelware-admin --address localhost:50051 user add --user-id alice --role admin
+quelware-admin --address <server-address>:50051 user add --user-id alice --role admin
 
 # Update a user's role
-quelware-admin --address localhost:50051 user update-role --user-id alice --role normal_user
+quelware-admin --address <server-address>:50051 user update-role --user-id alice --role normal_user
 
 # Revoke a user
-quelware-admin --address localhost:50051 user revoke --user-id alice
+quelware-admin --address <server-address>:50051 user revoke --user-id alice
 ```
 
 ### Roles
