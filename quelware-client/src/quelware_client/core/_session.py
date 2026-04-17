@@ -127,8 +127,19 @@ class Session:
     ) -> list[InstrumentInfo]:
         port_id = ResourceId(port_id)
         unit_label = extract_unit_label(port_id)
+        prefixed_definitions = []
+        for d in definitions:
+            if ":" in d.alias:
+                raise ValueError(f"alias must not contain ':' (got '{d.alias}')")
+            prefixed = InstrumentDefinition(
+                alias=f"{unit_label}:{d.alias}",
+                mode=d.mode,
+                role=d.role,
+                profile=d.profile,
+            )
+            prefixed_definitions.append(prefixed)
         insts = await self._agent.resource(unit_label).deploy_instruments(
-            port_id, list(definitions), append, self.token
+            port_id, prefixed_definitions, append, self.token
         )
         return insts
 
