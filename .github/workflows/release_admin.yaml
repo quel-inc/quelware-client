@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'quelware-admin/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.1.1)'
+        required: true
 
 permissions:
   contents: write
@@ -14,18 +19,48 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: quelware-admin/go.mod
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: bufbuild/buf-action@v1
         with:
-          version: '~> v2'
-          distribution: goreleaser
-          args: release --clean
-          workdir: quelware-admin
+          setup_only: true
+
+      - name: Generate Go code from proto
+        run: make generate-go
+        working-directory: quelware-core
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "TAG=quelware-admin/v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${GITHUB_REF_NAME#quelware-admin/v}" >> "$GITHUB_OUTPUT"
+            echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cross-compile
+        working-directory: quelware-admin
+        run: |
+          mkdir -p dist
+          for pair in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            GOOS="${pair%/*}"
+            GOARCH="${pair#*/}"
+            EXT=""
+            if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+            GOOS=$GOOS GOARCH=$GOARCH go build \
+              -ldflags "-s -w -X quelware-admin/cmd.version=${{ steps.version.outputs.VERSION }}" \
+              -o "dist/quelware-admin-${GOOS}-${GOARCH}${EXT}" .
+          done
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ steps.version.outputs.TAG }}" quelware-admin/dist/* \
+            --title "quelware-admin v${{ steps.version.outputs.VERSION }}" \
+            --notes "See quelware-admin/CHANGELOG.md"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
