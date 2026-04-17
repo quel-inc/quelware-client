@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-18
+
+### Added
+
+- Unit-prefixed instrument alias (`{unit_label}:{alias}`) to prevent cross-unit alias collisions.
+- `unit` parameter in `InstrumentResolver.find_inst_info_by_alias()` for disambiguation.
+
+### Changed
+
+- Skip unhealthy units during initialization instead of raising an error.
+
 ## [0.1.1] - 2026-04-09
 
 ### Added
