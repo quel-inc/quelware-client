@@ -15,9 +15,25 @@ You can easily install the package via pip:
 pip install quelware-client
 ```
 
+## Authentication
+
+A Personal Access Token (PAT) is required. Set it up in one of the following ways:
+
+- Place it in a config file:
+  ```sh
+  mkdir -p ~/.config/quelware-client
+  echo "your-pat-here" > ~/.config/quelware-client/pat
+  ```
+- Or pass it directly in code:
+  ```python
+  qc = create_quelware_client("localhost", 50051, pat="your-pat-here")
+  ```
+
+To obtain a PAT, ask your system administrator to run `quelware-admin user add`.
+
 ## Quick Start
 
-Here is a minimal example of connecting to the control server in QuEL system and managing an session:
+Here is a minimal example of connecting to the control server in QuEL system and managing a session:
 
 ```python
 import asyncio
