@@ -63,18 +63,22 @@ class QuelwareClient:
         await self.stop()
 
     async def initialize(self):
-        self._unit_labels = await self._agent.system_configuration.list_units()
-        for ul in self._unit_labels:
+        all_labels = await self._agent.system_configuration.list_units()
+        healthy_labels = []
+        for ul in all_labels:
             if self._health_agent_factory:
                 self._agent.update_health_agent(ul, self._health_agent_factory(ul))
                 if await self._agent.health(ul).check():
                     logger.info("Passed initial health check on %s", ul)
                 else:
                     logger.warning("Health check on %s failed, skipping", ul)
+                    continue
             if self._rsrc_agent_factory:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
             if self._inst_agent_factory:
                 self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
+            healthy_labels.append(ul)
+        self._unit_labels = healthy_labels
 
     def list_unit_labels(self) -> list[UnitLabel]:
         return list(self._unit_labels)
