@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-20
+
+### Changed
+
+- Parallelize health checks during initialization.
+- Rewrite examples.
+
 ## [0.1.2] - 2026-04-18
 
 ### Added
