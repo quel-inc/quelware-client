@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `RECEIVER` for protobuf InstrumentRole.
+
 ## [0.1.2] - 2026-04-18
 
 ### Added
