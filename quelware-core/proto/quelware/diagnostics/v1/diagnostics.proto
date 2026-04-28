@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package quelware.diagnostics.v1;
+
+// Diagnostics service.
+//
+// Endpoints in this service return human-readable text intended for visual
+// inspection. Output format is unstable and may change without notice.
+// Do not parse responses programmatically.
+service DiagnosticsService {
+  // Dump the worker's software-shadow state for a port as human-readable text.
+  rpc DumpPortState(DumpPortStateRequest) returns (DumpPortStateResponse);
+}
+
+message DumpPortStateRequest {
+  string port_id = 1;
+}
+
+message DumpPortStateResponse {
+  // Human-readable dump (YAML-flavored). FOR DISPLAY ONLY -- do not parse.
+  string text = 1;
+}

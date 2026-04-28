@@ -5,6 +5,7 @@
 ### Added
 
 - `RECEIVER` for protobuf InstrumentRole.
+- `DiagnosticsService` proto with `DumpPortState` RPC for human-readable shadow inspection.
 
 ## [0.1.2] - 2026-04-18
 
