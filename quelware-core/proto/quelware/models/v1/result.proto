@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package quelware.models.v1;
 
-option go_package = "quelware-core-go/quelware/models/v1";
-
 import "quelware/models/v1/waveform.proto";
+
+option go_package = "quelware-core-go/quelware/models/v1";
 
 message IqPointList {
   repeated quelware.models.v1.IqPoint iq_points = 1;
