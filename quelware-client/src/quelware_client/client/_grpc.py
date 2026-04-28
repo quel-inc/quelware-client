@@ -4,6 +4,7 @@ from grpclib.client import Channel
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer, AgentFactory, QuelwareClient
+from quelware_client.core.interfaces.diagnostics_agent import DiagnosticsAgent
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 from quelware_client.core.interfaces.pat_provider import PatProvider
@@ -12,6 +13,7 @@ from quelware_client.core.interfaces.session_agent import SessionAgent
 from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
+from quelware_client.infra.diagnostics_agent_grpc import DiagnosticsAgentGrpc
 from quelware_client.infra.health_agent_grpc import HealthAgentGrpc
 from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
 from quelware_client.infra.pat_provider_file import pat_provider_from_config
@@ -53,6 +55,15 @@ def _create_default_instrument_agent_factory(channel, pat: str):
     return _default_command_agent_factory
 
 
+def _create_default_diagnostics_agent_factory(channel, pat: str):
+    def _default_diagnostics_agent_factory(ul: UnitLabel):
+        return DiagnosticsAgentGrpc(
+            channel, metadata={"x-unit-label": str(ul), "x-pat": pat}
+        )
+
+    return _default_diagnostics_agent_factory
+
+
 _CENTRAL_SERVER_METADATA_BASE = {"x-unit-label": "central-server"}
 
 
@@ -64,6 +75,7 @@ def create_quelware_client(  # noqa: PLR0913
     health_agent_factory: AgentFactory[HealthAgent] | None = None,
     resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
     instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
+    diagnostics_agent_factory: AgentFactory[DiagnosticsAgent] | None = None,
     pat: PatProvider | str | None = None,
 ):
     channel = Channel(endpoint, port)
@@ -88,6 +100,11 @@ def create_quelware_client(  # noqa: PLR0913
             channel, _pat
         )
 
+    if diagnostics_agent_factory is None:
+        diagnostics_agent_factory = _create_default_diagnostics_agent_factory(
+            channel, _pat
+        )
+
     central_server_metadata = _CENTRAL_SERVER_METADATA_BASE | {"x-pat": _pat}
 
     agent_container = AgentContainer()
@@ -104,5 +121,6 @@ def create_quelware_client(  # noqa: PLR0913
         health_agent_factory=health_agent_factory,
         resource_agent_factory=resource_agent_factory,
         instrument_agent_factory=instrument_agent_factory,
+        diagnostics_agent_factory=diagnostics_agent_factory,
         close_handlers=[channel.close],
     )

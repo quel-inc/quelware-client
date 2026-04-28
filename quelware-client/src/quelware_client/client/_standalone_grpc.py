@@ -5,6 +5,7 @@ from quelware_core.entities.unit import UnitLabel, UnitStatus
 
 from quelware_client.core import AgentContainer, QuelwareClient
 from quelware_client.core.interfaces.pat_provider import PatProvider
+from quelware_client.infra.diagnostics_agent_grpc import DiagnosticsAgentGrpc
 from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
 from quelware_client.infra.pat_provider_file import pat_provider_from_config
 from quelware_client.infra.resource_agent_grpc import ResourceAgentGrpc
@@ -53,6 +54,11 @@ def create_standalone_client(
             channel, metadata={"x-unit-label": str(ul), "x-pat": _pat}
         )
 
+    def diagnostics_agent_factory(ul: UnitLabel):
+        return DiagnosticsAgentGrpc(
+            channel, metadata={"x-unit-label": str(ul), "x-pat": _pat}
+        )
+
     agent_container = AgentContainer()
     agent_container.session = session_agent
     agent_container.system_configuration = conf_agent
@@ -63,6 +69,7 @@ def create_standalone_client(
         agent=agent_container,
         resource_agent_factory=resource_agent_factory,
         instrument_agent_factory=instrument_agent_factory,
+        diagnostics_agent_factory=diagnostics_agent_factory,
         close_handlers=[channel.close],
         skip_lock_check=skip_lock_check,
     )

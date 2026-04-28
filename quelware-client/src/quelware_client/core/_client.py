@@ -13,6 +13,7 @@ from quelware_core.entities.resource import (
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core._agent_container import AgentContainer
+from quelware_client.core.interfaces.diagnostics_agent import DiagnosticsAgent
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 
@@ -33,6 +34,7 @@ class QuelwareClient:
         health_agent_factory: AgentFactory[HealthAgent] | None = None,
         resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
         instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
+        diagnostics_agent_factory: AgentFactory[DiagnosticsAgent] | None = None,
         close_handlers: list[Callable[[], None]] | None = None,
         skip_lock_check: bool = False,
     ):
@@ -40,6 +42,7 @@ class QuelwareClient:
         self._health_agent_factory = health_agent_factory
         self._rsrc_agent_factory = resource_agent_factory
         self._inst_agent_factory = instrument_agent_factory
+        self._diag_agent_factory = diagnostics_agent_factory
         self._unit_labels: list[UnitLabel] = []
         self._close_handlers = close_handlers or []
         self._skip_lock_check = skip_lock_check
@@ -86,6 +89,8 @@ class QuelwareClient:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
             if self._inst_agent_factory:
                 self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
+            if self._diag_agent_factory:
+                self._agent.update_diagnostics_agent(ul, self._diag_agent_factory(ul))
         self._unit_labels = healthy_labels
 
     def list_unit_labels(self) -> list[UnitLabel]:
@@ -124,3 +129,12 @@ class QuelwareClient:
         unit_label = extract_unit_label(instrument_id)
         inst = await self._agent.resource(unit_label).get_instrument_info(instrument_id)
         return inst
+
+    async def dump_port_state(self, port_id: ResourceId) -> str:
+        """Return a human-readable dump of the worker's shadow state for a port.
+
+        Output is intended for visual inspection only and may change without
+        notice. Do not parse programmatically.
+        """
+        unit_label = extract_unit_label(port_id)
+        return await self._agent.diagnostics(unit_label).dump_port_state(port_id)

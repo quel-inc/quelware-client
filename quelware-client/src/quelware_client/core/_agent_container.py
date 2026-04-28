@@ -2,6 +2,7 @@ import logging
 
 from quelware_core.entities.unit import UnitLabel
 
+from quelware_client.core.interfaces.diagnostics_agent import DiagnosticsAgent
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 from quelware_client.core.interfaces.resource_agent import ResourceAgent
@@ -20,6 +21,7 @@ class AgentContainer:
         self._health: dict[UnitLabel, HealthAgent] = {}
         self._rsrc: dict[UnitLabel, ResourceAgent] = {}
         self._inst: dict[UnitLabel, InstrumentAgent] = {}
+        self._diag: dict[UnitLabel, DiagnosticsAgent] = {}
 
     def update_health_agent(self, unit_label: UnitLabel, agent: HealthAgent | None):
         if agent is None:
@@ -51,6 +53,19 @@ class AgentContainer:
                 )
         else:
             self._inst[unit_label] = agent
+
+    def update_diagnostics_agent(
+        self, unit_label: UnitLabel, agent: DiagnosticsAgent | None
+    ):
+        if agent is None:
+            if unit_label in self._diag:
+                self._diag[unit_label]
+            else:
+                logger.warning(
+                    f"DiagnosticsAgent for '{unit_label}' not found. Continue."
+                )
+        else:
+            self._diag[unit_label] = agent
 
     @property
     def session(self) -> SessionAgent:
@@ -86,3 +101,8 @@ class AgentContainer:
         if unit_label not in self._inst:
             raise ValueError(f"InstrumentAgent for '{unit_label}' not set.")
         return self._inst[unit_label]
+
+    def diagnostics(self, unit_label: UnitLabel) -> DiagnosticsAgent:
+        if unit_label not in self._diag:
+            raise ValueError(f"DiagnosticsAgent for '{unit_label}' not set.")
+        return self._diag[unit_label]

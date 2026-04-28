@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `QuelwareClient.dump_port_state(port_id)` for fetching a human-readable shadow dump of a port. Output is for visual inspection only; format is unstable.
+
 ## [0.1.3] - 2026-04-20
 
 ### Changed
