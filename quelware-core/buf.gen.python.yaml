@@ -4,7 +4,7 @@ plugins:
   - local:
       - "uvx"
       - "--from"
-      - "betterproto2_compiler>=0.9.0"
+      - "betterproto2_compiler>=0.9.0,<0.10"
       - "protoc-gen-python_betterproto2"
     opt:
       - server_generation=async

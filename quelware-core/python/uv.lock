@@ -374,7 +374,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "betterproto2", specifier = ">=0.9.1" },
+    { name = "betterproto2", specifier = ">=0.9.1,<0.10" },
     { name = "dacite", specifier = ">=1.8.1" },
     { name = "googleapis-common-protos", specifier = ">=1.66.0" },
     { name = "grpclib", specifier = ">=0.4.8" },
