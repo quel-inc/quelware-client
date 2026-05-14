@@ -101,6 +101,17 @@ class InstrumentAgentGrpc(InstrumentAgent):
         return True
 
     @override
+    async def trigger_now(
+        self,
+        token: SessionToken,
+    ) -> int:
+        req = pb_inst.TriggerNowRequest()
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        resp = await self._service.trigger_now(req, metadata=metadata)
+        return resp.scheduled_clock_count
+
+    @override
     async def fetch_result(
         self,
         token: SessionToken,

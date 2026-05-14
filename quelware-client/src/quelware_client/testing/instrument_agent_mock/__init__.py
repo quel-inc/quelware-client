@@ -53,6 +53,12 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> bool:
         return True
 
+    async def trigger_now(
+        self,
+        token: SessionToken,
+    ) -> int:
+        return 1234
+
     async def fetch_result(
         self,
         token: SessionToken,

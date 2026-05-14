@@ -154,13 +154,27 @@ class Session:
         await asyncio.gather(*apply_coros)
         logger.info(f"finished application (token= {self.token} )")
 
-        reference_unit = extract_unit_label(next(iter(instrument_ids)))
-        cur, ref = await self._agent.instrument(reference_unit).get_clock_snapshot()
-        wait_count = math.ceil(wait_ms * _CLOCK_FREQUENCY_HZ / 1000)
-        target_time = self._trigger_count_proposer.propose_count(cur, ref, wait_count)
-
-        trigger_coros = [
-            self._agent.instrument(unit_label).schedule_trigger(self.token, target_time)
-            for unit_label, ids in unit_to_ids.items()
-        ]
-        await asyncio.gather(*trigger_coros)
+        if len(unit_to_ids) == 1:
+            unit_label = next(iter(unit_to_ids))
+            logger.info(f"trigger via self-timed path (unit={unit_label})")
+            scheduled = await self._agent.instrument(unit_label).trigger_now(self.token)
+            logger.info(f"trigger scheduled at clock_count={scheduled}")
+        else:
+            logger.info(
+                f"trigger via multi-unit sync path "
+                f"(n_units={len(unit_to_ids)}, wait_ms={wait_ms})"
+            )
+            reference_unit = next(iter(unit_to_ids))
+            cur, ref = await self._agent.instrument(reference_unit).get_clock_snapshot()
+            wait_count = math.ceil(wait_ms * _CLOCK_FREQUENCY_HZ / 1000)
+            target_time = self._trigger_count_proposer.propose_count(
+                cur, ref, wait_count
+            )
+            trigger_coros = [
+                self._agent.instrument(unit_label).schedule_trigger(
+                    self.token, target_time
+                )
+                for unit_label in unit_to_ids
+            ]
+            await asyncio.gather(*trigger_coros)
+            logger.info(f"trigger scheduled at clock_count={target_time}")
