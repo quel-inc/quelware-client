@@ -2,9 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-05-15
+
 ### Added
 
 - `QuelwareClient.dump_port_state(port_id)` for fetching a human-readable shadow dump of a port. Output is for visual inspection only; format is unstable.
+
+### Changed
+
+- `Session.trigger` uses the new `TriggerNow` RPC for single-instrument triggers to avoid the clock snapshot round-trip.
 
 ## [0.1.3] - 2026-04-20
 
