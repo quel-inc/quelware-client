@@ -2,10 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-05-15
+
 ### Added
 
 - `RECEIVER` for protobuf InstrumentRole.
 - `DiagnosticsService` proto with `DumpPortState` RPC for human-readable shadow inspection.
+- `InstrumentService.TriggerNow` RPC for single-instrument self-timed trigger.
 
 ## [0.1.2] - 2026-04-18
 
