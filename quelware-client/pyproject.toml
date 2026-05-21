@@ -17,6 +17,12 @@ dependencies = [
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
+[project.optional-dependencies]
+plot = ["matplotlib"]
+
+[project.scripts]
+quel3-echo-test = "quelware_client.cli.quel3_echo_test:cli"
+
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"
 Documentation = "https://quel-inc.github.io/quelware-client/"
