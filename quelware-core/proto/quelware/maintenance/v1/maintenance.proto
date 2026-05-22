@@ -7,11 +7,20 @@ import "google/protobuf/timestamp.proto";
 option go_package = "quelware-core-go/quelware/maintenance/v1";
 
 service MaintenanceService {
-  // Start a sync-and-linkup job. Returns immediately with a job_id.
+  // Drain all units, then run system-wide time synchronization.
   rpc StartTimeSync(StartTimeSyncRequest) returns (StartTimeSyncResponse);
+
+  // Drain all units, then trigger linkup on each in parallel.
+  rpc StartLinkup(StartLinkupRequest) returns (StartLinkupResponse);
 
   // Poll the state of a previously started job.
   rpc GetMaintenanceJob(GetMaintenanceJobRequest) returns (GetMaintenanceJobResponse);
+}
+
+enum JobKind {
+  JOB_KIND_UNSPECIFIED = 0;
+  JOB_KIND_TIME_SYNC = 1;
+  JOB_KIND_LINKUP = 2;
 }
 
 enum JobPhase {
@@ -39,16 +48,23 @@ message UnitProgress {
 
 message MaintenanceJob {
   string job_id = 1;
-  JobPhase phase = 2;
-  google.protobuf.Timestamp started_at = 3;
-  google.protobuf.Timestamp finished_at = 4;
-  string error = 5;
-  repeated UnitProgress unit_progress = 6;
+  JobKind kind = 2;
+  JobPhase phase = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp finished_at = 5;
+  string error = 6;
+  repeated UnitProgress unit_progress = 7;
 }
 
 message StartTimeSyncRequest {}
 
 message StartTimeSyncResponse {
+  string job_id = 1;
+}
+
+message StartLinkupRequest {}
+
+message StartLinkupResponse {
   string job_id = 1;
 }
 
