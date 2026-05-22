@@ -150,7 +150,7 @@ async def run_readout(
         await session.trigger([inst_id])
         result = await driver.fetch_result()
 
-    return result.iq_result["capture"][0].iq_array
+    return result.iq_waveform_result["capture"][0].iq_array
 
 
 def cli():

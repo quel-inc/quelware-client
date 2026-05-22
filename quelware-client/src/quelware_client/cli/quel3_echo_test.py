@@ -32,9 +32,7 @@ _ALIAS = "echo_test"
 _HALF_BW_HZ = 2.5e6
 
 
-async def _resolve_port(
-    qc: QuelwareClient, port_id: str | None
-) -> ResourceId:
+async def _resolve_port(qc: QuelwareClient, port_id: str | None) -> ResourceId:
     if port_id is not None:
         return ResourceId(port_id)
     for info in await qc.list_resource_infos():
@@ -121,7 +119,7 @@ async def _run(
         await session.trigger([inst_id])
         result = await driver.fetch_result()
 
-    return result.iq_result["capture"][0].iq_array
+    return result.iq_waveform_result["capture"][0].iq_array
 
 
 def _plot(iq: np.ndarray, save_path: str | None) -> None:
@@ -166,9 +164,7 @@ def _entry(
     shot_gap_ns: Annotated[
         float, typer.Option(help="gap between successive pulses, in ns")
     ] = 100_000.0,
-    loopback: Annotated[
-        bool, typer.Option(help="route TX into RX internally")
-    ] = False,
+    loopback: Annotated[bool, typer.Option(help="route TX into RX internally")] = False,
     iq_plot: Annotated[bool, typer.Option(help="show I/Q time-series plot")] = False,
     iq_plot_png: Annotated[
         str | None,

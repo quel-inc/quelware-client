@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Follow `ResultContainer` rename: callers now use `iq_waveform_result` or `iq_point_result`.
+
 ## [0.1.4.post1] - 2026-05-18
 
 ### Fixed
