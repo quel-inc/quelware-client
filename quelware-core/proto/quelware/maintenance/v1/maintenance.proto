@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package quelware.maintenance.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "quelware-core-go/quelware/maintenance/v1";
+
+service MaintenanceService {
+  // Start a sync-and-linkup job. Returns immediately with a job_id.
+  rpc StartTimeSync(StartTimeSyncRequest) returns (StartTimeSyncResponse);
+
+  // Poll the state of a previously started job.
+  rpc GetMaintenanceJob(GetMaintenanceJobRequest) returns (GetMaintenanceJobResponse);
+}
+
+enum JobPhase {
+  JOB_PHASE_UNSPECIFIED = 0;
+  JOB_PHASE_DRAINING = 1;
+  JOB_PHASE_SYNCING = 2;
+  JOB_PHASE_LINKING = 3;
+  JOB_PHASE_DONE = 4;
+  JOB_PHASE_FAILED = 5;
+}
+
+enum UnitOutcome {
+  UNIT_OUTCOME_UNSPECIFIED = 0;
+  UNIT_OUTCOME_OK = 1;
+  UNIT_OUTCOME_SKIPPED = 2;
+  UNIT_OUTCOME_FAILED = 3;
+}
+
+message UnitProgress {
+  string unit_label = 1;
+  string phase = 2;
+  UnitOutcome outcome = 3;
+  string detail = 4;
+}
+
+message MaintenanceJob {
+  string job_id = 1;
+  JobPhase phase = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp finished_at = 4;
+  string error = 5;
+  repeated UnitProgress unit_progress = 6;
+}
+
+message StartTimeSyncRequest {}
+
+message StartTimeSyncResponse {
+  string job_id = 1;
+}
+
+message GetMaintenanceJobRequest {
+  string job_id = 1;
+}
+
+message GetMaintenanceJobResponse {
+  MaintenanceJob job = 1;
+}

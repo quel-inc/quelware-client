@@ -4,7 +4,7 @@ generate-python:
 	@buf generate --template buf.gen.python.yaml
 
 generate-go:
-	@buf generate --template buf.gen.go.yaml --path proto/quelware/models/v1/user.proto --path proto/quelware/user/v1/user.proto
+	@buf generate --template buf.gen.go.yaml --path proto/quelware/models/v1/user.proto --path proto/quelware/user/v1/user.proto --path proto/quelware/maintenance/v1/maintenance.proto
 
 build:
 	@buf build -o quelware.protoset
