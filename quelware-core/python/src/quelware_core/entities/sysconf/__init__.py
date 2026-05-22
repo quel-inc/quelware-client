@@ -28,11 +28,19 @@ class GatewayServer:
 
 
 @dataclass
+class ClockConnection:
+    tdc: int = 0
+    ch: int = 0
+    dst: str = ""
+
+
+@dataclass
 class ClockUnit:
     name: str
     macaddress: str
     ipaddress: str
     type: ClockUnitType = ClockUnitType.UNKNOWN
+    clockconnection: list[ClockConnection] = field(default_factory=list)
 
 
 @dataclass
@@ -73,6 +81,7 @@ def sysconf_from_dict(dic) -> SystemConfiguration:
 
 
 __all__ = [
+    "ClockConnection",
     "ClockUnit",
     "ClockUnitType",
     "ControlUnit",
