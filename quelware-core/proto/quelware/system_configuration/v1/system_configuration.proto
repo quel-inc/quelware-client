@@ -4,6 +4,8 @@ package quelware.system_configuration.v1;
 
 import "quelware/models/v1/configuration.proto";
 
+option go_package = "quelware-core-go/quelware/system_configuration/v1";
+
 service SystemConfigurationService {
   rpc ListUnits(ListUnitsRequest) returns (ListUnitsResponse);
   rpc GetUnitStatus(GetUnitStatusRequest) returns (GetUnitStatusResponse);
