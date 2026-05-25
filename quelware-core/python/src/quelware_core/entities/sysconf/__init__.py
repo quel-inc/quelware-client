@@ -41,6 +41,7 @@ class ClockUnit:
     ipaddress: str
     type: ClockUnitType = ClockUnitType.UNKNOWN
     clockconnection: list[ClockConnection] = field(default_factory=list)
+    max_tof: int = 0
 
 
 @dataclass
