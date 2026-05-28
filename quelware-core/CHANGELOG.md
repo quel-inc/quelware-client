@@ -5,6 +5,7 @@
 ### Changed
 
 - Split `ResultContainer.iq_result` into `iq_waveform_result` and `iq_point_result`.
+- `GatewayServer.name` is now optional in sysconf.
 
 ## [0.1.3] - 2026-05-15
 

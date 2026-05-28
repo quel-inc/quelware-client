@@ -23,7 +23,7 @@ class MiscellaneousUnitType(Enum):
 
 @dataclass
 class GatewayServer:
-    name: str
+    name: str = ""
     ipaddress: str = ""
 
 
