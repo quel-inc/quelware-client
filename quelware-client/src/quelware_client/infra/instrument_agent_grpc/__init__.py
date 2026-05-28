@@ -16,6 +16,7 @@ from quelware_client.core.interfaces.instrument_agent import (
     InstrumentAgent,
     ResultContainer,
 )
+from quelware_client.infra._grpc_retry import call_with_retry
 
 
 class InstrumentAgentGrpc(InstrumentAgent):
@@ -32,7 +33,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.GetStatusRequest(resource_id=resource_id)
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        resp = await self._service.get_status(req, metadata=metadata)
+        resp = await call_with_retry(
+            lambda: self._service.get_status(req, metadata=metadata), idempotent=True
+        )
         return instrument_status_from_pb(resp.status)
 
     @override
@@ -46,7 +49,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await self._service.initialize(req, metadata=metadata)
+        await call_with_retry(lambda: self._service.initialize(req, metadata=metadata))
 
     @override
     async def configure(
@@ -61,7 +64,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await self._service.configure(req, metadata=metadata)  # TODO: error handling
+        await call_with_retry(lambda: self._service.configure(req, metadata=metadata))
         return True
 
     @override
@@ -73,7 +76,7 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.ApplyRequest(resource_ids=list(resource_ids))
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await self._service.apply(req, metadata=metadata)  # TODO: error handling
+        await call_with_retry(lambda: self._service.apply(req, metadata=metadata))
         return True
 
     @override
@@ -81,7 +84,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         self,
     ) -> tuple[CurrentCount, ReferenceCount]:
         req = pb_inst.GetClockSnapshotRequest()
-        resp = await self._service.get_clock_snapshot(req)
+        resp = await call_with_retry(
+            lambda: self._service.get_clock_snapshot(req), idempotent=True
+        )
         return (resp.current_count, resp.reference_count)
 
     @override
@@ -95,9 +100,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await self._service.schedule_trigger(
-            req, metadata=metadata
-        )  # TODO: error handling
+        await call_with_retry(
+            lambda: self._service.schedule_trigger(req, metadata=metadata)
+        )
         return True
 
     @override
@@ -108,7 +113,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.TriggerNowRequest()
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        resp = await self._service.trigger_now(req, metadata=metadata)
+        resp = await call_with_retry(
+            lambda: self._service.trigger_now(req, metadata=metadata)
+        )
         return resp.scheduled_clock_count
 
     @override
@@ -120,7 +127,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.FetchResultRequest(resource_id=str(resource_id))
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        resp = await self._service.fetch_result(req, metadata=metadata)
+        resp = await call_with_retry(
+            lambda: self._service.fetch_result(req, metadata=metadata), idempotent=True
+        )
 
         if resp.result_container:
             return result_container_from_pb(resp.result_container)

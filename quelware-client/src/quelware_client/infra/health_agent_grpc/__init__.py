@@ -7,6 +7,7 @@ from grpclib import GRPCError
 from grpclib.client import Channel
 
 from quelware_client.core.interfaces.health_agent import HealthAgent
+from quelware_client.infra._grpc_retry import call_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class HealthAgentGrpc(HealthAgent):
 
     async def check(self) -> bool:
         try:
-            resp = await self._service.check()
+            resp = await call_with_retry(self._service.check, idempotent=True)
             match status := resp.status:
                 case HealthCheckResponse.ServingStatus.SERVING:
                     logger.info(

@@ -22,6 +22,7 @@ from quelware_client.core.exceptions import (
 from quelware_client.core.interfaces.session_agent import (
     SessionAgent,
 )
+from quelware_client.infra._grpc_retry import call_with_retry
 
 
 class SessionAgentGrpc(SessionAgent):
@@ -42,7 +43,7 @@ class SessionAgentGrpc(SessionAgent):
         )
 
         try:
-            response = await self._service.open_session(req)
+            response = await call_with_retry(lambda: self._service.open_session(req))
             return (
                 SessionToken(response.token),
                 [ResourceId(rid) for rid in response.resource_ids],
@@ -78,7 +79,10 @@ class SessionAgentGrpc(SessionAgent):
         req = pb_session.CloseSessionRequest()
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await self._service.close_session(req, metadata=metadata)
+        await call_with_retry(
+            lambda: self._service.close_session(req, metadata=metadata),
+            idempotent=True,
+        )
         return True
 
 

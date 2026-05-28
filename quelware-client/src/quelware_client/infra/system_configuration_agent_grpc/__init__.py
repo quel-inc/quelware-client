@@ -6,6 +6,7 @@ from quelware_core.entities.unit import UnitLabel
 from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
+from quelware_client.infra._grpc_retry import call_with_retry
 
 
 class SystemConfigurationAgentGrpc(SystemConfigurationAgent):
@@ -17,7 +18,9 @@ class SystemConfigurationAgentGrpc(SystemConfigurationAgent):
 
     async def list_units(self) -> list[UnitLabel]:
         req = pb_conf.ListUnitsRequest()
-        response = await self._service.list_units(req)
+        response = await call_with_retry(
+            lambda: self._service.list_units(req), idempotent=True
+        )
 
         return list(UnitLabel(u.label) for u in response.units)
 

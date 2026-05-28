@@ -17,6 +17,7 @@ from quelware_core.pb_converter.port import port_role_from_pb
 from quelware_core.pb_converter.resource import resource_info_from_pb
 
 from quelware_client.core.interfaces.resource_agent import ResourceAgent
+from quelware_client.infra._grpc_retry import call_with_retry
 
 
 class ResourceAgentGrpc(ResourceAgent):
@@ -26,7 +27,9 @@ class ResourceAgentGrpc(ResourceAgent):
 
     async def list_resource_infos(self) -> list[ResourceInfo]:
         req = pb_res.ListResourcesRequest()
-        resp = await self._service.list_resources(req)
+        resp = await call_with_retry(
+            lambda: self._service.list_resources(req), idempotent=True
+        )
         return [resource_info_from_pb(r) for r in resp.resources]
 
     async def deploy_instruments(
@@ -44,13 +47,17 @@ class ResourceAgentGrpc(ResourceAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(session_token)
-        resp = await self._service.deploy_instruments(req, metadata=metadata)
+        resp = await call_with_retry(
+            lambda: self._service.deploy_instruments(req, metadata=metadata)
+        )
         insts = list(map(instrument_from_pb, resp.instruments))
         return insts
 
     async def get_port_info(self, resource_id: ResourceId) -> PortInfo:
         req = pb_res.GetPortRequest(id=resource_id)
-        resp = await self._service.get_port(req)
+        resp = await call_with_retry(
+            lambda: self._service.get_port(req), idempotent=True
+        )
         if resp.port is None:
             raise ValueError("port is not set.")
         return PortInfo(
@@ -59,7 +66,9 @@ class ResourceAgentGrpc(ResourceAgent):
 
     async def get_instrument_info(self, resource_id: ResourceId) -> InstrumentInfo:
         req = pb_res.GetInstrumentRequest(id=resource_id)
-        resp = await self._service.get_instrument(req)
+        resp = await call_with_retry(
+            lambda: self._service.get_instrument(req), idempotent=True
+        )
         if resp.instrument is None:
             raise ValueError("instrument is not set.")
         return instrument_from_pb(resp.instrument)
@@ -70,7 +79,10 @@ class ResourceAgentGrpc(ResourceAgent):
         req = pb_res.ListLockedResourcesRequest()
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(session_token)
-        resq = await self._service.list_locked_resources(req, metadata=metadata)
+        resq = await call_with_retry(
+            lambda: self._service.list_locked_resources(req, metadata=metadata),
+            idempotent=True,
+        )
         return list(ResourceId(rid) for rid in resq.resource_ids)
 
 
