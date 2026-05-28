@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-05-28
+
 ### Changed
 
 - Split `ResultContainer.iq_result` into `iq_waveform_result` and `iq_point_result`.
