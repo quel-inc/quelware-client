@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-28
+
+### Added
+
+- `maintenance sync` / `maintenance linkup` / `maintenance status` for triggering and polling maintenance jobs.
+- `unit list` / `unit status` / `unit activate` / `unit drain` / `unit maintain` for inspecting and managing unit states.
+
 ## [0.1.1] - 2026-04-18
 
 ### Added
