@@ -42,6 +42,7 @@ class ClockUnit:
     type: ClockUnitType = ClockUnitType.UNKNOWN
     clockconnection: list[ClockConnection] = field(default_factory=list)
     max_tof: int = 0
+    ignored: bool = False
 
 
 @dataclass
@@ -60,6 +61,7 @@ class MiscellaneousUnit:
     type: MiscellaneousUnitType = MiscellaneousUnitType.UNKNOWN
     macaddress: str = ""
     ipaddress: str = ""
+    ignored: bool = False
 
 
 @dataclass

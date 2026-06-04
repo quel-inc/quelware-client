@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `ignored: bool` field on `ClockUnit` and `MiscellaneousUnit`.
+
 ## [0.1.4] - 2026-05-28
 
 ### Changed
