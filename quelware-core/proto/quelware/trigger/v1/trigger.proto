@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package quelware.trigger.v1;
+
+service TriggerService {
+  rpc Trigger(TriggerRequest) returns (TriggerResponse);
+}
+
+message TriggerRequest {
+  repeated string instrument_ids = 1;
+  optional uint32 requested_min_wait_ms = 2;
+}
+
+message TriggerResponse {
+  uint64 scheduled_clock_count = 1;
+}

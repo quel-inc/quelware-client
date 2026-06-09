@@ -5,6 +5,7 @@
 ### Added
 
 - `ignored: bool` field on `ClockUnit` and `MiscellaneousUnit`.
+- `TriggerService` proto with `Trigger` RPC for manager-side trigger orchestration.
 
 ## [0.1.4] - 2026-05-28
 
