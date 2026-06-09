@@ -2,9 +2,22 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-09
+
+### Added
+
+- `Session.trigger` now routes through the manager by default (single round-trip, shorter lead).
+- `ServiceUnavailableError` exception for catching cases where the server-side service is not available.
+
 ### Changed
 
-- Default multi-unit trigger offset is now 0 ticks (was 16), aligning trigger time to the sysref edge.
+- `Session.trigger` default `wait_ms` changed from `400` to `None`.
+- `Session.trigger` returns the scheduled clock count (`int`).
+- Default multi-unit trigger offset is 0 ticks (was 16).
+
+### Removed
+
+- `agent.instrument(unit).get_clock_snapshot()` — use `agent.worker(unit).get_clock_snapshot()`.
 
 ## [0.2.0] - 2026-05-28
 

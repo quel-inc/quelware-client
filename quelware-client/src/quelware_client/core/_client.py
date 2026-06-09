@@ -16,6 +16,7 @@ from quelware_client.core._agent_container import AgentContainer
 from quelware_client.core.interfaces.diagnostics_agent import DiagnosticsAgent
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
+from quelware_client.core.interfaces.worker_agent import WorkerAgent
 
 from ._session import Session
 from .interfaces.resource_agent import ResourceAgent
@@ -35,6 +36,7 @@ class QuelwareClient:
         resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
         instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
         diagnostics_agent_factory: AgentFactory[DiagnosticsAgent] | None = None,
+        worker_agent_factory: AgentFactory[WorkerAgent] | None = None,
         close_handlers: list[Callable[[], None]] | None = None,
         skip_lock_check: bool = False,
     ):
@@ -43,6 +45,7 @@ class QuelwareClient:
         self._rsrc_agent_factory = resource_agent_factory
         self._inst_agent_factory = instrument_agent_factory
         self._diag_agent_factory = diagnostics_agent_factory
+        self._worker_agent_factory = worker_agent_factory
         self._unit_labels: list[UnitLabel] = []
         self._close_handlers = close_handlers or []
         self._skip_lock_check = skip_lock_check
@@ -91,6 +94,8 @@ class QuelwareClient:
                 self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
             if self._diag_agent_factory:
                 self._agent.update_diagnostics_agent(ul, self._diag_agent_factory(ul))
+            if self._worker_agent_factory:
+                self._agent.update_worker_agent(ul, self._worker_agent_factory(ul))
         self._unit_labels = healthy_labels
 
     def list_unit_labels(self) -> list[UnitLabel]:

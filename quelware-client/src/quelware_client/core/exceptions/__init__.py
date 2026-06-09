@@ -72,3 +72,7 @@ class UnitNotFoundError(_ErrorWithUnitLabelsMixin, QuelwareClientError): ...
 
 
 class InvalidUnitStatusError(_ErrorWithUnitLabelsMixin, QuelwareClientError): ...
+
+
+class ServiceUnavailableError(QuelwareClientError):
+    DEFAULT_MESSAGE = "The requested service is not available on the server."

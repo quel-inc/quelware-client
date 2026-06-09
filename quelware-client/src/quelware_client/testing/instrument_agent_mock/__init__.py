@@ -1,6 +1,5 @@
 from collections.abc import Collection, Sequence
 
-from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.directives import Directive
 from quelware_core.entities.instrument import InstrumentStatus
 from quelware_core.entities.resource import ResourceId
@@ -40,11 +39,6 @@ class InstrumentAgentMock(InstrumentAgent):
         resource_ids: Collection[ResourceId],
     ) -> bool:
         return True
-
-    async def get_clock_snapshot(
-        self,
-    ) -> tuple[CurrentCount, ReferenceCount]:
-        return 1234, 1000
 
     async def schedule_trigger(
         self,

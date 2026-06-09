@@ -10,6 +10,8 @@ from quelware_client.core.interfaces.session_agent import SessionAgent
 from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
+from quelware_client.core.interfaces.trigger_agent import TriggerAgent
+from quelware_client.core.interfaces.worker_agent import WorkerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +20,12 @@ class AgentContainer:
     def __init__(self):
         self._session: SessionAgent | None = None
         self._conf: SystemConfigurationAgent | None = None
+        self._trigger: TriggerAgent | None = None
         self._health: dict[UnitLabel, HealthAgent] = {}
         self._rsrc: dict[UnitLabel, ResourceAgent] = {}
         self._inst: dict[UnitLabel, InstrumentAgent] = {}
         self._diag: dict[UnitLabel, DiagnosticsAgent] = {}
+        self._worker: dict[UnitLabel, WorkerAgent] = {}
 
     def update_health_agent(self, unit_label: UnitLabel, agent: HealthAgent | None):
         if agent is None:
@@ -67,6 +71,15 @@ class AgentContainer:
         else:
             self._diag[unit_label] = agent
 
+    def update_worker_agent(self, unit_label: UnitLabel, agent: WorkerAgent | None):
+        if agent is None:
+            if unit_label in self._worker:
+                self._worker[unit_label]
+            else:
+                logger.warning(f"WorkerAgent for '{unit_label}' not found. Continue.")
+        else:
+            self._worker[unit_label] = agent
+
     @property
     def session(self) -> SessionAgent:
         if self._session is None:
@@ -87,6 +100,16 @@ class AgentContainer:
     def system_configuration(self, val: SystemConfigurationAgent):
         self._conf = val
 
+    @property
+    def trigger(self) -> TriggerAgent:
+        if self._trigger is None:
+            raise ValueError("TriggerAgent not set.")
+        return self._trigger
+
+    @trigger.setter
+    def trigger(self, val: TriggerAgent):
+        self._trigger = val
+
     def health(self, unit_label: UnitLabel) -> HealthAgent:
         if unit_label not in self._health:
             raise ValueError(f"HealthAgent for '{unit_label}' not set.")
@@ -106,3 +129,8 @@ class AgentContainer:
         if unit_label not in self._diag:
             raise ValueError(f"DiagnosticsAgent for '{unit_label}' not set.")
         return self._diag[unit_label]
+
+    def worker(self, unit_label: UnitLabel) -> WorkerAgent:
+        if unit_label not in self._worker:
+            raise ValueError(f"WorkerAgent for '{unit_label}' not set.")
+        return self._worker[unit_label]

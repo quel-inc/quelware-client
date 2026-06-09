@@ -14,6 +14,7 @@ from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
+from quelware_client.core.exceptions import ServiceUnavailableError
 from quelware_client.core.trigger_count_proposer import (
     FixedOffsetTriggerCountProposer,
     TriggerCountProposer,
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 _default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=0)
 _CLOCK_FREQUENCY_HZ = 312_500_000
+_FALLBACK_MIN_WAIT_MS = 500
 
 
 class Session:
@@ -143,7 +145,11 @@ class Session:
         )
         return insts
 
-    async def trigger(self, instrument_ids: Collection[ResourceId], wait_ms=400):
+    async def trigger(
+        self,
+        instrument_ids: Collection[ResourceId],
+        wait_ms: int | None = None,
+    ) -> int:
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         logger.info(f"starting application (token= {self.token} )")
@@ -154,27 +160,47 @@ class Session:
         await asyncio.gather(*apply_coros)
         logger.info(f"finished application (token= {self.token} )")
 
+        try:
+            scheduled = await self._agent.trigger.trigger(
+                self.token,
+                list(instrument_ids),
+                requested_min_wait_ms=wait_ms,
+            )
+            logger.info(f"trigger scheduled via manager at clock_count={scheduled}")
+            return scheduled
+        except ServiceUnavailableError:
+            fallback_wait_ms = max(wait_ms or 0, _FALLBACK_MIN_WAIT_MS)
+            logger.warning(
+                f"Manager-side TriggerService unavailable; falling back to "
+                f"client-side trigger (wait_ms={fallback_wait_ms})."
+            )
+
+        return await self._client_side_trigger_fallback(unit_to_ids, fallback_wait_ms)
+
+    async def _client_side_trigger_fallback(
+        self,
+        unit_to_ids: dict[UnitLabel, list[ResourceId]],
+        wait_ms: int,
+    ) -> int:
         if len(unit_to_ids) == 1:
             unit_label = next(iter(unit_to_ids))
-            logger.info(f"trigger via self-timed path (unit={unit_label})")
+            logger.info(f"fallback: self-timed trigger (unit={unit_label})")
             scheduled = await self._agent.instrument(unit_label).trigger_now(self.token)
             logger.info(f"trigger scheduled at clock_count={scheduled}")
-        else:
-            logger.info(
-                f"trigger via multi-unit sync path "
-                f"(n_units={len(unit_to_ids)}, wait_ms={wait_ms})"
-            )
-            reference_unit = next(iter(unit_to_ids))
-            cur, ref = await self._agent.instrument(reference_unit).get_clock_snapshot()
-            wait_count = math.ceil(wait_ms * _CLOCK_FREQUENCY_HZ / 1000)
-            target_time = self._trigger_count_proposer.propose_count(
-                cur, ref, wait_count
-            )
-            trigger_coros = [
-                self._agent.instrument(unit_label).schedule_trigger(
-                    self.token, target_time
-                )
-                for unit_label in unit_to_ids
-            ]
-            await asyncio.gather(*trigger_coros)
-            logger.info(f"trigger scheduled at clock_count={target_time}")
+            return scheduled
+
+        logger.info(
+            f"fallback: multi-unit sync trigger "
+            f"(n_units={len(unit_to_ids)}, wait_ms={wait_ms})"
+        )
+        reference_unit = next(iter(unit_to_ids))
+        cur, ref = await self._agent.worker(reference_unit).get_clock_snapshot()
+        wait_count = math.ceil(wait_ms * _CLOCK_FREQUENCY_HZ / 1000)
+        target_time = self._trigger_count_proposer.propose_count(cur, ref, wait_count)
+        trigger_coros = [
+            self._agent.instrument(unit_label).schedule_trigger(self.token, target_time)
+            for unit_label in unit_to_ids
+        ]
+        await asyncio.gather(*trigger_coros)
+        logger.info(f"trigger scheduled at clock_count={target_time}")
+        return target_time

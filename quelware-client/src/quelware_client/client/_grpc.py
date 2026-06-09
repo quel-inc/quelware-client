@@ -13,6 +13,7 @@ from quelware_client.core.interfaces.session_agent import SessionAgent
 from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
+from quelware_client.core.interfaces.worker_agent import WorkerAgent
 from quelware_client.infra.diagnostics_agent_grpc import DiagnosticsAgentGrpc
 from quelware_client.infra.health_agent_grpc import HealthAgentGrpc
 from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
@@ -24,6 +25,8 @@ from quelware_client.infra.session_agent_grpc import SessionAgentGrpc
 from quelware_client.infra.system_configuration_agent_grpc import (
     SystemConfigurationAgentGrpc,
 )
+from quelware_client.infra.trigger_agent_grpc import TriggerAgentGrpc
+from quelware_client.infra.worker_agent_grpc import WorkerAgentGrpc
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,13 @@ def _create_default_diagnostics_agent_factory(channel, pat: str):
     return _default_diagnostics_agent_factory
 
 
+def _create_default_worker_agent_factory(channel):
+    def _default_worker_agent_factory(ul: UnitLabel):
+        return WorkerAgentGrpc(channel, metadata={"x-unit-label": str(ul)})
+
+    return _default_worker_agent_factory
+
+
 _CENTRAL_SERVER_METADATA_BASE = {"x-unit-label": "central-server"}
 
 
@@ -76,6 +86,7 @@ def create_quelware_client(  # noqa: PLR0913
     resource_agent_factory: AgentFactory[ResourceAgent] | None = None,
     instrument_agent_factory: AgentFactory[InstrumentAgent] | None = None,
     diagnostics_agent_factory: AgentFactory[DiagnosticsAgent] | None = None,
+    worker_agent_factory: AgentFactory[WorkerAgent] | None = None,
     pat: PatProvider | str | None = None,
 ):
     channel = Channel(endpoint, port)
@@ -105,6 +116,9 @@ def create_quelware_client(  # noqa: PLR0913
             channel, _pat
         )
 
+    if worker_agent_factory is None:
+        worker_agent_factory = _create_default_worker_agent_factory(channel)
+
     central_server_metadata = _CENTRAL_SERVER_METADATA_BASE | {"x-pat": _pat}
 
     agent_container = AgentContainer()
@@ -116,11 +130,15 @@ def create_quelware_client(  # noqa: PLR0913
         agent_container.system_configuration = SystemConfigurationAgentGrpc(
             channel, metadata=central_server_metadata
         )
+    agent_container.trigger = TriggerAgentGrpc(
+        channel, metadata=central_server_metadata
+    )
     return QuelwareClient(
         agent=agent_container,
         health_agent_factory=health_agent_factory,
         resource_agent_factory=resource_agent_factory,
         instrument_agent_factory=instrument_agent_factory,
         diagnostics_agent_factory=diagnostics_agent_factory,
+        worker_agent_factory=worker_agent_factory,
         close_handlers=[channel.close],
     )

@@ -3,7 +3,6 @@ from collections.abc import Collection, Sequence
 import quelware_core.pb.quelware.instrument.v1 as pb_inst
 from grpclib.client import Channel
 from quelware_core.entities import directives
-from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.instrument import InstrumentStatus
 from quelware_core.entities.resource import ResourceId
 from quelware_core.entities.session import SessionToken
@@ -78,16 +77,6 @@ class InstrumentAgentGrpc(InstrumentAgent):
         metadata["x-session-token"] = str(token)
         await call_with_retry(lambda: self._service.apply(req, metadata=metadata))
         return True
-
-    @override
-    async def get_clock_snapshot(
-        self,
-    ) -> tuple[CurrentCount, ReferenceCount]:
-        req = pb_inst.GetClockSnapshotRequest()
-        resp = await call_with_retry(
-            lambda: self._service.get_clock_snapshot(req), idempotent=True
-        )
-        return (resp.current_count, resp.reference_count)
 
     @override
     async def schedule_trigger(
