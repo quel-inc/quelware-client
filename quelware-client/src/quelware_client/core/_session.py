@@ -23,7 +23,7 @@ from ._utils import create_unit_to_ids_map
 
 logger = logging.getLogger(__name__)
 
-_default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=16)
+_default_count_proposer = FixedOffsetTriggerCountProposer(grid_step=32, offset=0)
 _CLOCK_FREQUENCY_HZ = 312_500_000
 
 

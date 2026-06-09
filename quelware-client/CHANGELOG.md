@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Default multi-unit trigger offset is now 0 ticks (was 16), aligning trigger time to the sysref edge.
+
 ## [0.2.0] - 2026-05-28
 
 ### Changed
