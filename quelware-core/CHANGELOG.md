@@ -2,10 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-09
+
 ### Added
 
 - `ignored: bool` field on `ClockUnit` and `MiscellaneousUnit`.
 - `TriggerService` proto with `Trigger` RPC for manager-side trigger orchestration.
+- `WorkerService.GetClockSnapshot` RPC for clock snapshot retrieval by the manager.
 
 ## [0.1.4] - 2026-05-28
 

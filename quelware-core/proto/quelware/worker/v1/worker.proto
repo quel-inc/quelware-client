@@ -8,6 +8,7 @@ import "quelware/models/v1/general.proto";
 service WorkerService {
   rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
   rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
+  rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
 }
 
 message GetVersionRequest {}
@@ -18,4 +19,10 @@ message GetVersionResponse {
 message GetWorkerStatusRequest {}
 message GetWorkerStatusResponse {
   quelware.models.v1.WorkerStatus worker_status = 1;
+}
+
+message GetClockSnapshotRequest {}
+message GetClockSnapshotResponse {
+  uint64 current_count = 1;
+  uint64 reference_count = 2;
 }
