@@ -17,5 +17,8 @@ class SessionAgent(ABC):
     @abstractmethod
     async def close_session(self, token: SessionToken) -> bool: ...
 
+    @abstractmethod
+    async def extend_session(self, token: SessionToken, new_ttl_ms: int) -> bool: ...
+
 
 __all__ = ["SessionAgent"]

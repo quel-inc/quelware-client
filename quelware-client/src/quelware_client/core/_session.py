@@ -109,6 +109,13 @@ class Session:
         await self._agent.session.close_session(self.token)
         logger.info(f"Session closed. session_token={self.token}")
 
+    async def extend(self, new_ttl_ms: int) -> bool:
+        success = await self._agent.session.extend_session(self.token, new_ttl_ms)
+        logger.info(
+            f"Session extended. session_token={self.token} new_ttl_ms={new_ttl_ms}"
+        )
+        return success
+
     async def __aenter__(self):
         await self.open()
         return self

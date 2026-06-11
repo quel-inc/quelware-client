@@ -12,6 +12,7 @@ from quelware_client.core.interfaces.session_agent import (
 class SessionAgentMock(SessionAgent):
     open_session_result: tuple[SessionToken, list[ResourceId]] | None = None
     close_session_result: bool = True
+    extend_session_result: bool = True
 
     async def open_session(
         self,
@@ -27,6 +28,9 @@ class SessionAgentMock(SessionAgent):
 
     async def close_session(self, token: SessionToken) -> bool:
         return self.close_session_result
+
+    async def extend_session(self, token: SessionToken, new_ttl_ms: int) -> bool:
+        return self.extend_session_result
 
 
 __all__ = ["SessionAgentMock"]

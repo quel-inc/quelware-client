@@ -85,5 +85,14 @@ class SessionAgentGrpc(SessionAgent):
         )
         return True
 
+    async def extend_session(self, token: SessionToken, new_ttl_ms: int) -> bool:
+        req = pb_session.ExtendSessionRequest(new_ttl_ms=new_ttl_ms)
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        resp = await call_with_retry(
+            lambda: self._service.extend_session(req, metadata=metadata)
+        )
+        return resp.success
+
 
 __all__ = ["SessionAgentGrpc"]
