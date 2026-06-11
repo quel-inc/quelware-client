@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- `SessionService.ExtendSession` RPC for extending the TTL of an active session.
+
 ## [0.2.0] - 2026-06-09
 
 ### Added

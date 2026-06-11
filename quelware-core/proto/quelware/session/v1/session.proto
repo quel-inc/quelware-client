@@ -5,6 +5,7 @@ package quelware.session.v1;
 service SessionService {
   rpc OpenSession(OpenSessionRequest) returns (OpenSessionResponse);
   rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+  rpc ExtendSession(ExtendSessionRequest) returns (ExtendSessionResponse);
 }
 
 message OpenSessionRequest {
@@ -23,5 +24,13 @@ message CloseSessionRequest {
 }
 
 message CloseSessionResponse {
+  bool success = 1;
+}
+
+message ExtendSessionRequest {
+  int64 new_ttl_ms = 1;
+}
+
+message ExtendSessionResponse {
   bool success = 1;
 }
