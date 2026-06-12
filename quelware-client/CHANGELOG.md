@@ -6,7 +6,7 @@
 
 ### Added
 
-- `Session.extend(new_ttl_ms)` to extend an active session via the manager's `SessionService.ExtendSession` RPC.
+- `Session.extend(new_ttl_ms)` to extend an active session via `SessionService.ExtendSession` RPC.
 - `SessionAgent.extend_session` Protocol method.
 
 ## [0.3.0] - 2026-06-09
