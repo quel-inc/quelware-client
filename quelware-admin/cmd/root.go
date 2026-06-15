@@ -6,12 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
+
+const rpcTimeout = 15 * time.Second
 
 var (
 	address   string
@@ -38,13 +41,15 @@ func dial() (*grpc.ClientConn, error) {
 	return grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
-func contextWithPAT() (context.Context, error) {
+func contextWithPAT() (context.Context, context.CancelFunc, error) {
 	pat, err := loadPAT()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	md := metadata.Pairs("x-pat", pat, "x-unit-label", unitLabel)
-	return metadata.NewOutgoingContext(context.Background(), md), nil
+	base := metadata.NewOutgoingContext(context.Background(), md)
+	ctx, cancel := context.WithTimeout(base, rpcTimeout)
+	return ctx, cancel, nil
 }
 
 func loadPAT() (string, error) {

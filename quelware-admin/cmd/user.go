@@ -33,10 +33,11 @@ var addUserCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		ctx, err := contextWithPAT()
+		ctx, cancel, err := contextWithPAT()
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
 		client := userv1.NewUserServiceClient(conn)
 		resp, err := client.AddUser(ctx, &userv1.AddUserRequest{
@@ -71,10 +72,11 @@ var updateUserRoleCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		ctx, err := contextWithPAT()
+		ctx, cancel, err := contextWithPAT()
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
 		client := userv1.NewUserServiceClient(conn)
 		resp, err := client.UpdateUserRole(ctx, &userv1.UpdateUserRoleRequest{
@@ -105,10 +107,11 @@ var revokeUserCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		ctx, err := contextWithPAT()
+		ctx, cancel, err := contextWithPAT()
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
 		client := userv1.NewUserServiceClient(conn)
 		resp, err := client.RevokeUser(ctx, &userv1.RevokeUserRequest{
@@ -136,10 +139,11 @@ var listUsersCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		ctx, err := contextWithPAT()
+		ctx, cancel, err := contextWithPAT()
 		if err != nil {
 			return err
 		}
+		defer cancel()
 
 		client := userv1.NewUserServiceClient(conn)
 		resp, err := client.ListUsers(ctx, &userv1.ListUsersRequest{})

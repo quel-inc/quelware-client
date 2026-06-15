@@ -2,9 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `unit activate` / `unit drain` / `unit maintain` accept `--all` to apply to every unit in parallel.
+
 ### Changed
 
 - `maintenance sync` and `maintenance linkup` are merged into `maintenance commission`.
+- Every RPC is now capped at 15s to detect dead servers.
+- `maintenance commission` prints progress dots while polling and a per-outcome summary of unit results at the end.
 
 ## [0.2.0] - 2026-05-28
 
