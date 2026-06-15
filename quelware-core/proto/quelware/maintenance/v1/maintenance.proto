@@ -7,8 +7,8 @@ import "google/protobuf/timestamp.proto";
 option go_package = "quelware-core-go/quelware/maintenance/v1";
 
 service MaintenanceService {
-  // Drain all units, run system-wide time synchronization, then linkup each
-  // unit in parallel.
+  // Bring each target unit to a usable state. Each unit is expected to be in
+  // MAINTENANCE.
   rpc StartCommission(StartCommissionRequest) returns (StartCommissionResponse);
 
   // Poll the state of a previously started job.
