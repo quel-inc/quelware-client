@@ -984,7 +984,7 @@ dev = [
 
 [[package]]
 name = "quelware-core"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "../quelware-core/python" }
 dependencies = [
     { name = "betterproto2" },

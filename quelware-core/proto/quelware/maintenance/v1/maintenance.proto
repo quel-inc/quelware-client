@@ -7,11 +7,9 @@ import "google/protobuf/timestamp.proto";
 option go_package = "quelware-core-go/quelware/maintenance/v1";
 
 service MaintenanceService {
-  // Drain all units, then run system-wide time synchronization.
-  rpc StartTimeSync(StartTimeSyncRequest) returns (StartTimeSyncResponse);
-
-  // Drain all units, then trigger linkup on each in parallel.
-  rpc StartLinkup(StartLinkupRequest) returns (StartLinkupResponse);
+  // Drain all units, run system-wide time synchronization, then linkup each
+  // unit in parallel.
+  rpc StartCommission(StartCommissionRequest) returns (StartCommissionResponse);
 
   // Poll the state of a previously started job.
   rpc GetMaintenanceJob(GetMaintenanceJobRequest) returns (GetMaintenanceJobResponse);
@@ -19,8 +17,7 @@ service MaintenanceService {
 
 enum JobKind {
   JOB_KIND_UNSPECIFIED = 0;
-  JOB_KIND_TIME_SYNC = 1;
-  JOB_KIND_LINKUP = 2;
+  JOB_KIND_COMMISSION = 1;
 }
 
 enum JobPhase {
@@ -56,15 +53,13 @@ message MaintenanceJob {
   repeated UnitProgress unit_progress = 7;
 }
 
-message StartTimeSyncRequest {}
-
-message StartTimeSyncResponse {
-  string job_id = 1;
+message StartCommissionRequest {
+  // If true, skip any unit whose link status currently reports healthy. If
+  // false (default), fully reset all state and bring every unit up from scratch.
+  bool preserve_healthy = 1;
 }
 
-message StartLinkupRequest {}
-
-message StartLinkupResponse {
+message StartCommissionResponse {
   string job_id = 1;
 }
 

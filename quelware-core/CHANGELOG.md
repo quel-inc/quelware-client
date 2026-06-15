@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.0] - 2026-06-15
+
+### Changed
+
+- `MaintenanceService` replaces `StartTimeSync` / `StartLinkup` with a single `StartCommission` RPC (with `preserve_healthy` flag). `JobKind` now has only `COMMISSION`.
 
 ## [0.3.0] - 2026-06-12
 
