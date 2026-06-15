@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `maintenance sync` and `maintenance linkup` are merged into `maintenance commission`.
+
 ## [0.2.0] - 2026-05-28
 
 ### Added

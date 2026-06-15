@@ -12,12 +12,15 @@ import (
 
 var maintenanceCmd = &cobra.Command{
 	Use:   "maintenance",
-	Short: "Trigger and observe maintenance jobs (time sync, linkup)",
+	Short: "Trigger and observe maintenance jobs (commission)",
 }
 
-var maintenanceSyncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Drain all units and run system-wide time synchronization",
+var maintenanceCommissionCmd = &cobra.Command{
+	Use:   "commission",
+	Short: "Drain all units, run time sync, then linkup",
+	Long: "Drain all units, run system-wide time sync, then linkup each unit\n" +
+		"in parallel. By default any unit whose link status reports healthy\n" +
+		"is preserved; pass --from-scratch to fully reset.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, ctx, cleanup, err := newMaintenanceClient()
 		if err != nil {
@@ -25,32 +28,14 @@ var maintenanceSyncCmd = &cobra.Command{
 		}
 		defer cleanup()
 
-		resp, err := client.StartTimeSync(ctx, &maintenancev1.StartTimeSyncRequest{})
+		fromScratch, _ := cmd.Flags().GetBool("from-scratch")
+		resp, err := client.StartCommission(ctx, &maintenancev1.StartCommissionRequest{
+			PreserveHealthy: !fromScratch,
+		})
 		if err != nil {
-			return fmt.Errorf("StartTimeSync failed: %w", err)
+			return fmt.Errorf("StartCommission failed: %w", err)
 		}
-		fmt.Printf("Started time sync job: %s\n", resp.JobId)
-
-		pollInterval, _ := cmd.Flags().GetDuration("poll-interval")
-		return pollUntilDone(client, resp.JobId, pollInterval)
-	},
-}
-
-var maintenanceLinkupCmd = &cobra.Command{
-	Use:   "linkup",
-	Short: "Drain all units and run parallel linkup",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, ctx, cleanup, err := newMaintenanceClient()
-		if err != nil {
-			return err
-		}
-		defer cleanup()
-
-		resp, err := client.StartLinkup(ctx, &maintenancev1.StartLinkupRequest{})
-		if err != nil {
-			return fmt.Errorf("StartLinkup failed: %w", err)
-		}
-		fmt.Printf("Started linkup job: %s\n", resp.JobId)
+		fmt.Printf("Started commission job: %s\n", resp.JobId)
 
 		pollInterval, _ := cmd.Flags().GetDuration("poll-interval")
 		return pollUntilDone(client, resp.JobId, pollInterval)
@@ -142,8 +127,8 @@ func printJob(job *maintenancev1.MaintenanceJob) {
 
 func init() {
 	rootCmd.AddCommand(maintenanceCmd)
-	maintenanceCmd.AddCommand(maintenanceSyncCmd, maintenanceLinkupCmd, maintenanceStatusCmd)
+	maintenanceCmd.AddCommand(maintenanceCommissionCmd, maintenanceStatusCmd)
 
-	maintenanceSyncCmd.Flags().Duration("poll-interval", 2*time.Second, "polling interval while waiting")
-	maintenanceLinkupCmd.Flags().Duration("poll-interval", 2*time.Second, "polling interval while waiting")
+	maintenanceCommissionCmd.Flags().Bool("from-scratch", false, "fully reset all state instead of preserving units with healthy link status")
+	maintenanceCommissionCmd.Flags().Duration("poll-interval", 2*time.Second, "polling interval while waiting")
 }
