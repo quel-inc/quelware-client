@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-17
+
 ### Added
 
 - `InstrumentDriver.wait_for_result(timeout_sec=None)` blocks until the result is ready, transparently absorbing server-side fetch timeouts.
