@@ -1,7 +1,10 @@
+import asyncio
 from collections.abc import Collection, Sequence
 
 import quelware_core.pb.quelware.instrument.v1 as pb_inst
+from grpclib import GRPCError
 from grpclib.client import Channel
+from grpclib.const import Status
 from quelware_core.entities import directives
 from quelware_core.entities.instrument import InstrumentStatus
 from quelware_core.entities.resource import ResourceId
@@ -124,6 +127,23 @@ class InstrumentAgentGrpc(InstrumentAgent):
             return result_container_from_pb(resp.result_container)
 
         return ResultContainer()
+
+    @override
+    async def wait_for_result(
+        self,
+        token: SessionToken,
+        resource_id: ResourceId,
+        timeout_sec: float | None,
+    ) -> ResultContainer:
+        async def _loop() -> ResultContainer:
+            while True:
+                try:
+                    return await self.fetch_result(token, resource_id)
+                except GRPCError as e:
+                    if e.status is not Status.DEADLINE_EXCEEDED:
+                        raise
+
+        return await asyncio.wait_for(_loop(), timeout=timeout_sec)
 
 
 __all__ = ["InstrumentAgentGrpc"]

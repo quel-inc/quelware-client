@@ -51,5 +51,12 @@ class InstrumentAgent(Protocol):
         resource_id: ResourceId,
     ) -> ResultContainer: ...
 
+    async def wait_for_result(
+        self,
+        token: SessionToken,
+        resource_id: ResourceId,
+        timeout_sec: float | None,
+    ) -> ResultContainer: ...
+
 
 __all__ = ["InstrumentAgent"]

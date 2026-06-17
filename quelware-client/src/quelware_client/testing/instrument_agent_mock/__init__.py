@@ -60,5 +60,13 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> ResultContainer:
         return ResultContainer()
 
+    async def wait_for_result(
+        self,
+        token: SessionToken,
+        resource_id: ResourceId,
+        timeout_sec: float | None,
+    ) -> ResultContainer:
+        return ResultContainer()
+
 
 __all__ = ["InstrumentAgentMock"]

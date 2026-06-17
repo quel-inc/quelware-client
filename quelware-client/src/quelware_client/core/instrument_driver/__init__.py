@@ -68,6 +68,15 @@ class InstrumentDriver(Generic[D, C, P]):
         res = await self._agent.fetch_result(self._token, self._id)
         return res
 
+    async def wait_for_result(
+        self, timeout_sec: float | None = None
+    ) -> ResultContainer:
+        """Block until the result is ready, retrying transient fetch timeouts.
+
+        ``timeout_sec`` caps the total client-side wait; ``None`` is unlimited.
+        """
+        return await self._agent.wait_for_result(self._token, self._id, timeout_sec)
+
 
 FixedTimelineInstrumentDriver: TypeAlias = InstrumentDriver[
     FixedTimelineDirective,
