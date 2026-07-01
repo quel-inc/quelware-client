@@ -3,6 +3,9 @@
 `quelware-admin` is a command-line tool for administrators of a QuEL system. It
 manages users, inspects and transitions units, and drives maintenance jobs.
 
+See [Access control](../concepts/access-control.md) for the roles, capabilities,
+and unit statuses these commands operate on.
+
 ## Build
 
 ```sh
@@ -106,14 +109,20 @@ quelware-admin --address <host:port> unit maintain --all
 
 ## `maintenance` — commissioning jobs
 
-`maintenance commission` runs a system-wide time sync followed by linkup. Every
-unit must be in `MAINTENANCE` before you start, so drain and maintain all units
-first:
+You typically commission the system when bringing it up for the first time (for
+example, after power-on) or after adding a new control device.
+
+`maintenance commission` runs the commissioning operation defined for the
+system — for example, a system-wide time synchronization followed by linkup.
+Every unit must be in `MAINTENANCE` before you start, so drain and maintain all
+units first. Afterwards, bring the units back into service with
+`unit activate --all` (required in some setups):
 
 ```sh
 quelware-admin --address <host:port> unit drain --all
 quelware-admin --address <host:port> unit maintain --all
 quelware-admin --address <host:port> maintenance commission
+quelware-admin --address <host:port> unit activate --all
 ```
 
 By default, units whose link status is already healthy are preserved. Pass
