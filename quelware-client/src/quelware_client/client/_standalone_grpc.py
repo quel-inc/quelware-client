@@ -23,13 +23,29 @@ def create_standalone_client(
     endpoint: str = "localhost",
     port: int = 50051,
     unit_label: str = "mock-unit",
-    skip_lock_check=True,
+    skip_lock_check: bool = True,
     pat: PatProvider | str | None = None,
-):
-    """Create a standalone client.
+) -> QuelwareClient:
+    """Create a client that talks directly to a single worker server.
 
-    Note that the target worker server must be running with lock checking
-    disabled to use this client.
+    Intended for testing. The session and system-configuration agents are
+    mocked (a single unit, always ACTIVE), while the resource, instrument,
+    diagnostics, and worker agents connect over gRPC to ``endpoint:port``. The
+    target worker server must be running with lock checking disabled.
+
+    Args:
+        endpoint: Host of the worker server.
+        port: Port of the worker server.
+        unit_label: Label to assign to the single mocked unit.
+        skip_lock_check: When True (the default), sessions skip verifying that
+            their resources are locked.
+        pat: Personal Access Token, as accepted by `create_quelware_client()`.
+
+    Returns:
+        A configured, not-yet-started `QuelwareClient`.
+
+    Raises:
+        ValueError: If ``pat`` is neither a string, a callable, nor None.
     """
     channel = Channel(endpoint, port)
     target_unit = UnitLabel(unit_label)

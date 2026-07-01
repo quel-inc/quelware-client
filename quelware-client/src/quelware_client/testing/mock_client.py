@@ -15,7 +15,19 @@ from quelware_client.testing.worker_agent_mock import WorkerAgentMock
 def create_mock_quelware_client(
     unit_to_status: dict[UnitLabel, UnitStatus],
     unit_to_resources: dict[UnitLabel, list[ResourceInfo]],
-):
+) -> QuelwareClient:
+    """Create a fully mocked client for tests, requiring no server.
+
+    All agents are in-memory mocks, so the client can be exercised without a
+    running QuEL system.
+
+    Args:
+        unit_to_status: Status to report for each unit.
+        unit_to_resources: Resource information to expose for each unit.
+
+    Returns:
+        A configured, not-yet-started `QuelwareClient` backed by mocks.
+    """
     agent_container = AgentContainer()
 
     agent_container.system_configuration = SystemConfigurationAgentMock(unit_to_status)

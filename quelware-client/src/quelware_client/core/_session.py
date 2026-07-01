@@ -30,6 +30,21 @@ _FALLBACK_MIN_WAIT_MS = 500
 
 
 class Session:
+    """A lease over a set of resources on a QuEL system.
+
+    Opening a session locks its resources on the server and yields a `token`
+    used for subsequent operations such as deploying instruments and
+    triggering. Create sessions with `QuelwareClient.create_session()` and use
+    them as an async context manager, so they are opened on entry and closed on
+    exit:
+
+    ```python
+    async with qc.create_session(["unit0:port0"]) as session:
+        await session.deploy_instruments("unit0:port0", definitions)
+        await session.trigger(instrument_ids)
+    ```
+    """
+
     def __init__(  # noqa: PLR0913
         self,
         resource_ids: Collection[ResourceId],
@@ -40,6 +55,24 @@ class Session:
         trigger_count_proposer: TriggerCountProposer | None = None,
         skip_lock_check: bool = False,
     ):
+        """Build a session over a set of resources.
+
+        Normally created by `QuelwareClient.create_session()` rather than
+        directly.
+
+        Args:
+            resource_ids: Resources to lock for the session.
+            agent: Container providing the session and per-unit agents.
+            ttl_ms: Time-to-live, in milliseconds, of the committed lease.
+            tentative_ttl_ms: Time-to-live, in milliseconds, of the tentative
+                lease held while opening.
+            token: Pre-existing session token, if resuming a session.
+            trigger_count_proposer: Strategy for choosing the clock count of a
+                synchronized multi-unit trigger. Defaults to a fixed-offset
+                proposer aligned to a 32-count grid.
+            skip_lock_check: When True, skip verifying that the requested
+                resources are locked after opening.
+        """
         self._rsrc_ids = set(resource_ids)
         self._ttl_ms = ttl_ms
         self._tentative_ttl_ms = tentative_ttl_ms
@@ -57,6 +90,14 @@ class Session:
         self._check_lock = not skip_lock_check
 
     async def open(self):
+        """Open the session, locking its resources and obtaining a token.
+
+        Unless lock checking is disabled, this also verifies that every
+        requested resource is actually locked.
+
+        Raises:
+            ValueError: If some requested resources could not be locked.
+        """
         token, _ = await self._agent.session.open_session(
             self._rsrc_ids,
             tentative_ttl_ms=self._tentative_ttl_ms,
@@ -89,27 +130,44 @@ class Session:
 
     @property
     def available_resource_ids(self) -> set[ResourceId]:
+        """The set of resource ids this session was created for."""
         return self._rsrc_ids.copy()
 
     @property
     def unit_labels(self) -> list[UnitLabel]:
+        """The labels of the units spanned by this session's resources."""
         return list(self._unit_to_ids)
 
     @property
     def agent_container(self) -> AgentContainer:
+        """The underlying container of agents used by this session."""
         return self._agent
 
     @property
     def token(self) -> SessionToken:
+        """The session token obtained when the session was opened.
+
+        Raises:
+            ValueError: If the session has not been opened yet.
+        """
         if self._token is None:
             raise ValueError("Token not found. Session may not opened.")
         return self._token
 
     async def close(self):
+        """Close the session and release its resources."""
         await self._agent.session.close_session(self.token)
         logger.info(f"Session closed. session_token={self.token}")
 
     async def extend(self, new_ttl_ms: int) -> bool:
+        """Extend the session's lease.
+
+        Args:
+            new_ttl_ms: New time-to-live, in milliseconds, from now.
+
+        Returns:
+            True if the server accepted the extension.
+        """
         success = await self._agent.session.extend_session(self.token, new_ttl_ms)
         logger.info(
             f"Session extended. session_token={self.token} new_ttl_ms={new_ttl_ms}"
@@ -134,6 +192,23 @@ class Session:
         definitions: Collection[InstrumentDefinition],
         append: bool = False,
     ) -> list[InstrumentInfo]:
+        """Deploy instrument definitions onto a port.
+
+        Each definition's alias is automatically prefixed with the port's unit
+        label, so the aliases passed in must not contain a ``':'``.
+
+        Args:
+            port_id: Port to deploy onto. Its unit label selects the unit.
+            definitions: Instrument definitions to deploy.
+            append: When True, add to the port's existing instruments instead
+                of replacing them.
+
+        Returns:
+            Information about the deployed instruments.
+
+        Raises:
+            ValueError: If any definition's alias contains a ``':'``.
+        """
         port_id = ResourceId(port_id)
         unit_label = extract_unit_label(port_id)
         prefixed_definitions = []
@@ -157,6 +232,22 @@ class Session:
         instrument_ids: Collection[ResourceId],
         wait_ms: int | None = None,
     ) -> int:
+        """Apply pending configuration and trigger the given instruments.
+
+        The instruments' configuration is applied first, then a trigger is
+        scheduled. If the manager-side trigger service is unavailable, the
+        client falls back to a client-side trigger: a self-timed trigger for a
+        single unit, or a clock-synchronized trigger across multiple units.
+
+        Args:
+            instrument_ids: Instruments to trigger.
+            wait_ms: Minimum delay, in milliseconds, before the trigger fires.
+                Gives all units time to be armed; a lower bound is enforced on
+                the client-side fallback path.
+
+        Returns:
+            The clock count at which the trigger was scheduled.
+        """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
         logger.info(f"starting application (token= {self.token} )")

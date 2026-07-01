@@ -25,10 +25,27 @@ logger = logging.getLogger(__name__)
 
 A = TypeVar("A")
 AgentFactory: TypeAlias = Callable[[UnitLabel], A]
+"""Callable that builds a per-unit agent, given the unit's label."""
 _ResourceId: TypeAlias = ResourceId | str
 
 
 class QuelwareClient:
+    """High-level entry point for working with a QuEL system.
+
+    The client discovers the units that make up the system, runs an optional
+    health check on each, and wires up the per-unit agents used to inspect
+    resources and control instruments. Instances are normally created with
+    `create_quelware_client()` and used as an async context manager, which
+    starts the client on entry and closes the underlying gRPC channel on exit:
+
+    ```python
+    qc = create_quelware_client("192.0.2.1", 50051)
+    async with qc:
+        async with qc.create_session(["unit0:port0"]) as session:
+            ...
+    ```
+    """
+
     def __init__(
         self,
         agent: AgentContainer,
@@ -40,6 +57,26 @@ class QuelwareClient:
         close_handlers: list[Callable[[], None]] | None = None,
         skip_lock_check: bool = False,
     ):
+        """Assemble a client from an agent container and per-unit factories.
+
+        Most callers should use `create_quelware_client()` rather than
+        constructing this directly.
+
+        Args:
+            agent: Container holding the system-wide agents (session,
+                configuration, trigger).
+            health_agent_factory: Builds a health agent per unit. When given,
+                units that fail their health check are skipped during
+                initialization.
+            resource_agent_factory: Builds a resource agent per unit.
+            instrument_agent_factory: Builds an instrument agent per unit.
+            diagnostics_agent_factory: Builds a diagnostics agent per unit.
+            worker_agent_factory: Builds a worker agent per unit.
+            close_handlers: Callables run on `stop()`, e.g. to close the gRPC
+                channel.
+            skip_lock_check: When True, sessions created by this client skip
+                verifying that their resources are locked after opening.
+        """
         self._agent = agent
         self._health_agent_factory = health_agent_factory
         self._rsrc_agent_factory = resource_agent_factory
@@ -52,12 +89,15 @@ class QuelwareClient:
 
     @property
     def agent(self) -> AgentContainer:
+        """The underlying container of system-wide and per-unit agents."""
         return self._agent
 
     async def start(self):
+        """Initialize the client. Called on ``async with`` entry."""
         await self.initialize()
 
     async def stop(self):
+        """Run the registered close handlers (e.g. close the gRPC channel)."""
         for handler in self._close_handlers:
             handler()
 
@@ -69,6 +109,15 @@ class QuelwareClient:
         await self.stop()
 
     async def initialize(self):
+        """Discover the system's units and wire up their agents.
+
+        Lists every unit in the system and, if a health-agent factory was
+        provided, runs a health check on each and keeps only the healthy ones.
+        Resource, instrument, diagnostics, and worker agents are then created
+        for each retained unit, and `list_unit_labels()` reflects the result.
+
+        Called automatically by `start()`; you rarely need to call it directly.
+        """
         all_labels = await self._agent.system_configuration.list_units()
 
         if self._health_agent_factory:
@@ -99,6 +148,7 @@ class QuelwareClient:
         self._unit_labels = healthy_labels
 
     def list_unit_labels(self) -> list[UnitLabel]:
+        """Return the labels of the units retained after initialization."""
         return list(self._unit_labels)
 
     def create_session(
@@ -107,6 +157,20 @@ class QuelwareClient:
         ttl_ms: int = 4000,
         tentative_ttl_ms: int = 1000,
     ) -> Session:
+        """Create a session that leases the given resources.
+
+        The returned session is not opened yet; open it with ``await
+        session.open()`` or by using it as an async context manager.
+
+        Args:
+            resource_ids: Resources (e.g. ports) to lock for the session.
+            ttl_ms: Time-to-live, in milliseconds, of the committed lease.
+            tentative_ttl_ms: Time-to-live, in milliseconds, of the tentative
+                lease held while the session is being opened.
+
+        Returns:
+            An unopened `Session` for the requested resources.
+        """
         return Session(
             resource_ids=cast(list[ResourceId], resource_ids),
             agent=self._agent,
@@ -116,6 +180,7 @@ class QuelwareClient:
         )
 
     async def list_resource_infos(self) -> list[ResourceInfo]:
+        """Return the resource information for every unit, aggregated."""
         coros = [
             self._agent.resource(ul).list_resource_infos() for ul in self._unit_labels
         ]
@@ -126,11 +191,29 @@ class QuelwareClient:
         return rsrc_infos
 
     async def get_port_info(self, port_id: ResourceId) -> PortInfo:
+        """Return information about a single port.
+
+        Args:
+            port_id: Identifier of the port; its unit label selects the unit
+                to query.
+
+        Returns:
+            The port's information.
+        """
         unit_label = extract_unit_label(port_id)
         port = await self._agent.resource(unit_label).get_port_info(port_id)
         return port
 
     async def get_instrument_info(self, instrument_id: ResourceId) -> InstrumentInfo:
+        """Return information about a single instrument.
+
+        Args:
+            instrument_id: Identifier of the instrument; its unit label selects
+                the unit to query.
+
+        Returns:
+            The instrument's information.
+        """
         unit_label = extract_unit_label(instrument_id)
         inst = await self._agent.resource(unit_label).get_instrument_info(instrument_id)
         return inst

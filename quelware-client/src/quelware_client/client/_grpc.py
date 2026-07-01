@@ -88,7 +88,39 @@ def create_quelware_client(  # noqa: PLR0913
     diagnostics_agent_factory: AgentFactory[DiagnosticsAgent] | None = None,
     worker_agent_factory: AgentFactory[WorkerAgent] | None = None,
     pat: PatProvider | str | None = None,
-):
+) -> QuelwareClient:
+    """Create a client connected to a QuEL system over gRPC.
+
+    Opens a gRPC channel to ``endpoint:port`` and builds the default per-unit
+    agents. The returned client should be used as an async context manager so
+    the channel is closed on exit.
+
+    Args:
+        endpoint: Host of the control server.
+        port: Port of the control server.
+        session_agent: Override for the session agent. Defaults to a gRPC
+            agent targeting the central server.
+        configuration_agent: Override for the system-configuration agent.
+            Defaults to a gRPC agent targeting the central server.
+        health_agent_factory: Override for the per-unit health agent factory.
+            When omitted, health checks run against a default agent.
+        resource_agent_factory: Override for the per-unit resource agent
+            factory.
+        instrument_agent_factory: Override for the per-unit instrument agent
+            factory.
+        diagnostics_agent_factory: Override for the per-unit diagnostics agent
+            factory.
+        worker_agent_factory: Override for the per-unit worker agent factory.
+        pat: Personal Access Token used to authenticate. May be the token
+            string, a callable returning it, or None to load it from the
+            configuration file (``~/.config/quelware-client/pat``).
+
+    Returns:
+        A configured, not-yet-started `QuelwareClient`.
+
+    Raises:
+        ValueError: If ``pat`` is neither a string, a callable, nor None.
+    """
     channel = Channel(endpoint, port)
 
     if pat is None:
