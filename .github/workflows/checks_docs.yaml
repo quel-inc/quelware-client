@@ -1,0 +1,46 @@
+name: Checks for docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'Makefile'
+      - 'quelware-client/**'
+      - 'quelware-core/**'
+      - '.github/workflows/checks_docs.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'Makefile'
+      - 'quelware-client/**'
+      - 'quelware-core/**'
+      - '.github/workflows/checks_docs.yaml'
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+
+      - name: Generate codes
+        run: make -C quelware-core generate
+
+      - name: Build docs (strict)
+        run: make docs-check
