@@ -45,7 +45,7 @@ plugins:
             - quelware-client/src
             - quelware-core/python/src
           options:
-            heading_level: 3
+            heading_level: 2
             show_root_heading: true
             show_root_full_path: false
             show_source: true
@@ -81,7 +81,13 @@ nav:
   - Home: index.md
   - Client:
       - client/index.md
-      - API Reference: client/api.md
+      - API Reference:
+          - client/api/index.md
+          - Entry points: client/api/entry-points.md
+          - QuelwareClient: client/api/client.md
+          - Session: client/api/session.md
+          - Helpers: client/api/helpers.md
+          - Testing: client/api/testing.md
   - Admin:
       - admin/index.md
   - Core:

@@ -76,4 +76,4 @@ configuration, see the
 
 ## API reference
 
-See the [API Reference](api.md) for the full public interface.
+See the [API Reference](api/index.md) for the full public interface.
