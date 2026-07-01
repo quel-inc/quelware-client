@@ -1,0 +1,7 @@
+# Documentation build dependencies.
+# The site is built with MkDocs + Material; the Python API reference is
+# generated statically from source by mkdocstrings (griffe), so the client
+# package itself does not need to be installed.
+mkdocs-material>=9.5
+mkdocstrings[python]>=0.27
+black  # used by mkdocstrings to format rendered signatures

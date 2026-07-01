@@ -1,0 +1,9 @@
+[data-md-color-primary] {
+  --md-primary-fg-color:        #04126A;
+  --md-primary-fg-color--light: #04126A;
+  --md-primary-fg-color--dark:  #030d4d;
+}
+
+[data-md-color-accent] {
+  --md-accent-fg-color: #3c50b4;
+}
