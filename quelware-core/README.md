@@ -7,6 +7,10 @@ The core data models and Protocol Buffer definitions for QuEL system.
 
 It provides the essential domain entities, gRPC stubs, and serialization utilities required for the internal communication and is automatically installed when you install quelware-client.
 
+## Documentation
+
+See the [core documentation](https://quel-inc.github.io/quelware-client/core/).
+
 ## For Developers
 
 The gRPC client and protobuf codes are generated from .proto files using buf.

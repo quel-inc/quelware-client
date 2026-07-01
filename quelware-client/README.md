@@ -55,7 +55,7 @@ For more advanced usage, including pulse generation and sequencer configuration,
 
 ## Documentation
 
-For full API reference and advanced guides, visit the [official documentation](https://quel-inc.github.io/quelware-client/).
+See the [client documentation](https://quel-inc.github.io/quelware-client/client/) for guides and the [API reference](https://quel-inc.github.io/quelware-client/client/api/). The full site is at <https://quel-inc.github.io/quelware-client/>.
 
 ## License
 

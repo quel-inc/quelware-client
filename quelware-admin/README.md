@@ -1,6 +1,6 @@
 # quelware-admin
 
-A command-line tool for managing users on a QuEL system.
+A command-line tool for administering a QuEL system — managing users, units, and maintenance jobs.
 This tool is intended for administrators only.
 
 ## Build
@@ -18,33 +18,9 @@ mkdir -p ~/.config/quelware-admin
 echo "your-pat-here" > ~/.config/quelware-admin/pat
 ```
 
-## Usage
+## Documentation
 
-```sh
-quelware-admin --address <host:port> user <command> [flags]
-```
-
-### Commands
-
-```sh
-# List all users
-quelware-admin --address <server-address>:50051 user list
-
-# Add a user
-quelware-admin --address <server-address>:50051 user add --user-id alice --role admin
-
-# Update a user's role
-quelware-admin --address <server-address>:50051 user update-role --user-id alice --role normal_user
-
-# Revoke a user
-quelware-admin --address <server-address>:50051 user revoke --user-id alice
-```
-
-### Roles
-
-- `normal_user` (or `normal`)
-- `privileged_user` (or `privileged`)
-- `admin`
+For the full command reference, see the [admin documentation](https://quel-inc.github.io/quelware-client/admin/).
 
 ## License
 
