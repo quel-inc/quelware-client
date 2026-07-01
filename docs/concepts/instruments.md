@@ -1,9 +1,21 @@
 # Instruments
 
-An **instrument** is a logical device you deploy onto a **port** of a unit to
-transmit and/or capture microwave signals. Deploying an instrument configures
-the underlying hardware for a specific use; you then drive it to run a
-measurement.
+An **instrument** is an abstraction of a control device that you deploy onto a
+**port** of a unit to transmit and/or capture microwave signals. It lets you
+describe *what* you want to do, while the system takes care of *how* the
+hardware does it.
+
+An instrument hides implementation details such as AWG bandwidth, digital
+filters, and up-conversion. The system also applies the appropriate phase
+conversions automatically — so the phase consistency that is essential for
+quantum experiments is guaranteed at the system level — and it handles signal
+multiplexing on your behalf.
+
+!!! note
+
+    The parameters you set on an instrument describe the **result you want**.
+    They do not necessarily correspond one-to-one to the underlying
+    implementation parameters.
 
 ## Anatomy
 
