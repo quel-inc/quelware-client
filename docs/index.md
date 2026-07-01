@@ -38,6 +38,10 @@ This site documents the packages in the
 
 </div>
 
+## Concepts
+
+- [Access control](concepts/access-control.md)
+
 ## Installation
 
 ```sh
