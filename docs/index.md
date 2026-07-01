@@ -41,6 +41,7 @@ This site documents the packages in the
 ## Concepts
 
 - [Access control](concepts/access-control.md)
+- [Instruments](concepts/instruments.md)
 
 ## Installation
 

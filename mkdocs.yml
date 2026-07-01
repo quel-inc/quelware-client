@@ -83,8 +83,12 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Getting started: getting-started.md
+  - Tutorials:
+      - Fixed timeline: tutorials/fixed-timeline.md
   - Concepts:
       - Access control: concepts/access-control.md
+      - Instruments: concepts/instruments.md
   - Client:
       - client/index.md
       - API Reference:
