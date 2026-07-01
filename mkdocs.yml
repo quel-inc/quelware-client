@@ -45,13 +45,16 @@ plugins:
             - quelware-client/src
             - quelware-core/python/src
           options:
+            heading_level: 3
             show_root_heading: true
             show_root_full_path: false
             show_source: true
             show_signature_annotations: true
             separate_signature: true
             signature_crossrefs: true
-            members_order: source
+            members_order: alphabetical
+            filters:
+              - "!^_"
             docstring_section_style: table
             merge_init_into_class: true
             show_if_no_docstring: true

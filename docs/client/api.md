@@ -14,10 +14,6 @@ The public API of `quelware-client`.
 
 ::: quelware_client.core.Session
 
-::: quelware_client.core.AgentContainer
-
-::: quelware_client.core.AgentFactory
-
 ## Testing
 
 ::: quelware_client.testing.create_mock_quelware_client
