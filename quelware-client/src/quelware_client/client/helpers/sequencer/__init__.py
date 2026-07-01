@@ -43,9 +43,27 @@ class _AliasBinding:
 
 
 class Sequencer:
+    """Build fixed timelines of waveform events and capture windows.
+
+    Waveforms are registered by name and then scheduled on instruments at
+    nanosecond offsets, alongside capture windows. Each instrument alias is
+    bound to its hardware sampling period so offsets and lengths can be
+    validated against the sample grid and converted to samples. The assembled
+    timeline for an instrument is exported as a `SetFixedTimeline` directive.
+    """
+
     def __init__(
         self, default_sampling_period_ns: float, enforce_sample_grid: bool = True
     ):
+        """Create a sequencer.
+
+        Args:
+            default_sampling_period_ns: Sampling period, in nanoseconds, used
+                for waveforms registered without an explicit period.
+            enforce_sample_grid: When True, offsets and lengths that do not
+                land on the sample grid raise `ValueError`; when False, they
+                are rounded to the nearest sample with a warning.
+        """
         self._waveform_library: dict[str, _Waveform] = {}
         self._alias_to_events: dict[str, list[_SequencerEvent]] = defaultdict(list)
         self._alias_to_capwin: dict[str, list[_SequencerCaptureWindow]] = defaultdict(
@@ -60,6 +78,17 @@ class Sequencer:
         self._length_ns: float = 0.0
 
     def bind(self, alias: str, sampling_period_fs: int, step_samples: int):
+        """Bind an instrument alias to its hardware timing.
+
+        Must be called before adding events or capture windows for the alias.
+
+        Args:
+            alias: Instrument alias to bind.
+            sampling_period_fs: Sampling period of the instrument, in
+                femtoseconds.
+            step_samples: Granularity, in samples, that the timeline length is
+                aligned to for this alias.
+        """
         self._bindings[alias] = _AliasBinding(
             sampling_period_fs=sampling_period_fs,
             step_samples=step_samples,
@@ -96,6 +125,18 @@ class Sequencer:
         waveform: npt.ArrayLike,
         sampling_period_ns: float | None = None,
     ):
+        """Register a named IQ waveform.
+
+        Args:
+            name: Name used to reference the waveform in `add_event()`.
+            waveform: Complex IQ samples; every amplitude must lie within
+                ``[-1, 1]``.
+            sampling_period_ns: Sampling period of the waveform, in
+                nanoseconds. Defaults to the sequencer's default period.
+
+        Raises:
+            ValueError: If any sample amplitude exceeds 1 in magnitude.
+        """
         if sampling_period_ns is None:
             sampling_period_ns = self._default_sampling_period_ns
         if np.any(np.abs(waveform) > 1):
@@ -113,6 +154,19 @@ class Sequencer:
         gain: float = 1.0,
         phase_offset_deg: float = 0.0,
     ):
+        """Schedule a registered waveform on an instrument.
+
+        Args:
+            instrument_alias: Alias of the (bound) target instrument.
+            waveform_name: Name of a registered waveform.
+            start_offset_ns: Start time of the event, in nanoseconds.
+            gain: Linear gain applied to the waveform.
+            phase_offset_deg: Phase offset applied to the waveform, in degrees.
+
+        Raises:
+            ValueError: If the waveform is not registered, or the offset is off
+                the sample grid while grid enforcement is on.
+        """
         if waveform_name not in self._waveform_library:
             raise ValueError(f"waveform '{waveform_name}' is not registered.")
 
@@ -141,6 +195,18 @@ class Sequencer:
         start_offset_ns: float,
         length_ns: float,
     ):
+        """Schedule a capture window on an instrument.
+
+        Args:
+            instrument_alias: Alias of the (bound) target instrument.
+            window_name: Name of the capture window.
+            start_offset_ns: Start time of the window, in nanoseconds.
+            length_ns: Length of the window, in nanoseconds.
+
+        Raises:
+            ValueError: If the offset or length is off the sample grid while
+                grid enforcement is on.
+        """
         self._check_and_convert_to_samples(
             instrument_alias,
             start_offset_ns,
@@ -160,13 +226,20 @@ class Sequencer:
         self._length_ns = max(self._length_ns, end_at_ns)
 
     def extend_length_ns(self, additional_ns: float):
+        """Extend the overall timeline by ``additional_ns`` nanoseconds."""
         self._length_ns += additional_ns
 
     def set_iterations(self, iterations: int):
+        """Set how many times the exported timeline repeats."""
         self._iterations = iterations
 
     @property
     def aligned_length_fs(self) -> int:
+        """Timeline length in femtoseconds, aligned to bound step sizes.
+
+        The raw length is rounded up to a multiple of the least common
+        multiple of each bound alias's ``sampling_period_fs * step_samples``.
+        """
         if not self._bindings:
             return math.ceil(self._length_ns * 1e6)
 
@@ -184,6 +257,21 @@ class Sequencer:
     def export_set_fixed_timeline_directive(
         self, instrument_alias: str
     ) -> SetFixedTimeline:
+        """Build the timeline directive for one instrument.
+
+        Collects the events and capture windows scheduled for the alias,
+        converts their nanosecond offsets to samples, and packages them with
+        the aligned length and iteration count.
+
+        Args:
+            instrument_alias: Alias of the (bound) instrument to export.
+
+        Returns:
+            The assembled `SetFixedTimeline` directive.
+
+        Raises:
+            ValueError: If the alias is not bound.
+        """
         if instrument_alias not in self._bindings:
             raise ValueError(f"Alias '{instrument_alias}' is not bound.")
 
