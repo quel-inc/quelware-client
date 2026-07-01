@@ -2,14 +2,10 @@
 
 Client libraries and tools for **QuEL systems**, integrated control systems for
 quantum computing developed by [QuEL, Inc.](https://quel-inc.com/)
-
 This site documents the packages in the
 [`quelware-client`](https://github.com/quel-inc/quelware-client) monorepo.
 
-!!! note
-
-    These libraries currently support **QuEL-3** only. Support for earlier
-    systems, such as QuEL-1 and QuEL-1 SE, is planned for future releases.
+New here? **Start with [Getting started](getting-started.md).**
 
 ## Packages
 
@@ -42,14 +38,6 @@ This site documents the packages in the
 
 - [Access control](concepts/access-control.md)
 - [Instruments](concepts/instruments.md)
-
-## Installation
-
-```sh
-pip install quelware-client
-```
-
-`quelware-core` is installed automatically as a dependency.
 
 ## License
 
