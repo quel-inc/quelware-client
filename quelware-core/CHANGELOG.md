@@ -5,6 +5,7 @@
 ### Added
 
 - `SyncResetScope` enum and `StartCommissionRequest.reset_scope` to select how much to reset before commissioning: none, control units only, or all.
+- `MaintenanceService.Inspect` RPC returning per-unit diagnostic measurements as opaque key/value strings.
 
 ### Changed
 

@@ -13,6 +13,9 @@ service MaintenanceService {
 
   // Poll the state of a previously started job.
   rpc GetMaintenanceJob(GetMaintenanceJobRequest) returns (GetMaintenanceJobResponse);
+
+  // Read per-unit diagnostic measurements on demand.
+  rpc Inspect(InspectRequest) returns (InspectResponse);
 }
 
 enum JobKind {
@@ -75,4 +78,15 @@ message GetMaintenanceJobRequest {
 
 message GetMaintenanceJobResponse {
   MaintenanceJob job = 1;
+}
+
+message UnitInspection {
+  string unit_label = 1;
+  map<string, string> measurements = 2;
+}
+
+message InspectRequest {}
+
+message InspectResponse {
+  repeated UnitInspection units = 1;
 }
