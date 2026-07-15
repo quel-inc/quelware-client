@@ -36,6 +36,13 @@ enum UnitOutcome {
   UNIT_OUTCOME_FAILED = 3;
 }
 
+enum SyncResetScope {
+  SYNC_RESET_SCOPE_UNSPECIFIED = 0;
+  SYNC_RESET_SCOPE_NONE = 1;
+  SYNC_RESET_SCOPE_CONTROL_UNITS = 2;
+  SYNC_RESET_SCOPE_ALL = 3;
+}
+
 message UnitProgress {
   string unit_label = 1;
   string phase = 2;
@@ -54,9 +61,8 @@ message MaintenanceJob {
 }
 
 message StartCommissionRequest {
-  // If true, skip any unit whose link status currently reports healthy. If
-  // false (default), fully reset all state and bring every unit up from scratch.
-  bool preserve_healthy = 1;
+  bool preserve_healthy = 1 [deprecated = true];
+  SyncResetScope reset_scope = 2;
 }
 
 message StartCommissionResponse {

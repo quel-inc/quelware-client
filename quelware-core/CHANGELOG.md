@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `SyncResetScope` enum and `StartCommissionRequest.reset_scope` to select how much to reset before commissioning: none, control units only, or all.
+
+### Changed
+
+- `StartCommissionRequest.preserve_healthy` is deprecated in favor of `reset_scope`; it is still honored when `reset_scope` is unspecified (true maps to none, false to all).
+
 ## [0.4.0] - 2026-06-15
 
 ### Changed
