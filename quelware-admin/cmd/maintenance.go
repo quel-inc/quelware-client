@@ -21,9 +21,15 @@ var maintenanceCommissionCmd = &cobra.Command{
 	Short: "Run time sync then linkup",
 	Long: "Run system-wide time sync then linkup. Each unit is expected to be in\n" +
 		"MAINTENANCE before invocation (use `unit drain --all` + `unit maintain --all`\n" +
-		"first). By default any unit whose link status reports healthy is preserved;\n" +
-		"pass --from-scratch to fully reset.",
+		"first). --reset-scope selects how much to reset: none (default) preserves\n" +
+		"healthy units, control-units re-inits the control units while keeping the\n" +
+		"clock distribution, all resets everything.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		resetScope, err := resolveResetScope(cmd)
+		if err != nil {
+			return err
+		}
+
 		client, cleanup, err := newMaintenanceClient()
 		if err != nil {
 			return err
@@ -36,9 +42,8 @@ var maintenanceCommissionCmd = &cobra.Command{
 		}
 		defer cancel()
 
-		fromScratch, _ := cmd.Flags().GetBool("from-scratch")
 		resp, err := client.StartCommission(ctx, &maintenancev1.StartCommissionRequest{
-			PreserveHealthy: !fromScratch,
+			ResetScope: resetScope,
 		})
 		if err != nil {
 			return fmt.Errorf("StartCommission failed: %w", err)
@@ -74,6 +79,26 @@ var maintenanceStatusCmd = &cobra.Command{
 		printJob(resp.Job)
 		return nil
 	},
+}
+
+func resolveResetScope(cmd *cobra.Command) (maintenancev1.SyncResetScope, error) {
+	if cmd.Flags().Changed("reset-scope") {
+		scope, _ := cmd.Flags().GetString("reset-scope")
+		switch scope {
+		case "none":
+			return maintenancev1.SyncResetScope_SYNC_RESET_SCOPE_NONE, nil
+		case "control-units":
+			return maintenancev1.SyncResetScope_SYNC_RESET_SCOPE_CONTROL_UNITS, nil
+		case "all":
+			return maintenancev1.SyncResetScope_SYNC_RESET_SCOPE_ALL, nil
+		default:
+			return 0, fmt.Errorf("invalid --reset-scope %q (want none|control-units|all)", scope)
+		}
+	}
+	if fromScratch, _ := cmd.Flags().GetBool("from-scratch"); fromScratch {
+		return maintenancev1.SyncResetScope_SYNC_RESET_SCOPE_ALL, nil
+	}
+	return maintenancev1.SyncResetScope_SYNC_RESET_SCOPE_NONE, nil
 }
 
 func newMaintenanceClient() (maintenancev1.MaintenanceServiceClient, func(), error) {
@@ -188,6 +213,8 @@ func init() {
 	rootCmd.AddCommand(maintenanceCmd)
 	maintenanceCmd.AddCommand(maintenanceCommissionCmd, maintenanceStatusCmd)
 
-	maintenanceCommissionCmd.Flags().Bool("from-scratch", false, "fully reset all state instead of preserving units with healthy link status")
+	maintenanceCommissionCmd.Flags().String("reset-scope", "none", "how much to reset before re-syncing: none|control-units|all")
+	maintenanceCommissionCmd.Flags().Bool("from-scratch", false, "deprecated: alias for --reset-scope all")
+	_ = maintenanceCommissionCmd.Flags().MarkDeprecated("from-scratch", "use --reset-scope all")
 	maintenanceCommissionCmd.Flags().Duration("poll-interval", 2*time.Second, "polling interval while waiting")
 }

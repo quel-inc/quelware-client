@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `maintenance commission --reset-scope none|control-units|all` selects how much to reset before re-syncing.
+
+### Changed
+
+- `maintenance commission --from-scratch` is deprecated; use `--reset-scope all`.
+
 ## [0.3.0] - 2026-06-15
 
 ### Added
