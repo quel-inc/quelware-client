@@ -107,7 +107,7 @@ quelware-admin --address <host:port> unit drain --all
 quelware-admin --address <host:port> unit maintain --all
 ```
 
-## `maintenance` — commissioning jobs
+## `maintenance` — commissioning and inspection
 
 You typically commission the system when bringing it up for the first time (for
 example, after power-on) or after adding a new control device.
@@ -125,17 +125,30 @@ quelware-admin --address <host:port> maintenance commission
 quelware-admin --address <host:port> unit activate --all
 ```
 
-By default, units whose link status is already healthy are preserved. Pass
-`--from-scratch` to fully reset all state instead.
+By default, units whose link status is already healthy are preserved. Use
+`--reset-scope` to choose how much state to reset before re-syncing: `none`
+preserves healthy units, `control-units` re-initializes the control units while
+keeping the clock distribution, and `all` resets every unit from scratch.
 
-| Flag                         | Default | Description                                                            |
-| ---------------------------- | ------- | ---------------------------------------------------------------------- |
-| `--from-scratch`             | `false` | Fully reset all state instead of preserving units with a healthy link. |
-| `--poll-interval <duration>` | `2s`    | Polling interval while waiting for the job to finish.                  |
+| Flag                         | Default | Description                                                     |
+| ---------------------------- | ------- | --------------------------------------------------------------- |
+| `--reset-scope <scope>`      | `none`  | Reset depth before re-syncing: `none`, `control-units`, or `all`. |
+| `--from-scratch`             | `false` | Deprecated: alias for `--reset-scope all`.                      |
+| `--poll-interval <duration>` | `2s`    | Polling interval while waiting for the job to finish.           |
 
 `commission` starts a job and polls until it finishes. The job keeps running on
 the server even if you interrupt the command; check on it later with its job ID:
 
 ```sh
 quelware-admin --address <host:port> maintenance status <job_id>
+```
+
+### `maintenance inspect` — per-unit diagnostics
+
+`maintenance inspect` reads per-unit diagnostic measurements on demand and prints
+them as key/value pairs. It is read-only and measures live, so you can run it any
+time to check unit state:
+
+```sh
+quelware-admin --address <host:port> maintenance inspect
 ```
