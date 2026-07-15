@@ -5,6 +5,7 @@
 ### Added
 
 - `maintenance commission --reset-scope none|control-units|all` selects how much to reset before re-syncing.
+- `maintenance inspect` prints per-unit diagnostic measurements.
 
 ### Changed
 

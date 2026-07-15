@@ -81,6 +81,31 @@ var maintenanceStatusCmd = &cobra.Command{
 	},
 }
 
+var maintenanceInspectCmd = &cobra.Command{
+	Use:   "inspect",
+	Short: "Read per-unit diagnostic measurements",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, cleanup, err := newMaintenanceClient()
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		ctx, cancel, err := contextWithPAT()
+		if err != nil {
+			return err
+		}
+		defer cancel()
+
+		resp, err := client.Inspect(ctx, &maintenancev1.InspectRequest{})
+		if err != nil {
+			return fmt.Errorf("Inspect failed: %w", err)
+		}
+		printInspection(resp.Units)
+		return nil
+	},
+}
+
 func resolveResetScope(cmd *cobra.Command) (maintenancev1.SyncResetScope, error) {
 	if cmd.Flags().Changed("reset-scope") {
 		scope, _ := cmd.Flags().GetString("reset-scope")
@@ -209,9 +234,30 @@ func printUnitProgress(progress []*maintenancev1.UnitProgress) {
 	}
 }
 
+func printInspection(units []*maintenancev1.UnitInspection) {
+	if len(units) == 0 {
+		fmt.Println("(no units)")
+		return
+	}
+	sorted := append([]*maintenancev1.UnitInspection(nil), units...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].UnitLabel < sorted[j].UnitLabel })
+	for _, u := range sorted {
+		keys := make([]string, 0, len(u.Measurements))
+		for k := range u.Measurements {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf("%s=%s", k, u.Measurements[k]))
+		}
+		fmt.Printf("  %s\t%s\n", u.UnitLabel, strings.Join(parts, " "))
+	}
+}
+
 func init() {
 	rootCmd.AddCommand(maintenanceCmd)
-	maintenanceCmd.AddCommand(maintenanceCommissionCmd, maintenanceStatusCmd)
+	maintenanceCmd.AddCommand(maintenanceCommissionCmd, maintenanceStatusCmd, maintenanceInspectCmd)
 
 	maintenanceCommissionCmd.Flags().String("reset-scope", "none", "how much to reset before re-syncing: none|control-units|all")
 	maintenanceCommissionCmd.Flags().Bool("from-scratch", false, "deprecated: alias for --reset-scope all")
