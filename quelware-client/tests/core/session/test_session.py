@@ -18,6 +18,7 @@ from quelware_core.entities.unit import UnitLabel
 from quelware_client.core import AgentContainer, Session
 from quelware_client.testing.resource_agent_mock import ResourceAgentMock
 from quelware_client.testing.session_agent_mock import SessionAgentMock
+from quelware_client.testing.worker_agent_mock import WorkerAgentMock
 
 
 @pytest.mark.asyncio
@@ -119,3 +120,19 @@ async def test_configure_instruments():
     res = await session.deploy_instruments(port_id, definitions=definitions)
 
     assert len(res) == len(definitions)
+
+
+@pytest.mark.asyncio
+async def test_configure_unit():
+    unit_label = UnitLabel("unit-a")
+    agent = AgentContainer()
+    worker = WorkerAgentMock()
+    agent.update_worker_agent(unit_label, worker)
+    session = Session(
+        [ResourceId(f"{unit_label}:p1")], agent, token=SessionToken("token")
+    )
+
+    result = await session.configure_unit(unit_label, {"x.y": "b"})
+
+    assert result == {"x.y": "b"}
+    assert worker.configure_calls == [{"x.y": "b"}]

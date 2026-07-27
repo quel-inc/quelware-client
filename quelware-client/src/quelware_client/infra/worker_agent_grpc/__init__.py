@@ -1,9 +1,13 @@
+from collections.abc import Mapping
+
 import quelware_core.pb.quelware.worker.v1 as pb_worker
 from grpclib.client import Channel
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
+from quelware_core.entities.session import SessionToken
 from typing_extensions import override
 
 from quelware_client.core.interfaces.worker_agent import WorkerAgent
+from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.infra._grpc_retry import call_with_retry
 
 
@@ -19,6 +23,35 @@ class WorkerAgentGrpc(WorkerAgent):
             lambda: self._service.get_clock_snapshot(req), idempotent=True
         )
         return (resp.current_count, resp.reference_count)
+
+    @override
+    async def get_unit_configuration(self) -> UnitConfiguration:
+        req = pb_worker.GetUnitConfigurationRequest()
+        resp = await call_with_retry(
+            lambda: self._service.get_unit_configuration(req), idempotent=True
+        )
+        return UnitConfiguration(
+            supported=tuple(
+                UnitControlSpec(
+                    key=spec.key,
+                    allowed_values=tuple(spec.allowed_values),
+                    current_value=spec.current_value,
+                )
+                for spec in resp.supported
+            )
+        )
+
+    @override
+    async def configure_unit(
+        self, controls: Mapping[str, str], session_token: SessionToken
+    ) -> dict[str, str]:
+        req = pb_worker.ConfigureUnitRequest(controls=dict(controls))
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(session_token)
+        resp = await call_with_retry(
+            lambda: self._service.configure_unit(req, metadata=metadata)
+        )
+        return dict(resp.controls)
 
 
 __all__ = ["WorkerAgentGrpc"]

@@ -17,6 +17,7 @@ from quelware_client.core.interfaces.diagnostics_agent import DiagnosticsAgent
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 from quelware_client.core.interfaces.worker_agent import WorkerAgent
+from quelware_client.core.unit_control import UnitConfiguration
 
 from ._session import Session
 from .interfaces.resource_agent import ResourceAgent
@@ -217,6 +218,16 @@ class QuelwareClient:
         unit_label = extract_unit_label(instrument_id)
         inst = await self._agent.resource(unit_label).get_instrument_info(instrument_id)
         return inst
+
+    async def get_unit_configuration(
+        self, unit_label: UnitLabel
+    ) -> UnitConfiguration:
+        """Return the unit-wide controls supported by a unit.
+
+        Each entry reports the control's key, its allowed values, and the
+        current value. Read-only; no session is required.
+        """
+        return await self._agent.worker(unit_label).get_unit_configuration()
 
     async def dump_port_state(self, port_id: ResourceId) -> str:
         """Return a human-readable dump of the worker's shadow state for a port.

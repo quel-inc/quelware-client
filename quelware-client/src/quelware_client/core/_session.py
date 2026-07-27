@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import math
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from types import TracebackType
 from typing import cast
 
@@ -226,6 +226,25 @@ class Session:
             port_id, prefixed_definitions, append, self.token
         )
         return insts
+
+    async def configure_unit(
+        self, unit_label: UnitLabel, controls: Mapping[str, str]
+    ) -> dict[str, str]:
+        """Apply unit-wide controls to a unit and return the resulting values.
+
+        The session must hold locks on every port of ``unit_label`` and carry
+        the required capability; the unit must have no deployed instruments.
+
+        Args:
+            unit_label: The unit to configure.
+            controls: Vendor-namespaced control key/values to apply.
+
+        Returns:
+            The unit's control values after applying the change.
+        """
+        return await self._agent.worker(unit_label).configure_unit(
+            controls, self.token
+        )
 
     async def trigger(
         self,

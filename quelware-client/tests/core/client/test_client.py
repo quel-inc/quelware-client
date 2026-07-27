@@ -8,11 +8,13 @@ from quelware_core.entities.unit import UnitLabel, UnitStatus
 
 from quelware_client.core import AgentContainer, QuelwareClient
 from quelware_client.core._session import Session
+from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.testing.instrument_agent_mock import InstrumentAgentMock
 from quelware_client.testing.resource_agent_mock import ResourceAgentMock
 from quelware_client.testing.system_configuration_agent_mock import (
     SystemConfigurationAgentMock,
 )
+from quelware_client.testing.worker_agent_mock import WorkerAgentMock
 
 
 @pytest.mark.asyncio
@@ -153,3 +155,21 @@ async def test_get_instrument():
     )
 
     await client.get_instrument_info(inst_id)
+
+
+@pytest.mark.asyncio
+async def test_get_unit_configuration():
+    unit_label = UnitLabel("unit-a")
+    config = UnitConfiguration(
+        supported=(
+            UnitControlSpec(key="x.y", allowed_values=("a", "b"), current_value="a"),
+        )
+    )
+    agent = AgentContainer()
+    agent.update_worker_agent(unit_label, WorkerAgentMock(unit_configuration=config))
+    client = QuelwareClient(agent=agent)
+
+    result = await client.get_unit_configuration(unit_label)
+
+    assert result == config
+    assert result.values() == {"x.y": "a"}
