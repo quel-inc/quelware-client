@@ -2,8 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-27
+
 ### Added
 
+- `WorkerService.ConfigureUnit` / `GetUnitConfiguration` RPCs to view and change unit-wide settings.
+- `ResourceService.DiscardInstruments` RPC to undeploy the instruments on a port.
 - `SyncResetScope` enum and `StartCommissionRequest.reset_scope` to select how much to reset before commissioning: none, control units only, or all.
 - `MaintenanceService.Inspect` RPC returning per-unit diagnostic measurements as opaque key/value strings.
 
