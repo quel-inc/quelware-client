@@ -9,6 +9,8 @@ service WorkerService {
   rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
   rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
   rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
+  rpc GetUnitConfiguration(GetUnitConfigurationRequest) returns (GetUnitConfigurationResponse);
+  rpc ConfigureUnit(ConfigureUnitRequest) returns (ConfigureUnitResponse);
 }
 
 message GetVersionRequest {}
@@ -25,4 +27,22 @@ message GetClockSnapshotRequest {}
 message GetClockSnapshotResponse {
   uint64 current_count = 1;
   uint64 reference_count = 2;
+}
+
+message GetUnitConfigurationRequest {}
+message GetUnitConfigurationResponse {
+  repeated UnitControlSpec supported = 1;
+}
+
+message ConfigureUnitRequest {
+  map<string, string> controls = 1;
+}
+message ConfigureUnitResponse {
+  map<string, string> controls = 1;
+}
+
+message UnitControlSpec {
+  string key = 1;
+  repeated string allowed_values = 2;
+  string current_value = 3;
 }
