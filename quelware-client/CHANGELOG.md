@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-29
+
+### Added
+
+- `QuelwareClient.get_unit_configuration(unit_label)` to read a unit's supported controls and their current values.
+- `Session.configure_unit(unit_label, controls)` to change a unit's controls.
+- `Session.discard_instruments(port_id)` to remove the instruments deployed on a port.
+
+### Removed
+
+- The `quel3-echo-test` command — command-line tools now ship in the separate `quelware-tools` package, so `quelware-client` no longer depends on `typer` or provides the `plot` extra.
+
 ## [0.4.1] - 2026-06-17
 
 ### Added
