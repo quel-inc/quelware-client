@@ -53,6 +53,16 @@ class ResourceAgentGrpc(ResourceAgent):
         insts = list(map(instrument_from_pb, resp.instruments))
         return insts
 
+    async def discard_instruments(
+        self, port_id: ResourceId, session_token: SessionToken
+    ) -> None:
+        req = pb_res.DiscardInstrumentsRequest(port_id=port_id)
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(session_token)
+        await call_with_retry(
+            lambda: self._service.discard_instruments(req, metadata=metadata)
+        )
+
     async def get_port_info(self, resource_id: ResourceId) -> PortInfo:
         req = pb_res.GetPortRequest(id=resource_id)
         resp = await call_with_retry(

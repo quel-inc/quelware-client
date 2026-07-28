@@ -136,3 +136,19 @@ async def test_configure_unit():
 
     assert result == {"x.y": "b"}
     assert worker.configure_calls == [{"x.y": "b"}]
+
+
+@pytest.mark.asyncio
+async def test_discard_instruments():
+    unit_label = UnitLabel("unit-a")
+    port_id = ResourceId(f"{unit_label}:p1")
+    agent = AgentContainer()
+    rsrc_agent = ResourceAgentMock(
+        [ResourceInfo(id=port_id, category=ResourceCategory.PORT)]
+    )
+    agent.update_resource_agent(unit_label, rsrc_agent)
+    session = Session([port_id], agent, token=SessionToken("token"))
+
+    await session.discard_instruments(port_id)
+
+    assert rsrc_agent.discarded_ports == [port_id]

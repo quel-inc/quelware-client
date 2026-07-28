@@ -227,6 +227,17 @@ class Session:
         )
         return insts
 
+    async def discard_instruments(self, port_id: str | ResourceId) -> None:
+        """Remove all instruments deployed on a port.
+
+        Args:
+            port_id: Port whose instruments to discard. Its unit label selects
+                the unit.
+        """
+        port_id = ResourceId(port_id)
+        unit_label = extract_unit_label(port_id)
+        await self._agent.resource(unit_label).discard_instruments(port_id, self.token)
+
     async def configure_unit(
         self, unit_label: UnitLabel, controls: Mapping[str, str]
     ) -> dict[str, str]:
@@ -242,9 +253,7 @@ class Session:
         Returns:
             The unit's control values after applying the change.
         """
-        return await self._agent.worker(unit_label).configure_unit(
-            controls, self.token
-        )
+        return await self._agent.worker(unit_label).configure_unit(controls, self.token)
 
     async def trigger(
         self,

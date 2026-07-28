@@ -39,6 +39,7 @@ class ResourceAgentMock(ResourceAgent):
     def __init__(self, resource_infos: list[ResourceInfo]):
         self.rsrc_infos = resource_infos
         self.port_id_to_inst_infos: dict[ResourceId, InstrumentInfo] = {}
+        self.discarded_ports: list[ResourceId] = []
         self._counter = 0
 
     async def list_resource_infos(self) -> list[ResourceInfo]:
@@ -63,6 +64,11 @@ class ResourceAgentMock(ResourceAgent):
             for d in definitions
         ]
         return insts
+
+    async def discard_instruments(
+        self, port_id: ResourceId, session_token: SessionToken
+    ) -> None:
+        self.discarded_ports.append(port_id)
 
     async def get_port_info(self, resource_id: ResourceId) -> PortInfo:
         port = next(

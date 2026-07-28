@@ -219,9 +219,7 @@ class QuelwareClient:
         inst = await self._agent.resource(unit_label).get_instrument_info(instrument_id)
         return inst
 
-    async def get_unit_configuration(
-        self, unit_label: UnitLabel
-    ) -> UnitConfiguration:
+    async def get_unit_configuration(self, unit_label: UnitLabel) -> UnitConfiguration:
         """Return the unit-wide controls supported by a unit.
 
         Each entry reports the control's key, its allowed values, and the
