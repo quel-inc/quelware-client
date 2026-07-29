@@ -1,0 +1,34 @@
+name: Build quelware-tools Package
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'quelware-tools/v*'
+  pull_request:
+    paths:
+      - '.github/workflows/build_tools_package.yaml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv and Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.10'
+          enable-cache: true
+
+      - name: Build quelware-tools
+        run: uv build
+        working-directory: ./quelware-tools
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quelware-tools-package
+          path: ./quelware-tools/dist/
+          retention-days: 14
