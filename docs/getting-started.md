@@ -1,12 +1,12 @@
 # Getting started
 
-Install the client, register your token, and run a first measurement with the
-bundled example.
+Install the client, register your token, and run a first measurement with
+`quelware-tools`.
 
 ## 1. Install
 
 ```sh
-pip install quelware-client
+pip install quelware-client quelware-tools
 ```
 
 ## 2. Register your token
@@ -20,22 +20,22 @@ mkdir -p ~/.config/quelware-client
 echo "your-pat-here" > ~/.config/quelware-client/pat
 ```
 
-## 3. Run the example
+## 3. Run the echo test
 
-The repository includes a runnable readout example,
-[`examples/generate_readout_pulse.py`](https://github.com/quel-inc/quelware-client/blob/main/quelware-client/examples/generate_readout_pulse.py).
-Run it against a unit of your system — ask your administrator for the unit label
-and the server address:
+[`quel3-echo-test`](tools/index.md) emits a pulse on a transceiver port and
+captures the echoed response. Run it against your system — ask your
+administrator for the server address:
 
 ```sh
-python generate_readout_pulse.py quel3-01-028 --host 192.0.2.1 --loopback
+quel3-echo-test 192.0.2.1 --loopback
 ```
 
 The `--loopback` flag routes the signal internally, so you can try it without an
-external device connected. The script deploys an instrument, plays a pulse,
-captures the response, and prints a short summary.
+external device connected. It deploys an instrument, plays a pulse, captures the
+response, and prints a short summary.
 
 ## Next steps
 
-- [Fixed-timeline tutorial](tutorials/fixed-timeline.md) — build the same measurement yourself, step by step
+- [Tools](tools/index.md) — the rest of the command-line tools
+- [Fixed-timeline tutorial](tutorials/fixed-timeline.md) — build a measurement yourself, step by step
 - [Access control](concepts/access-control.md) — roles, sessions, and unit status
