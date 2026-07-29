@@ -100,5 +100,7 @@ nav:
           - Testing: client/api/testing.md
   - Admin:
       - admin/index.md
+  - Tools:
+      - tools/index.md
   - Core:
       - core/index.md

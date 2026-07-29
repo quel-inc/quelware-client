@@ -25,6 +25,13 @@ New here? **Start with [Getting started](getting-started.md).**
     A command-line tool for managing users on a QuEL system.
     Intended for administrators.
 
+-   :material-tools: **[Tools](tools/index.md)**
+
+    ---
+
+    Command-line diagnostics and utilities for QuEL systems, built on the
+    client. Includes `quel3-tone-test` and `quel3-unit-config`.
+
 -   :material-cube-outline: **[Core](core/index.md)**
 
     ---
