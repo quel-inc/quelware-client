@@ -22,6 +22,7 @@ plot = ["matplotlib"]
 
 [project.scripts]
 quel3-echo-test = "quelware_client.cli.quel3_echo_test:cli"
+quel3-tone-test = "quelware_client.cli.tone_test:cli"
 
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"
