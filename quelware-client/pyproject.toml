@@ -57,8 +57,3 @@ ignore = [
     "PLR0915", # too-many-statements
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"examples/*" = [
-    "F841", # unused-variable
-]
-
