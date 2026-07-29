@@ -19,6 +19,11 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
+from quelware_client.client.helpers.sequencer import Sequencer
+from quelware_client.core import QuelwareClient
+from quelware_client.core.instrument_driver import (
+    create_instrument_driver_fixed_timeline,
+)
 from quelware_core.entities.directives import (
     CaptureMode,
     SetCaptureMode,
@@ -33,12 +38,6 @@ from quelware_core.entities.instrument import (
 )
 from quelware_core.entities.resource import ResourceCategory, ResourceId
 from quelware_core.entities.unit import UnitLabel
-
-from quelware_client.client.helpers.sequencer import Sequencer
-from quelware_client.core import QuelwareClient
-from quelware_client.core.instrument_driver import (
-    create_instrument_driver_fixed_timeline,
-)
 
 from ._tone import ToneResult, detect_tone, top_peaks
 

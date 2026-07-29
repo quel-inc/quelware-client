@@ -1,25 +1,33 @@
 [project]
-name = "quelware-client"
-version = "0.4.1"
-description = ""
+name = "quelware-tools"
+version = "0.1.0"
+description = "Command-line tools and diagnostics for QuEL systems."
 readme = "README.md"
 authors = [
     {name = "quelware Authors", email = "opensource@quel-inc.com"},
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "betterproto2>=0.9.1",
-    "quelware-core>=0.3.0",
-    "grpclib>=0.4.8",
-    "typing_extensions>=4.1.0"
+    "quelware-client>=0.5.0",
+    "quelware-core>=0.5.0",
+    "numpy",
+    "typer>=0.21.1",
 ]
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
+[project.optional-dependencies]
+plot = ["matplotlib"]
+
+[project.scripts]
+quel3-echo-test = "quelware_tools.cli.quel3_echo_test:cli"
+quel3-tone-test = "quelware_tools.cli.tone_test:cli"
+quel3-unit-config = "quelware_tools.cli.unit_config:cli"
+
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"
 Documentation = "https://quel-inc.github.io/quelware-client/"
-"Changelog" = "https://github.com/quel-inc/quelware-client/blob/main/quelware-client/CHANGELOG.md"
+"Changelog" = "https://github.com/quel-inc/quelware-client/blob/main/quelware-tools/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
@@ -34,6 +42,7 @@ dev = [
 ]
 
 [tool.uv.sources]
+quelware-client = { path = "../quelware-client", editable = true }
 quelware-core = { path = "../quelware-core/python/", editable = true }
 
 [tool.ruff.lint]
@@ -53,12 +62,7 @@ select = [
 ignore = [
     "PLR2004", # magic-value-comparison
     "PLR0913", # too-many-arguments
+    "PLR0917", # too-many-positional-arguments
     "PLR0912", # too-many-branches
     "PLR0915", # too-many-statements
 ]
-
-[tool.ruff.lint.per-file-ignores]
-"examples/*" = [
-    "F841", # unused-variable
-]
-

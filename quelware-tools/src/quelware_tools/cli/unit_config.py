@@ -12,11 +12,10 @@ from collections.abc import Coroutine
 from typing import Annotated, Any
 
 import typer
-from quelware_core.entities.resource import ResourceCategory, ResourceId
-from quelware_core.entities.unit import UnitLabel
-
 from quelware_client.client import create_quelware_client
 from quelware_client.core import QuelwareClient
+from quelware_core.entities.resource import ResourceCategory, ResourceId
+from quelware_core.entities.unit import UnitLabel
 
 app = typer.Typer(add_completion=False, help="Show or set QuEL-3 unit configuration.")
 

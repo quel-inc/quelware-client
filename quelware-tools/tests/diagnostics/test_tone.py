@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from quelware_client.diagnostics._tone import detect_tone
+from quelware_tools.diagnostics._tone import detect_tone
 
 _SAMPLE_RATE_HZ = 500e6
 _N = 4096

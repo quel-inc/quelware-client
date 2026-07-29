@@ -1,7 +1,7 @@
 import pytest
 import typer
 
-from quelware_client.cli.unit_config import _parse_controls
+from quelware_tools.cli.unit_config import _parse_controls
 
 
 def test_parses_key_value_pairs() -> None:

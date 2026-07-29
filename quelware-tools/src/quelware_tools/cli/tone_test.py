@@ -11,10 +11,10 @@ import logging
 from typing import Annotated
 
 import typer
+from quelware_client.client import create_quelware_client
 from quelware_core.entities.unit import UnitLabel
 
-from quelware_client.client import create_quelware_client
-from quelware_client.diagnostics import run_tone_test
+from quelware_tools.diagnostics import run_tone_test
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +31,8 @@ def _entry(
         str | None,
         typer.Option(help="restrict to one port id (default: all tx/trx ports)"),
     ] = None,
-    tx_hz: Annotated[
-        float, typer.Option(help="transmit frequency in Hz")
-    ] = 5.1e9,
-    mon_hz: Annotated[
-        float, typer.Option(help="monitor frequency in Hz")
-    ] = 5.0e9,
+    tx_hz: Annotated[float, typer.Option(help="transmit frequency in Hz")] = 5.1e9,
+    mon_hz: Annotated[float, typer.Option(help="monitor frequency in Hz")] = 5.0e9,
     threshold_db: Annotated[
         float, typer.Option(help="minimum tone peak-to-median in dB to pass")
     ] = 20.0,

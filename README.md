@@ -7,6 +7,7 @@ Monorepo for QuEL system client libraries and tools.
 - [quelware-core](quelware-core/) — Shared entities and protobuf definitions
 - [quelware-client](quelware-client/) — Client library for connecting to QuEL systems via gRPC
 - [quelware-admin](quelware-admin/) — CLI tool for user management
+- [quelware-tools](quelware-tools/) — Command-line tools and diagnostics for QuEL systems
 
 ## Documentation
 
