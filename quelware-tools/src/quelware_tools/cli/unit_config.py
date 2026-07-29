@@ -1,4 +1,4 @@
-"""quel3-unit-config: inspect or change QuEL-3 unit configuration controls.
+"""quel-unit-config: inspect or change QuEL-3 unit configuration controls.
 
 ``show`` prints each control's current and allowed values; ``set`` applies one
 or more ``KEY=VALUE`` controls. Setting needs an admin PAT, an idle unit (no

@@ -1,4 +1,4 @@
-"""quel3-tone-test: per-port tone test for a QuEL-3 unit.
+"""quel-tone-test: per-port tone test for a QuEL-3 unit.
 
 Puts the unit's monitor into loopback and, for every tx/trx port, emits a tone
 and checks it appears in the monitor capture. Intended as a post-update health

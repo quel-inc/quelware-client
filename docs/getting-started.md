@@ -22,12 +22,12 @@ echo "your-pat-here" > ~/.config/quelware-client/pat
 
 ## 3. Run the echo test
 
-[`quel3-echo-test`](tools/index.md) emits a pulse on a transceiver port and
+[`quel-echo-test`](tools/index.md) emits a pulse on a transceiver port and
 captures the echoed response. Run it against your system — ask your
 administrator for the server address:
 
 ```sh
-quel3-echo-test 192.0.2.1 --loopback
+quel-echo-test 192.0.2.1 --loopback
 ```
 
 The `--loopback` flag routes the signal internally, so you can try it without an

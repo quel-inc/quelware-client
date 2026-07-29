@@ -9,7 +9,7 @@ they start nothing themselves.
 
 ```sh
 pip install quelware-tools          # tools only
-pip install "quelware-tools[plot]"  # + matplotlib, for quel3-echo-test plots
+pip install "quelware-tools[plot]"  # + matplotlib, for quel-echo-test plots
 ```
 
 ## Authentication
@@ -20,32 +20,32 @@ It defaults to the PAT configured for `quelware-client`; override it with
 
 ## Commands
 
-### `quel3-tone-test`
+### `quel-tone-test`
 
 Per-port tone test: puts the unit's monitor into loopback, emits a tone on every
 tx/trx port, and checks it appears in the monitor capture. A health check after
 an on-site software update; exits non-zero if any port fails.
 
 ```sh
-quel3-tone-test <host> --unit <label>
+quel-tone-test <host> --unit <label>
 ```
 
-### `quel3-unit-config`
+### `quel-unit-config`
 
 Show or set a unit's configuration controls.
 
 ```sh
-quel3-unit-config show <host> --unit <label>
-quel3-unit-config set <host> --unit <label> KEY=VALUE
+quel-unit-config show <host> --unit <label>
+quel-unit-config set <host> --unit <label> KEY=VALUE
 ```
 
 `set` requires an administrator PAT and an idle unit (no deployed instruments).
 
-### `quel3-echo-test`
+### `quel-echo-test`
 
 Emit a pulse on a TRX port and capture the echoed response, optionally plotting
 the I/Q trace (needs the `plot` extra).
 
 ```sh
-quel3-echo-test <host> --iq-plot
+quel-echo-test <host> --iq-plot
 ```

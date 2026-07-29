@@ -20,9 +20,9 @@ license-files = ["LICENSE"]
 plot = ["matplotlib"]
 
 [project.scripts]
-quel3-echo-test = "quelware_tools.cli.quel3_echo_test:cli"
-quel3-tone-test = "quelware_tools.cli.tone_test:cli"
-quel3-unit-config = "quelware_tools.cli.unit_config:cli"
+quel-echo-test = "quelware_tools.cli.echo_test:cli"
+quel-tone-test = "quelware_tools.cli.tone_test:cli"
+quel-unit-config = "quelware_tools.cli.unit_config:cli"
 
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"

@@ -30,7 +30,7 @@ New here? **Start with [Getting started](getting-started.md).**
     ---
 
     Command-line diagnostics and utilities for QuEL systems, built on the
-    client. Includes `quel3-tone-test` and `quel3-unit-config`.
+    client. Includes `quel-tone-test` and `quel-unit-config`.
 
 -   :material-cube-outline: **[Core](core/index.md)**
 

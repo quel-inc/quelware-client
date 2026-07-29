@@ -1,4 +1,4 @@
-"""quel3-echo-test: emit a pulse on a TRX port and capture the echoed response."""
+"""quel-echo-test: emit a pulse on a TRX port and capture the echoed response."""
 
 import asyncio
 import logging
