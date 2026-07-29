@@ -61,6 +61,13 @@ def set_(
     pat: Annotated[
         str | None, typer.Option(help="admin PAT; defaults to the configured PAT")
     ] = None,
+    discard_instruments: Annotated[
+        bool,
+        typer.Option(
+            "--discard-instruments",
+            help="discard all instruments on the unit before configuring",
+        ),
+    ] = False,
 ) -> None:
     """Set KEY=VALUE controls on a unit (admin PAT, idle unit)."""
     parsed = _parse_controls(controls)
@@ -72,6 +79,9 @@ def set_(
             if not port_ids:
                 raise RuntimeError(f"no ports found for unit '{unit}'")
             async with qc.create_session(port_ids) as session:
+                if discard_instruments:
+                    for port_id in port_ids:
+                        await session.discard_instruments(port_id)
                 result = await session.configure_unit(UnitLabel(unit), parsed)
         for key, value in result.items():
             print(f"{key}: {value}")
@@ -106,7 +116,9 @@ def _run(coro: Coroutine[Any, Any, None]) -> None:
     except typer.Exit:
         raise
     except Exception as exc:
-        typer.echo(f"error: {exc}", err=True)
+        # gRPC errors carry a human message; fall back to the repr otherwise
+        message = getattr(exc, "message", None) or str(exc)
+        typer.echo(f"error: {message}", err=True)
         raise typer.Exit(code=1) from exc
 
 

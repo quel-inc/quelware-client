@@ -205,7 +205,13 @@ def _entry(
         elif iq_plot:
             _plot(iq, None)
 
-    asyncio.run(_main())
+    try:
+        asyncio.run(_main())
+    except Exception as exc:
+        # gRPC errors carry a human message; fall back to the repr otherwise
+        message = getattr(exc, "message", None) or str(exc)
+        typer.echo(f"error: {message}", err=True)
+        raise typer.Exit(code=1) from exc
 
 
 def cli() -> None:
