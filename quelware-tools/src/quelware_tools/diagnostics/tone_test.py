@@ -36,18 +36,13 @@ from quelware_core.entities.instrument import (
     InstrumentMode,
     InstrumentRole,
 )
-from quelware_core.entities.resource import ResourceCategory, ResourceId
+from quelware_core.entities.resource import ResourceId
 from quelware_core.entities.unit import UnitLabel
 
+from . import _monitor
 from ._tone import ToneResult, detect_tone, top_peaks
 
 logger = logging.getLogger(__name__)
-
-# QuEL-3-specific: the monitor is a unit control keyed "quel3.monitor.mode"; the
-# emitting ports are named trx*/tx*, and the monitor capture port ends ":mon".
-_MONITOR_MODE_KEY = "quel3.monitor.mode"
-_MON_PORT_SUFFIX = ":mon"
-_EMIT_PORT_PREFIXES = ("trx", "tx")
 
 _FS_PER_SEC = 10**15
 _PROFILE_HALF_HZ = 200e6
@@ -94,12 +89,10 @@ async def run_tone_test(
     """
     cleanup_ports: list[ResourceId] = []
     try:
-        logger.info("setting monitor to loopback on %s", unit_label)
-        async with client.create_session(await _port_ids(client)) as session:
-            await session.configure_unit(unit_label, {_MONITOR_MODE_KEY: "loopback"})
+        await _monitor.set_monitor_loopback(client, unit_label)
 
-        mon_port = await _monitor_port(client)
-        emit_ports = [ResourceId(port)] if port else await _emit_ports(client)
+        mon_port = await _monitor.monitor_port(client)
+        emit_ports = [ResourceId(port)] if port else await _monitor.emit_ports(client)
         emit_ports.sort(key=str)
         cleanup_ports = [*emit_ports, mon_port]
         logger.info(
@@ -136,7 +129,7 @@ async def run_tone_test(
         passed = bool(results) and all(r.passed for r in results)
         return ToneTestReport(str(unit_label), passed, tuple(results))
     finally:
-        await _restore_monitor_open(client, unit_label, cleanup_ports)
+        await _monitor.restore_monitor_open(client, unit_label, cleanup_ports)
 
 
 async def _check_port(
@@ -202,35 +195,6 @@ async def _check_port(
     )
     logger.info("  %s: %s (%s)", emit_port, "PASS" if tone.ok else "FAIL", detail)
     return PortToneResult(str(emit_port), tone.ok, detail, tone)
-
-
-async def _port_ids(client: QuelwareClient) -> list[ResourceId]:
-    rinfos = await client.list_resource_infos()
-    return [r.id for r in rinfos if r.category == ResourceCategory.PORT]
-
-
-def _port_name(port_id: ResourceId) -> str:
-    return str(port_id).rsplit(":", 1)[-1]
-
-
-async def _emit_ports(client: QuelwareClient) -> list[ResourceId]:
-    ports = [
-        p
-        for p in await _port_ids(client)
-        if _port_name(p).startswith(_EMIT_PORT_PREFIXES)
-    ]
-    if not ports:
-        raise RuntimeError("no tx/trx ports found on the unit")
-    return ports
-
-
-async def _monitor_port(client: QuelwareClient) -> ResourceId:
-    mon = next(
-        (p for p in await _port_ids(client) if str(p).endswith(_MON_PORT_SUFFIX)), None
-    )
-    if mon is None:
-        raise RuntimeError("monitor port not found after enabling loopback")
-    return mon
 
 
 async def _emit_and_capture(
@@ -328,19 +292,6 @@ def _build_directives(
         seq.export_set_fixed_timeline_directive(tx_info.definition.alias),
         seq.export_set_fixed_timeline_directive(mon_info.definition.alias),
     )
-
-
-async def _restore_monitor_open(
-    client: QuelwareClient,
-    unit_label: UnitLabel,
-    deployed_ports: list[ResourceId],
-) -> None:
-    async with client.create_session(await _port_ids(client)) as session:
-        for port_id in deployed_ports:
-            logger.info("discarding instruments on %s", port_id)
-            await session.discard_instruments(port_id)
-        logger.info("restoring monitor to open on %s", unit_label)
-        await session.configure_unit(unit_label, {_MONITOR_MODE_KEY: "open"})
 
 
 __all__ = [
