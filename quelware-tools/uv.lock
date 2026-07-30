@@ -1176,7 +1176,7 @@ wheels = [
 
 [[package]]
 name = "quelware-client"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "../quelware-client" }
 dependencies = [
     { name = "betterproto2" },
@@ -1235,14 +1235,13 @@ dev = [
 
 [[package]]
 name = "quelware-tools"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "quelware-client" },
-    { name = "quelware-core" },
     { name = "typer" },
 ]
 
@@ -1265,7 +1264,6 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'plot'" },
     { name = "numpy" },
     { name = "quelware-client", editable = "../quelware-client" },
-    { name = "quelware-core", editable = "../quelware-core/python" },
     { name = "typer", specifier = ">=0.21.1" },
 ]
 provides-extras = ["plot"]
