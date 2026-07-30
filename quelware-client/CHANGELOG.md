@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-30
+
+### Fixed
+
+- Bump `quelware-core` floor to `>=0.5.0`.
+
 ## [0.5.0] - 2026-07-29
 
 ### Added
