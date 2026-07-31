@@ -9,7 +9,7 @@ they start nothing themselves.
 
 ```sh
 pip install quelware-tools          # tools only
-pip install "quelware-tools[plot]"  # + matplotlib, for quel-echo-test plots
+pip install "quelware-tools[plot]"  # + matplotlib, for the commands that plot
 ```
 
 ## Authentication
@@ -24,7 +24,9 @@ It defaults to the PAT configured for `quelware-client`; override it with
 
 Per-port tone test: puts the unit's monitor into loopback, emits a tone on every
 tx/trx port, and checks it appears in the monitor capture. A health check after
-an on-site software update; exits non-zero if any port fails.
+an on-site software update; exits non-zero if any port fails. Requires an
+administrator PAT and an idle unit — `--discard-instruments` clears the unit's
+existing instruments first.
 
 ```sh
 quel-tone-test <host> --unit <label>
@@ -36,11 +38,13 @@ Per-port path delay: puts the monitor into loopback and, one tx/trx port at a
 time, emits a pulse while capturing from t=0 to time its arrival. With
 `--verify`, deskews every port onto a common pulse comb, emits them together, and
 checks each pulse lands where intended. Requires an administrator PAT and an idle
-unit.
+unit. `--verify-plot-iq DIR` saves the comb capture there as a PNG plot and a raw
+`.npy` (needs the `plot` extra).
 
 ```sh
 quel-measure-delay <host> --unit <label>
 quel-measure-delay <host> --unit <label> --verify
+quel-measure-delay <host> --unit <label> --verify-plot-iq ./iq
 ```
 
 ### `quel-unit-config`

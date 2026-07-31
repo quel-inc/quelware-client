@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-31
+
 ### Added
 
 - `quel-tone-test --discard-instruments` — clear the unit's instruments first, so a non-idle unit can be tested.
