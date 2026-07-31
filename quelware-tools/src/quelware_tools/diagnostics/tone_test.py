@@ -75,6 +75,7 @@ async def run_tone_test(
     capture_start_ns: float = 1000.0,
     capture_length_ns: float = 800.0,
     iterations: int = 1,
+    discard_instruments: bool = False,
 ) -> ToneTestReport:
     """Run the per-port tone test on one unit.
 
@@ -82,17 +83,30 @@ async def run_tone_test(
     emits a ``cw_length_ns`` CW and captures ``capture_length_ns`` starting at
     ``capture_start_ns`` (a margin past the path delay) from inside that CW.
 
-    Preconditions: the unit is idle (no instruments) and ``client`` was built
-    with an admin PAT (configuring the monitor needs the CONFIGURE_UNIT
-    capability). The monitor is restored to ``open`` before returning, even on
-    failure.
+    ``port``, when given, must be a full resource id owned by ``unit_label``
+    (e.g. ``unit:trx0``); a port from another unit is rejected.
+
+    Set ``discard_instruments`` to clear any instruments already on the unit
+    first, so a non-idle unit can be tested.
+
+    Preconditions: the unit is idle (no instruments, unless
+    ``discard_instruments`` is set) and ``client`` was built with an admin PAT
+    (configuring the monitor needs the CONFIGURE_UNIT capability). The monitor
+    is restored to ``open`` before returning, even on failure.
     """
+    target_port = _monitor.resolve_port(unit_label, port) if port else None
     cleanup_ports: list[ResourceId] = []
     try:
+        if discard_instruments:
+            await _monitor.discard_unit_instruments(client, unit_label)
         await _monitor.set_monitor_loopback(client, unit_label)
 
-        mon_port = await _monitor.monitor_port(client)
-        emit_ports = [ResourceId(port)] if port else await _monitor.emit_ports(client)
+        mon_port = await _monitor.monitor_port(client, unit_label)
+        emit_ports = (
+            [target_port]
+            if target_port
+            else await _monitor.emit_ports(client, unit_label)
+        )
         emit_ports.sort(key=str)
         cleanup_ports = [*emit_ports, mon_port]
         logger.info(

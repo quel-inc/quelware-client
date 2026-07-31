@@ -8,15 +8,86 @@ restored to ``open`` on the way out. Exits non-zero if any port yields no pulse.
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Annotated
 
+import numpy as np
 import typer
 from quelware_client.client import create_quelware_client
 from quelware_core.entities.unit import UnitLabel
 
-from quelware_tools.diagnostics import run_delay_test
+from quelware_tools.diagnostics import CombVerification, run_delay_test
 
 logger = logging.getLogger(__name__)
+
+
+def _save_verify_iq_plot(
+    v: CombVerification, out_dir: Path, unit_label: str
+) -> tuple[Path, Path]:
+    """Write the comb capture as a PNG plot plus a raw ``.npy``.
+
+    Same layout as the edge-server hardware tests' ``--save-iq-plot``: |IQ| and
+    phase against time, then the FFT magnitude. Expected arrivals are marked in
+    green, measured ones in orange (red when out of tolerance).
+    """
+    import matplotlib  # noqa: PLC0415
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = unit_label.replace("/", "_").replace(":", "_") + ".verify"
+    iq = np.asarray(v.iq)
+    npy_path = out_dir / f"{stem}.npy"
+    png_path = out_dir / f"{stem}.png"
+    np.save(npy_path, iq)
+
+    t_ns = np.arange(len(iq)) / v.sample_rate_hz * 1e9
+    spectrum_db = 20 * np.log10(np.fft.fftshift(np.abs(np.fft.fft(iq))) + 1e-12)
+    freqs_mhz = np.fft.fftshift(np.fft.fftfreq(len(iq), d=1.0 / v.sample_rate_hz)) / 1e6
+
+    fig, (ax_mag, ax_phase, ax_freq) = plt.subplots(3, 1, figsize=(10, 8))
+    ax_mag.plot(t_ns, np.abs(iq), linewidth=0.6)
+    for i, c in enumerate(v.checks):
+        ax_mag.axvline(
+            c.expected_ns,
+            color="green",
+            linestyle="--",
+            linewidth=0.6,
+            alpha=0.7,
+            label="expected" if i == 0 else None,
+        )
+        if c.measured_ns is not None:
+            ax_mag.axvline(
+                c.measured_ns,
+                color="orange" if c.ok else "red",
+                linestyle=":",
+                linewidth=0.8,
+                alpha=0.8,
+                label="measured" if i == 0 else None,
+            )
+    ax_mag.set_ylabel("|IQ|")
+    ax_mag.grid(True, alpha=0.3)
+    ax_mag.legend(loc="upper right", fontsize="small")
+
+    ax_phase.plot(t_ns, np.angle(iq), linewidth=0.6)
+    ax_phase.set_xlabel("Time (ns)")
+    ax_phase.set_ylabel("Phase (rad)")
+    ax_phase.grid(True, alpha=0.3)
+
+    ax_freq.plot(freqs_mhz, spectrum_db, linewidth=0.6)
+    ax_freq.set_xlabel("Baseband frequency (MHz)")
+    ax_freq.set_ylabel("Magnitude (dB)")
+    ax_freq.grid(True, alpha=0.3)
+
+    fig.suptitle(
+        f"{stem} (t_ref={v.t_ref_ns:.0f} ns, period={v.period_ns:.0f} ns, "
+        f"tol=±{v.tolerance_samples:g} samples)"
+    )
+    fig.tight_layout()
+    fig.savefig(png_path, dpi=120)
+    plt.close(fig)
+    return png_path, npy_path
 
 
 def _entry(
@@ -52,9 +123,18 @@ def _entry(
     tolerance_samples: Annotated[
         float, typer.Option(help="allowed pulse-position error in samples (verify)")
     ] = 2.0,
+    verify_plot_iq: Annotated[
+        str | None,
+        typer.Option(
+            metavar="DIR",
+            help="save the verify comb capture under DIR as a PNG plot and a "
+            "raw .npy (implies --verify; needs the 'plot' extra)",
+        ),
+    ] = None,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Measure the monitor path delay for each tx/trx port on one QuEL-3 unit."""
+    verify = verify or verify_plot_iq is not None
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -98,12 +178,29 @@ def _entry(
                         f"(dev {c.deviation_samples:+.2f} samples)"
                     )
 
+        if verify_plot_iq is not None:
+            if v is None:
+                print("no comb verification result to plot")
+            else:
+                png, npy = _save_verify_iq_plot(
+                    v, Path(verify_plot_iq), report.unit_label
+                )
+                print(f"saved {png} and {npy}")
+
         status = "PASS" if report.passed else "FAIL"
         print(f"[{status}] {report.unit_label}")
         if not report.passed:
             raise typer.Exit(code=1)
 
-    asyncio.run(_main())
+    try:
+        asyncio.run(_main())
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        # gRPC errors carry a human message; fall back to the repr otherwise
+        message = getattr(exc, "message", None) or str(exc)
+        typer.echo(f"error: {message}", err=True)
+        raise typer.Exit(code=1) from exc
 
 
 def cli() -> None:

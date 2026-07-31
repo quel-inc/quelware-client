@@ -89,19 +89,27 @@ async def run_delay_test(
 ) -> DelayTestReport:
     """Measure the monitor path delay for every tx/trx port (or just ``port``).
 
+    ``port``, when given, must be a full resource id owned by ``unit_label``
+    (e.g. ``unit:trx0``); a port from another unit is rejected.
+
     Set ``discard_instruments`` to clear any instruments already on the unit
     first, so a non-idle unit can be measured. Set ``verify`` to add a second
     pass that deskews the measured ports onto a common comb, emits them
     together, and checks each pulse lands within ``tolerance_samples``.
     """
+    target_port = _monitor.resolve_port(unit_label, port) if port else None
     cleanup_ports: list[ResourceId] = []
     try:
         if discard_instruments:
-            await _monitor.discard_all_instruments(client)
+            await _monitor.discard_unit_instruments(client, unit_label)
         await _monitor.set_monitor_loopback(client, unit_label)
 
-        mon_port = await _monitor.monitor_port(client)
-        emit_ports = [ResourceId(port)] if port else await _monitor.emit_ports(client)
+        mon_port = await _monitor.monitor_port(client, unit_label)
+        emit_ports = (
+            [target_port]
+            if target_port
+            else await _monitor.emit_ports(client, unit_label)
+        )
         emit_ports.sort(key=str)
         cleanup_ports = [*emit_ports, mon_port]
         logger.info(

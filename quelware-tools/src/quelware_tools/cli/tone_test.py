@@ -29,7 +29,10 @@ def _entry(
     ] = None,
     target_port: Annotated[
         str | None,
-        typer.Option(help="restrict to one port id (default: all tx/trx ports)"),
+        typer.Option(
+            help="restrict to one full port id on --unit "
+            "(default: all tx/trx ports of the unit)"
+        ),
     ] = None,
     tx_hz: Annotated[float, typer.Option(help="transmit frequency in Hz")] = 5.1e9,
     mon_hz: Annotated[float, typer.Option(help="monitor frequency in Hz")] = 5.0e9,
@@ -46,6 +49,10 @@ def _entry(
         float, typer.Option(help="capture window length in ns")
     ] = 800.0,
     iterations: Annotated[int, typer.Option(help="capture averaging iterations")] = 1,
+    discard_instruments: Annotated[
+        bool,
+        typer.Option(help="discard instruments already on the unit before testing"),
+    ] = False,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Run the per-port tone test on one QuEL-3 unit."""
@@ -68,6 +75,7 @@ def _entry(
                 capture_start_ns=capture_start_ns,
                 capture_length_ns=capture_length_ns,
                 iterations=iterations,
+                discard_instruments=discard_instruments,
             )
         for r in report.results:
             print(f"[{'PASS' if r.passed else 'FAIL'}] {r.port_id}: {r.detail}")
@@ -77,7 +85,15 @@ def _entry(
         if not report.passed:
             raise typer.Exit(code=1)
 
-    asyncio.run(_main())
+    try:
+        asyncio.run(_main())
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        # gRPC errors carry a human message; fall back to the repr otherwise
+        message = getattr(exc, "message", None) or str(exc)
+        typer.echo(f"error: {message}", err=True)
+        raise typer.Exit(code=1) from exc
 
 
 def cli() -> None:
