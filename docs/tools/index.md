@@ -30,6 +30,19 @@ an on-site software update; exits non-zero if any port fails.
 quel-tone-test <host> --unit <label>
 ```
 
+### `quel-measure-delay`
+
+Per-port path delay: puts the monitor into loopback and, one tx/trx port at a
+time, emits a pulse while capturing from t=0 to time its arrival. With
+`--verify`, deskews every port onto a common pulse comb, emits them together, and
+checks each pulse lands where intended. Requires an administrator PAT and an idle
+unit.
+
+```sh
+quel-measure-delay <host> --unit <label>
+quel-measure-delay <host> --unit <label> --verify
+```
+
 ### `quel-unit-config`
 
 Show or set a unit's configuration controls.

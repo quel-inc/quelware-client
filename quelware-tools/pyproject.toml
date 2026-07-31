@@ -1,6 +1,6 @@
 [project]
 name = "quelware-tools"
-version = "0.1.1"
+version = "0.1.2"
 description = "Command-line tools and diagnostics for QuEL systems."
 readme = "README.md"
 authors = [
