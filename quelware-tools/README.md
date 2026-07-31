@@ -12,7 +12,9 @@ start nothing themselves.
   A post-update health check. Exits non-zero if any port fails.
 - `quel-measure-delay` — per-port path delay: put the monitor into loopback and,
   one tx/trx port at a time, emit a pulse while capturing from t=0 and time its
-  arrival. Needs an admin PAT and an idle unit.
+  arrival. With `--verify`, deskew all ports onto a common pulse comb, emit them
+  together, and check each pulse lands where intended. Needs an admin PAT and an
+  idle unit.
 - `quel-unit-config` — `show` / `set` a unit's configuration controls.
   `set` needs an admin PAT and an idle unit.
 - `quel-echo-test` — emit a pulse on a TRX port and capture the echoed response

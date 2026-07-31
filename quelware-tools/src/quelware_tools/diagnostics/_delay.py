@@ -1,5 +1,6 @@
 """Locate a pulse in a capture aligned to its emission and report its delay."""
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -124,4 +125,136 @@ def _interpolate_crossing(env: np.ndarray, start: int, threshold: float) -> floa
     return (start - 1) + (threshold - prev) / (curr - prev)
 
 
-__all__ = ["DelayResult", "envelope", "find_pulse_chunks", "measure_delay"]
+@dataclass(frozen=True)
+class CombPlan:
+    t_ref_ns: float
+    period_ns: float
+    pulse_ns: float
+    arrivals_ns: tuple[float, ...]
+    emit_offsets_ns: tuple[float, ...]
+
+
+def comb_plan(
+    delays_ns: list[float],
+    *,
+    round_ns: float = 1000.0,
+    pulse_ns: float = 100.0,
+    blank_ns: float = 100.0,
+) -> CombPlan:
+    """Deskew ports onto a common pulse/blank comb.
+
+    Every port's pulse is placed on one grid so the capture reads as an evenly
+    spaced ``pulse_ns``-on / ``blank_ns``-off comb: port ``i`` arrives at
+    ``t_ref + i * (pulse_ns + blank_ns)``, where ``t_ref`` is ``max(delays)``
+    rounded up to a ``round_ns`` boundary. Each port emits at its arrival minus
+    its own delay; ``t_ref >= max(delays)`` keeps every emit offset non-negative.
+    """
+    if not delays_ns:
+        raise ValueError("need at least one delay")
+    period_ns = pulse_ns + blank_ns
+    t_ref_ns = math.ceil(max(delays_ns) / round_ns) * round_ns
+    arrivals_ns = tuple(t_ref_ns + i * period_ns for i in range(len(delays_ns)))
+    emit_offsets_ns = tuple(a - d for a, d in zip(arrivals_ns, delays_ns, strict=True))
+    return CombPlan(t_ref_ns, period_ns, pulse_ns, arrivals_ns, emit_offsets_ns)
+
+
+@dataclass(frozen=True)
+class CombMatch:
+    expected_ns: float
+    measured_ns: float | None
+    deviation_samples: float | None
+    ok: bool
+
+
+def verify_comb(
+    iq: np.ndarray,
+    sample_rate_hz: float,
+    expected_ns: tuple[float, ...],
+    *,
+    tolerance_samples: float = 2.0,
+    threshold_frac: float = 0.5,
+    min_snr_db: float = 15.0,
+    search_radius_ns: float | None = None,
+    remove_dc: bool = True,
+) -> list[CombMatch]:
+    """Check that each expected comb position holds a pulse within tolerance.
+
+    Each expected arrival is checked in its own window: the local peak must clear
+    ``min_snr_db`` over the noise floor, and its leading edge -- the half-height
+    crossing of that local peak -- must be within ``tolerance_samples`` of the
+    expected position. Keying detection to each window's own peak, not the global
+    maximum, keeps a weak pulse from being lost beside a strong one. The window
+    half-width defaults to a quarter of the comb spacing (a guard gap from the
+    neighbouring pulse); pass ``search_radius_ns`` to set it explicitly.
+    """
+    env = envelope(iq, remove_dc=remove_dc)
+    noise_floor = float(np.median(env))
+    ns_per_sample = 1e9 / sample_rate_hz
+    expected_samples = [e / ns_per_sample for e in expected_ns]
+
+    if search_radius_ns is not None:
+        radius = search_radius_ns / ns_per_sample
+    elif len(expected_samples) > 1:
+        pairs = zip(expected_samples[:-1], expected_samples[1:], strict=True)
+        radius = 0.25 * min(b - a for a, b in pairs)
+    else:
+        radius = float(env.size)
+
+    matches: list[CombMatch] = []
+    for exp_s, exp_ns in zip(expected_samples, expected_ns, strict=True):
+        edge = _local_leading_edge(
+            env, exp_s, radius, noise_floor, threshold_frac, min_snr_db
+        )
+        if edge is None:
+            matches.append(CombMatch(exp_ns, None, None, False))
+        else:
+            dev = edge - exp_s
+            ok = abs(dev) <= tolerance_samples
+            matches.append(CombMatch(exp_ns, edge * ns_per_sample, dev, ok))
+    return matches
+
+
+def _local_leading_edge(
+    env: np.ndarray,
+    center: float,
+    radius: float,
+    noise_floor: float,
+    threshold_frac: float,
+    min_snr_db: float,
+) -> float | None:
+    """Leading edge of the pulse in ``[center-radius, center+radius]``, or None.
+
+    Returns None if the window's peak does not clear ``min_snr_db`` over the
+    noise floor. Otherwise walks left from that local peak to the half-height
+    crossing and interpolates it to sub-sample resolution.
+    """
+    lo = max(0, math.floor(center - radius))
+    hi = min(env.size, math.ceil(center + radius))
+    if hi <= lo:
+        return None
+    peak_idx = lo + int(np.argmax(env[lo:hi]))
+    peak = float(env[peak_idx])
+    snr_db = (
+        20.0 * float(np.log10(peak / noise_floor))
+        if noise_floor > 0.0
+        else float("inf")
+    )
+    if snr_db < min_snr_db:
+        return None
+    threshold = noise_floor + threshold_frac * (peak - noise_floor)
+    i = peak_idx
+    while i > lo and float(env[i - 1]) > threshold:
+        i -= 1
+    return _interpolate_crossing(env, i, threshold)
+
+
+__all__ = [
+    "CombMatch",
+    "CombPlan",
+    "DelayResult",
+    "comb_plan",
+    "envelope",
+    "find_pulse_chunks",
+    "measure_delay",
+    "verify_comb",
+]

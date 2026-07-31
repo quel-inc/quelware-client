@@ -42,6 +42,16 @@ def _entry(
         bool,
         typer.Option(help="discard instruments already on the unit before measuring"),
     ] = False,
+    verify: Annotated[
+        bool,
+        typer.Option(
+            help="after measuring, deskew all ports onto a common comb, emit "
+            "together, and check each pulse lands where intended"
+        ),
+    ] = False,
+    tolerance_samples: Annotated[
+        float, typer.Option(help="allowed pulse-position error in samples (verify)")
+    ] = 2.0,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Measure the monitor path delay for each tx/trx port on one QuEL-3 unit."""
@@ -62,13 +72,34 @@ def _entry(
                 iterations=iterations,
                 min_snr_db=threshold_db,
                 discard_instruments=discard_instruments,
+                verify=verify,
+                tolerance_samples=tolerance_samples,
             )
         for r in report.results:
             print(f"[{'OK' if r.detected else 'FAIL'}] {r.port_id}: {r.detail}")
         detected_n = sum(r.detected for r in report.results)
-        status = "PASS" if report.passed else "FAIL"
         n = len(report.results)
-        print(f"[{status}] {report.unit_label}: {detected_n}/{n} ports")
+        print(f"delay: {detected_n}/{n} ports detected")
+
+        v = report.verification
+        if v is not None:
+            print(
+                f"comb verify (t_ref={v.t_ref_ns:.0f} ns, period={v.period_ns:.0f} ns, "
+                f"tol=±{v.tolerance_samples:g} samples):"
+            )
+            for c in v.checks:
+                if c.measured_ns is None:
+                    print(f"  [FAIL] {c.port_id}: no pulse near {c.expected_ns:.1f} ns")
+                else:
+                    tag = "OK" if c.ok else "FAIL"
+                    print(
+                        f"  [{tag}] {c.port_id}: expected {c.expected_ns:.1f} ns, "
+                        f"measured {c.measured_ns:.1f} ns "
+                        f"(dev {c.deviation_samples:+.2f} samples)"
+                    )
+
+        status = "PASS" if report.passed else "FAIL"
+        print(f"[{status}] {report.unit_label}")
         if not report.passed:
             raise typer.Exit(code=1)
 

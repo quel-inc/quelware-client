@@ -152,6 +152,130 @@ async def _emit_pulse_and_capture(
     return captured, _FS_PER_SEC / cap_info.config.sampling_period_fs
 
 
+async def emit_comb_and_capture(
+    client: QuelwareClient,
+    emit_ports: list[ResourceId],
+    capture_port: ResourceId,
+    *,
+    freq_hz: float,
+    emit_offsets_ns: tuple[float, ...],
+    pulse_length_ns: float,
+    capture_length_ns: float,
+    amplitude: float = 0.5,
+    iterations: int = 1,
+) -> tuple[np.ndarray, float]:
+    """Emit one pulse per port at its own offset, all on one triggered timeline.
+
+    The capture window runs from t=0 over the whole comb; with each port
+    deskewed by its offset the pulses should land as an evenly spaced comb.
+    """
+    profile = FixedTimelineProfile(
+        freq_hz - _PROFILE_HALF_HZ, freq_hz + _PROFILE_HALF_HZ
+    )
+    tx_defs = [
+        InstrumentDefinition(
+            alias=f"{_EMIT_ALIAS}_{i}",
+            mode=InstrumentMode.FIXED_TIMELINE,
+            role=InstrumentRole.TRANSMITTER,
+            profile=profile,
+        )
+        for i in range(len(emit_ports))
+    ]
+    cap_def = InstrumentDefinition(
+        alias=_CAPTURE_ALIAS,
+        mode=InstrumentMode.FIXED_TIMELINE,
+        role=InstrumentRole.RECEIVER,
+        profile=profile,
+    )
+
+    async with client.create_session([*emit_ports, capture_port]) as deploy_session:
+        tx_infos: list[InstrumentInfo] = []
+        for emit_port, tx_def in zip(emit_ports, tx_defs, strict=True):
+            (info,) = await deploy_session.deploy_instruments(emit_port, [tx_def])
+            tx_infos.append(info)
+        (cap_info,) = await deploy_session.deploy_instruments(capture_port, [cap_def])
+
+    tx_ids = [info.id for info in tx_infos]
+    async with client.create_session([*tx_ids, cap_info.id]) as drive_session:
+        tx_drivers = [
+            create_instrument_driver_fixed_timeline(drive_session, info)
+            for info in tx_infos
+        ]
+        cap_driver = create_instrument_driver_fixed_timeline(drive_session, cap_info)
+
+        directives = _build_comb_directives(
+            tx_infos,
+            cap_info,
+            emit_offsets_ns=emit_offsets_ns,
+            pulse_length_ns=pulse_length_ns,
+            capture_length_ns=capture_length_ns,
+            amplitude=amplitude,
+            iterations=iterations,
+        )
+        for driver, info in zip(tx_drivers, tx_infos, strict=True):
+            await driver.apply(
+                [SetFrequency(hz=freq_hz), directives[info.definition.alias]]
+            )
+        await cap_driver.apply(
+            [
+                SetFrequency(hz=freq_hz),
+                SetCaptureMode(mode=CaptureMode.AVERAGED_WAVEFORM),
+                directives[cap_info.definition.alias],
+            ]
+        )
+
+        await drive_session.trigger([*tx_ids, cap_info.id])
+        result = await cap_driver.fetch_result()
+
+    captured = np.asarray(result.iq_waveform_result["cap"][0].iq_array)
+    return captured, _FS_PER_SEC / cap_info.config.sampling_period_fs
+
+
+def _build_comb_directives(
+    tx_infos: list[InstrumentInfo],
+    cap_info: InstrumentInfo,
+    *,
+    emit_offsets_ns: tuple[float, ...],
+    pulse_length_ns: float,
+    capture_length_ns: float,
+    amplitude: float,
+    iterations: int,
+):
+    """One pulse per tx at its offset, plus a capture from t=0, on one timeline.
+
+    Ports may run at different sampling periods, so each tx gets its own pulse
+    waveform sized and periodized to its instrument.
+    """
+    default_period_ns = tx_infos[0].config.sampling_period_fs / 1_000_000
+    seq = Sequencer(
+        default_sampling_period_ns=default_period_ns, enforce_sample_grid=False
+    )
+    for inst in (*tx_infos, cap_info):
+        seq.bind(
+            inst.definition.alias,
+            inst.config.sampling_period_fs,
+            inst.config.timeline_step_samples,
+        )
+    for i, (inst, offset_ns) in enumerate(zip(tx_infos, emit_offsets_ns, strict=True)):
+        period_ns = inst.config.sampling_period_fs / 1_000_000
+        samples = max(1, round(pulse_length_ns / period_ns))
+        name = f"pulse_{i}"
+        seq.register_waveform(
+            name,
+            np.full(samples, amplitude + 0.0j, dtype=complex),
+            sampling_period_ns=period_ns,
+        )
+        seq.add_event(inst.definition.alias, name, offset_ns)
+    seq.add_capture_window(cap_info.definition.alias, "cap", 0.0, capture_length_ns)
+    seq.set_iterations(iterations)
+    return {
+        inst.definition.alias: seq.export_set_fixed_timeline_directive(
+            inst.definition.alias
+        )
+        for inst in (*tx_infos, cap_info)
+    }
+
+
 def _build_directives(
     tx_info: InstrumentInfo,
     cap_info: InstrumentInfo,
@@ -181,4 +305,4 @@ def _build_directives(
     )
 
 
-__all__ = ["PortDelayMeasurement", "measure_port_delay"]
+__all__ = ["PortDelayMeasurement", "emit_comb_and_capture", "measure_port_delay"]
