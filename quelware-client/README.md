@@ -1,5 +1,8 @@
 # quelware-client
 
+[![PyPI](https://img.shields.io/pypi/v/quelware-client)](https://pypi.org/project/quelware-client/)
+[![License](https://img.shields.io/pypi/l/quelware-client)](https://github.com/quel-inc/quelware-client/blob/main/quelware-client/LICENSE)
+
 The official Python client library for QuEL-3, an integrated control system for quantum computing developed by [QuEL, inc.](https://quel-inc.com/)
 
 It provides a high-level, asynchronous interface to connect, configure, and orchestrate QuEL systems via gRPC.

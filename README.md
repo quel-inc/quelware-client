@@ -14,6 +14,7 @@ Monorepo for QuEL system client libraries and tools.
 Full documentation is published at <https://quel-inc.github.io/quelware-client/>:
 
 - [Client](https://quel-inc.github.io/quelware-client/client/) — Python client library
+- [Tools](https://quel-inc.github.io/quelware-client/tools/) — command-line tools and diagnostics
 - [Admin](https://quel-inc.github.io/quelware-client/admin/) — administrator CLI
 - [Core](https://quel-inc.github.io/quelware-client/core/) — shared models and protobuf definitions
 

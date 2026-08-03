@@ -1,5 +1,8 @@
 # quelware-tools
 
+[![PyPI](https://img.shields.io/pypi/v/quelware-tools)](https://pypi.org/project/quelware-tools/)
+[![License](https://img.shields.io/pypi/l/quelware-tools)](https://github.com/quel-inc/quelware-client/blob/main/quelware-tools/LICENSE)
+
 Command-line tools and diagnostics for QuEL systems, built on `quelware-client`.
 
 They run against an already-running manager + edge server (endpoint + PAT); they
