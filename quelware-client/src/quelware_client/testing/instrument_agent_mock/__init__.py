@@ -17,7 +17,7 @@ class InstrumentAgentMock(InstrumentAgent):
         token: SessionToken,
         resource_id: ResourceId,
     ) -> InstrumentStatus:
-        return InstrumentStatus.UNCONFIGURED
+        return InstrumentStatus.IDLE
 
     async def initialize(
         self,
