@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-07
+
+### Changed
+
+- `InstrumentStatus` replaces `UNCONFIGURED` and `CONFIGURED` with a single `IDLE`.
+
+### Added
+
+- `InstrumentStatus.FAILED` on the wire.
+- `InstrumentStatus.ABORTED`.
+- `InstrumentService.Abort` RPC to stop a run in flight.
+
+### Fixed
+
+- `GetStatus` raised `KeyError` for `CONFIGURED` and `FAILED`.
+
 ## [0.5.0] - 2026-07-27
 
 ### Added

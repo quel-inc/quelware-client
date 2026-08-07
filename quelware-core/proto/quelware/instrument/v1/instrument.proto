@@ -14,6 +14,7 @@ service InstrumentService {
   rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
   rpc ScheduleTrigger(ScheduleTriggerRequest) returns (ScheduleTriggerResponse);
   rpc TriggerNow(TriggerNowRequest) returns (TriggerNowResponse);
+  rpc Abort(AbortRequest) returns (AbortResponse);
   rpc FetchResult(FetchResultRequest) returns (FetchResultResponse);
 }
 
@@ -67,6 +68,12 @@ message TriggerNowRequest {}
 message TriggerNowResponse {
   uint64 scheduled_clock_count = 1;
 }
+
+message AbortRequest {
+  repeated string resource_ids = 1;
+}
+
+message AbortResponse {}
 
 message FetchResultRequest {
   reserved 1;

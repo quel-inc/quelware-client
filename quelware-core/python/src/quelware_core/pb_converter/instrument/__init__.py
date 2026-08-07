@@ -47,10 +47,12 @@ def instrument_role_from_pb(pb: pb_models.InstrumentRole) -> InstrumentRole:
 
 _INSTRUMENT_STATUS_TO_PB = {
     InstrumentStatus.UNSPECIFIED: pb_models.InstrumentStatus.UNSPECIFIED,
-    InstrumentStatus.UNCONFIGURED: pb_models.InstrumentStatus.UNCONFIGURED,
+    InstrumentStatus.IDLE: pb_models.InstrumentStatus.IDLE,
     InstrumentStatus.READY: pb_models.InstrumentStatus.READY,
     InstrumentStatus.RUNNING: pb_models.InstrumentStatus.RUNNING,
     InstrumentStatus.COMPLETED: pb_models.InstrumentStatus.COMPLETED,
+    InstrumentStatus.FAILED: pb_models.InstrumentStatus.FAILED,
+    InstrumentStatus.ABORTED: pb_models.InstrumentStatus.ABORTED,
 }
 
 _INSTRUMENT_STATUS_FROM_PB = {v: k for k, v in _INSTRUMENT_STATUS_TO_PB.items()}

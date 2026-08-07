@@ -22,12 +22,12 @@ class InstrumentRole(enum.Enum):
 
 class InstrumentStatus(enum.Enum):
     UNSPECIFIED = enum.auto()
-    UNCONFIGURED = enum.auto()
-    CONFIGURED = enum.auto()
+    IDLE = enum.auto()
     READY = enum.auto()
     RUNNING = enum.auto()
     COMPLETED = enum.auto()
     FAILED = enum.auto()
+    ABORTED = enum.auto()
 
 
 class InstrumentLockStatus(enum.Enum):
