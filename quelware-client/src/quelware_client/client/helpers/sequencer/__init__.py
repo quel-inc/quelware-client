@@ -53,7 +53,10 @@ class Sequencer:
     """
 
     def __init__(
-        self, default_sampling_period_ns: float, enforce_sample_grid: bool = True
+        self,
+        default_sampling_period_ns: float,
+        enforce_sample_grid: bool = True,
+        iter_blank_ns: float = 2000,
     ):
         """Create a sequencer.
 
@@ -63,6 +66,8 @@ class Sequencer:
             enforce_sample_grid: When True, offsets and lengths that do not
                 land on the sample grid raise `ValueError`; when False, they
                 are rounded to the nearest sample with a warning.
+            iter_blank_ns: Length of the blank time, in nanoseconds, inserted
+                between iterations.
         """
         self._waveform_library: dict[str, _Waveform] = {}
         self._alias_to_events: dict[str, list[_SequencerEvent]] = defaultdict(list)
@@ -76,6 +81,8 @@ class Sequencer:
         self._bindings: dict[str, _AliasBinding] = {}
         self._enforce_sample_grid: bool = enforce_sample_grid
         self._length_ns: float = 0.0
+
+        self._iter_blank_ns: float = iter_blank_ns
 
     def bind(self, alias: str, sampling_period_fs: int, step_samples: int):
         """Bind an instrument alias to its hardware timing.
@@ -233,8 +240,7 @@ class Sequencer:
         """Set how many times the exported timeline repeats."""
         self._iterations = iterations
 
-    @property
-    def aligned_length_fs(self) -> int:
+    def get_aligned_length_fs(self, post_blank_fs: int = 0) -> int:
         """Timeline length in femtoseconds, aligned to bound step sizes.
 
         The raw length is rounded up to a multiple of the least common
@@ -248,7 +254,7 @@ class Sequencer:
             step_fs = b.sampling_period_fs * b.step_samples
             lcm_step_fs = math.lcm(lcm_step_fs, step_fs)
 
-        length_fs = math.ceil(self._length_ns * 1e6)
+        length_fs = math.ceil(self._length_ns * 1e6) + post_blank_fs
         remainder = length_fs % lcm_step_fs
         if remainder != 0:
             length_fs += lcm_step_fs - remainder
@@ -323,9 +329,13 @@ class Sequencer:
                 )
             )
 
-        length_sample = (
-            self.aligned_length_fs + sampling_period_fs - 1
-        ) // sampling_period_fs
+        if self._iterations > 1:
+            length_fs = self.get_aligned_length_fs(
+                post_blank_fs=int(1e6 * self._iter_blank_ns)
+            )
+        else:
+            length_fs = self.get_aligned_length_fs()
+        length_sample = (length_fs + sampling_period_fs - 1) // sampling_period_fs
 
         return SetFixedTimeline(
             waveform_library=local_library,

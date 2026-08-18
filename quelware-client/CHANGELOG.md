@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-18
+
+### Changed
+
+- `Sequencer` now inserts a blank period between iterations when the timeline repeats. The length defaults to 2000 ns and is configurable via the new `iter_blank_ns` constructor parameter.
+- `Sequencer.aligned_length_fs` property is replaced by the `Sequencer.get_aligned_length_fs(post_blank_fs=0)` method, which can account for a trailing blank.
+
 ## [0.6.0] - 2026-08-07
 
 ### Changed
