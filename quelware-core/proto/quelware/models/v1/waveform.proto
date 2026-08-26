@@ -16,6 +16,18 @@ message SampledWaveform {
   int64 sampling_period_fs = 3;
 }
 
+message DenseIqArray {
+  enum Dtype {
+    DTYPE_UNSPECIFIED = 0;
+    // float64 (i, q) pairs, little-endian.
+    DTYPE_COMPLEX128_LE_INTERLEAVED = 1;
+  }
+  Dtype dtype = 1;
+  uint32 sample_count = 2;
+  int64 sampling_period_fs = 3;
+  bytes data = 4;
+}
+
 message IqPoint {
   double i = 1;
   double q = 2;

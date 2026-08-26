@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-26
+
+### Added
+
+- `DenseIqArray` / `DenseWaveformList`: waveform payloads as a typed array carried in `bytes`, removing the per-sample `repeated double` encoding cost on large fetches.
+
+### Changed
+
+- Waveform results are serialized as `IqResult.dense_waveforms`; the legacy `WaveformList` form is still parsed, so a new client keeps working against an old backend.
+
 ## [0.6.0] - 2026-08-07
 
 ### Changed

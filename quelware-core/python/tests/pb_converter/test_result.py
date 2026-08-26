@@ -1,11 +1,26 @@
 import numpy as np
 
+import quelware_core.pb.quelware.models.v1 as pb_models
 from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.waveform.sampled import IqWaveform
 from quelware_core.pb_converter.result import (
     result_container_from_pb,
     result_container_to_pb,
 )
+
+
+def _legacy_waveform_list_pb(iq_array, sampling_period_fs):
+    return pb_models.IqResult(
+        waveforms=pb_models.WaveformList(
+            waveforms=[
+                pb_models.SampledWaveform(
+                    i_samples=list(iq_array.real),
+                    q_samples=list(iq_array.imag),
+                    sampling_period_fs=sampling_period_fs,
+                )
+            ]
+        )
+    )
 
 
 def test_result_container_waveforms_roundtrip():
@@ -80,3 +95,42 @@ def test_result_container_mixed_roundtrip():
 
     assert recovered.integer_result["int_ch"] == [123]
     assert recovered.integer_result["empty_int_ch"] == []
+
+
+def test_result_container_serializes_waveforms_as_dense():
+    original = ResultContainer(
+        iq_waveform_result={"ch": [IqWaveform(100, np.array([1.0 - 1.0j]))]}
+    )
+
+    pb = result_container_to_pb(original)
+
+    assert pb.iq_result["ch"].dense_waveforms is not None
+    assert pb.iq_result["ch"].waveforms is None
+
+
+def test_result_container_parses_legacy_waveform_list():
+    iq_array = np.array([1.0 + 2.0j, -0.5 + 0.25j], dtype=np.complex128)
+    legacy = pb_models.ResultContainer()
+    legacy.iq_result["ch"] = _legacy_waveform_list_pb(iq_array, 100)
+
+    recovered = result_container_from_pb(legacy)
+
+    wave = recovered.iq_waveform_result["ch"][0]
+    assert wave.sampling_period_fs == 100
+    np.testing.assert_array_equal(wave.iq_array, iq_array)
+
+
+def test_dense_and_legacy_decode_bit_exact():
+    rng = np.random.default_rng(74)
+    iq_array = rng.standard_normal(256) + 1j * rng.standard_normal(256)
+
+    legacy = pb_models.ResultContainer()
+    legacy.iq_result["ch"] = _legacy_waveform_list_pb(iq_array, 100)
+    dense = result_container_to_pb(
+        ResultContainer(iq_waveform_result={"ch": [IqWaveform(100, iq_array)]})
+    )
+
+    from_legacy = result_container_from_pb(legacy).iq_waveform_result["ch"][0]
+    from_dense = result_container_from_pb(dense).iq_waveform_result["ch"][0]
+
+    assert from_dense.iq_array.tobytes() == from_legacy.iq_array.tobytes()

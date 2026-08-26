@@ -14,10 +14,15 @@ message WaveformList {
   repeated quelware.models.v1.SampledWaveform waveforms = 1;
 }
 
+message DenseWaveformList {
+  repeated quelware.models.v1.DenseIqArray waveforms = 1;
+}
+
 message IqResult {
   oneof result {
     WaveformList waveforms = 1;
     IqPointList iq_points = 2;
+    DenseWaveformList dense_waveforms = 3;
   }
 }
 
