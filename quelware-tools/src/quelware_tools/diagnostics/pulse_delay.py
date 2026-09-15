@@ -196,7 +196,9 @@ async def emit_comb_and_capture(
         (cap_info,) = await deploy_session.deploy_instruments(capture_port, [cap_def])
 
     tx_ids = [info.id for info in tx_infos]
-    async with client.create_session([*tx_ids, cap_info.id]) as drive_session:
+    async with client.create_session(
+        [*tx_ids, cap_info.id], ttl_ms=30_000
+    ) as drive_session:
         tx_drivers = [
             create_instrument_driver_fixed_timeline(drive_session, info)
             for info in tx_infos

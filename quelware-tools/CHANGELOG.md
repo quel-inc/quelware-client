@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `quel-measure-delay --verify` — the comb drive session now takes a 30 s lease instead of the 4 s default, which could expire while the comb was being set up and driven across every port of the unit.
+
 ## [0.1.3] - 2026-07-31
 
 ### Added
