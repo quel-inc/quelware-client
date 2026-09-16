@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `betterproto2` and `betterproto2_compiler` move to 0.10.
+
 ## [0.7.0] - 2026-08-26
 
 ### Added
