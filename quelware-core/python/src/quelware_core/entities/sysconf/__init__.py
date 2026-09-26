@@ -1,7 +1,14 @@
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 
 import dacite
+
+warnings.warn(
+    "quelware_core.entities.sysconf is deprecated and will be removed",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class ClockUnitType(Enum):

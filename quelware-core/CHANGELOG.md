@@ -6,6 +6,10 @@
 
 - `betterproto2` and `betterproto2_compiler` move to 0.10.
 
+### Deprecated
+
+- `quelware_core.entities.sysconf` warns on import, and will be removed.
+
 ## [0.7.0] - 2026-08-26
 
 ### Added
