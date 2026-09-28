@@ -1,6 +1,8 @@
 from abc import ABC
+from collections.abc import Mapping
 
 from quelware_core.entities.resource import ResourceId
+from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.unit import UnitLabel
 from typing_extensions import Self
 
@@ -76,3 +78,26 @@ class InvalidUnitStatusError(_ErrorWithUnitLabelsMixin, QuelwareClientError): ..
 
 class ServiceUnavailableError(QuelwareClientError):
     DEFAULT_MESSAGE = "The requested service is not available on the server."
+
+
+class RunFailedError(QuelwareClientError):
+    """Some instruments of a run failed.
+
+    ``failures`` holds the error each of them raised, and ``results`` the
+    results of the others.
+    """
+
+    def __init__(
+        self,
+        failures: Mapping[ResourceId, BaseException],
+        results: Mapping[ResourceId, ResultContainer],
+    ):
+        self.failures = dict(failures)
+        self.results = dict(results)
+        detail = "; ".join(
+            f"{rid}: {err}" for rid, err in sorted(self.failures.items())
+        )
+        super().__init__(
+            f"{len(self.failures)} of {len(self.failures) + len(self.results)} "
+            f"instruments failed: {detail}"
+        )

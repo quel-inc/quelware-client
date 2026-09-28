@@ -10,11 +10,12 @@ from quelware_core.entities.resource import (
     ResourceId,
     extract_unit_label,
 )
+from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
-from quelware_client.core.exceptions import ServiceUnavailableError
+from quelware_client.core.exceptions import RunFailedError, ServiceUnavailableError
 from quelware_client.core.trigger_count_proposer import (
     FixedOffsetTriggerCountProposer,
     TriggerCountProposer,
@@ -42,6 +43,7 @@ class Session:
     async with qc.create_session(["unit0:port0"]) as session:
         await session.deploy_instruments("unit0:port0", definitions)
         await session.trigger(instrument_ids)
+        results = await session.wait_for_results(instrument_ids)
     ```
     """
 
@@ -302,6 +304,60 @@ class Session:
             )
 
         return await self._client_side_trigger_fallback(unit_to_ids, fallback_wait_ms)
+
+    async def wait_for_results(
+        self,
+        instrument_ids: Collection[ResourceId],
+        timeout_sec: float | None = None,
+    ) -> dict[ResourceId, ResultContainer]:
+        """Wait for the result of every one of the instruments of a run.
+
+        Pass the instruments given to `trigger()`: an instrument without a
+        capture window is waited for as well, and its result is empty.
+
+        Args:
+            instrument_ids: Instruments to wait for.
+            timeout_sec: Bound on the whole wait; ``None`` waits without limit.
+
+        Returns:
+            Each instrument's result.
+
+        Raises:
+            RunFailedError: If any instrument failed, once all of them have
+                finished, with the error of each that failed and the results of
+                the others.
+            TimeoutError: If some are still running when ``timeout_sec`` runs out.
+        """
+        tasks = {
+            asyncio.ensure_future(
+                self._agent.instrument(extract_unit_label(rid)).wait_for_result(
+                    self.token, rid, None
+                )
+            ): rid
+            for rid in instrument_ids
+        }
+        if not tasks:
+            return {}
+        try:
+            done, pending = await asyncio.wait(tasks, timeout=timeout_sec)
+        finally:
+            for task in tasks:
+                task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+            running = sorted(tasks[task] for task in pending)
+            raise TimeoutError(f"Instruments still running: {running}")
+
+        results: dict[ResourceId, ResultContainer] = {}
+        failures: dict[ResourceId, BaseException] = {}
+        for task in done:
+            if (err := task.exception()) is not None:
+                failures[tasks[task]] = err
+            else:
+                results[tasks[task]] = task.result()
+        if failures:
+            raise RunFailedError(failures, results)
+        return results
 
     async def _client_side_trigger_fallback(
         self,

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-29
+
+### Added
+
+- `Session.wait_for_results(instrument_ids, timeout_sec=None)` waits until every instrument given to `trigger()` has completed its run and returns each one's result. When any of them failed, it raises `RunFailedError` once all have finished, holding each failure and the results of the others; waiting for the capturing instruments alone misses a failure of the ones that only send.
+
 ## [0.6.1] - 2026-08-18
 
 ### Changed
