@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "quelware-client>=0.5.0",
+    "quelware-client>=0.7.0",
     "numpy",
     "typer>=0.21.1",
 ]

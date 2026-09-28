@@ -267,8 +267,9 @@ async def _emit_and_capture(
         )
         await mon_driver.apply(mon_directive)
 
-        await drive_session.trigger([tx_info.id, mon_info.id])
-        result = await mon_driver.fetch_result()
+        ids = [tx_info.id, mon_info.id]
+        await drive_session.trigger(ids)
+        result = (await drive_session.wait_for_results(ids))[mon_info.id]
 
     captured = np.asarray(result.iq_waveform_result["cap"][0].iq_array)
     return captured, _FS_PER_SEC / mon_info.config.sampling_period_fs

@@ -116,7 +116,7 @@ async def _run(
             ]
         )
         await session.trigger([inst_id])
-        result = await driver.fetch_result()
+        result = (await session.wait_for_results([inst_id]))[inst_id]
 
     return result.iq_waveform_result["capture"][0].iq_array
 

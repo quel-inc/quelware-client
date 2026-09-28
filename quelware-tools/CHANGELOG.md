@@ -5,6 +5,11 @@
 ### Fixed
 
 - `quel-measure-delay --verify` — the comb drive session now takes a 30 s lease instead of the 4 s default, which could expire while the comb was being set up and driven across every port of the unit.
+- `quel-measure-delay`, `quel-tone-test` and `quel-echo-test` wait for every instrument they trigger with `Session.wait_for_results`, not for the capture alone, so a pulse that was not sent is reported with its cause (e.g. `past_counter`) instead of showing up as a missing or misplaced pulse.
+
+### Changed
+
+- Requires `quelware-client>=0.7.0`, for `Session.wait_for_results`.
 
 ## [0.1.3] - 2026-07-31
 
