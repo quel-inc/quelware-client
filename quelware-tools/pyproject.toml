@@ -22,6 +22,7 @@ plot = ["matplotlib"]
 [project.scripts]
 quel-echo-test = "quelware_tools.cli.echo_test:cli"
 quel-tone-test = "quelware_tools.cli.tone_test:cli"
+quel-trigger-wait-test = "quelware_tools.cli.trigger_wait_test:cli"
 quel-measure-delay = "quelware_tools.cli.measure_delay:cli"
 quel-pulse-test = "quelware_tools.cli.pulse_test:cli"
 quel-soak-test = "quelware_tools.cli.soak_test:cli"

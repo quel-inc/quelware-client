@@ -38,6 +38,11 @@ from .tone_test import (
     ToneTestReport,
     run_tone_test,
 )
+from .trigger_wait_test import (
+    TriggerWaitReport,
+    WaitResult,
+    run_trigger_wait_test,
+)
 
 __all__ = [
     "CombMatch",
@@ -57,6 +62,8 @@ __all__ = [
     "SoakReport",
     "ToneResult",
     "ToneTestReport",
+    "TriggerWaitReport",
+    "WaitResult",
     "comb_plan",
     "detect_tone",
     "emit_comb_and_capture",
@@ -68,6 +75,7 @@ __all__ = [
     "run_pulse_test",
     "run_soak_test",
     "run_tone_test",
+    "run_trigger_wait_test",
     "top_peaks",
     "verify_comb",
 ]
