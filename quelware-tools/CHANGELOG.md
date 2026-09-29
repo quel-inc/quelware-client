@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `quel-soak-test` (`run_soak_test`) — keeps units busy with random trains of waves on every tx/trx port, and random capture windows on every trx port, until a number of runs or a duration is spent, logging how long each step of a run took. Every run goes on all the units at once under one trigger; without `--unit` it runs on every unit the manager knows. A run refused before it starts counts as a pass, tallied by reason; a run that fails, times out or breaks otherwise is a failure, tallied by kind (an instrument failed, a timeout, a unit not reached, the call lost on the way, anything else), and its plan can be saved as JSON and replayed from its seed and run index. The waves of the one port shown in a run start with a 4-tick marker; every other wave is at 0.001 of full scale.
+
 ## [0.1.5] - 2026-09-29
 
 ### Fixed

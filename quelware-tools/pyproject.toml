@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "quelware-client>=0.7.0",
+    "grpclib>=0.4.8",
     "numpy",
     "typer>=0.21.1",
 ]
@@ -22,6 +23,7 @@ plot = ["matplotlib"]
 quel-echo-test = "quelware_tools.cli.echo_test:cli"
 quel-tone-test = "quelware_tools.cli.tone_test:cli"
 quel-measure-delay = "quelware_tools.cli.measure_delay:cli"
+quel-soak-test = "quelware_tools.cli.soak_test:cli"
 quel-unit-config = "quelware_tools.cli.unit_config:cli"
 
 [project.urls]
