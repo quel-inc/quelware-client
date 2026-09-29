@@ -21,6 +21,11 @@ from .pulse_delay import (
     emit_comb_and_capture,
     measure_port_delay,
 )
+from .pulse_test import (
+    PortPulseResult,
+    PulseTestReport,
+    run_pulse_test,
+)
 from .soak_test import (
     RunFailure,
     RunPlan,
@@ -43,7 +48,9 @@ __all__ = [
     "DelayTestReport",
     "PortDelayMeasurement",
     "PortDelayResult",
+    "PortPulseResult",
     "PortToneResult",
+    "PulseTestReport",
     "RunFailure",
     "RunPlan",
     "SoakProfile",
@@ -58,6 +65,7 @@ __all__ = [
     "measure_delay",
     "measure_port_delay",
     "run_delay_test",
+    "run_pulse_test",
     "run_soak_test",
     "run_tone_test",
     "top_peaks",

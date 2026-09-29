@@ -23,6 +23,7 @@ plot = ["matplotlib"]
 quel-echo-test = "quelware_tools.cli.echo_test:cli"
 quel-tone-test = "quelware_tools.cli.tone_test:cli"
 quel-measure-delay = "quelware_tools.cli.measure_delay:cli"
+quel-pulse-test = "quelware_tools.cli.pulse_test:cli"
 quel-soak-test = "quelware_tools.cli.soak_test:cli"
 quel-unit-config = "quelware_tools.cli.unit_config:cli"
 
