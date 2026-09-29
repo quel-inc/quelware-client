@@ -9,12 +9,18 @@ from typing_extensions import override
 from quelware_client.core.interfaces.worker_agent import WorkerAgent
 from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import (
+    CALL_TIMEOUT_SEC,
+    CONFIGURE_UNIT_TIMEOUT_SEC,
+)
 
 
 class WorkerAgentGrpc(WorkerAgent):
     def __init__(self, grpc_channel: Channel, metadata=None):
         self._channel = grpc_channel
-        self._service = pb_worker.WorkerServiceStub(self._channel, metadata=metadata)
+        self._service = pb_worker.WorkerServiceStub(
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
 
     @override
     async def get_clock_snapshot(self) -> tuple[CurrentCount, ReferenceCount]:
@@ -49,7 +55,9 @@ class WorkerAgentGrpc(WorkerAgent):
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(session_token)
         resp = await call_with_retry(
-            lambda: self._service.configure_unit(req, metadata=metadata)
+            lambda: self._service.configure_unit(
+                req, metadata=metadata, timeout=CONFIGURE_UNIT_TIMEOUT_SEC
+            )
         )
         return dict(resp.controls)
 

@@ -19,12 +19,15 @@ from quelware_client.core.interfaces.instrument_agent import (
     ResultContainer,
 )
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC, FETCH_TIMEOUT_SEC
 
 
 class InstrumentAgentGrpc(InstrumentAgent):
     def __init__(self, grpc_channel: Channel, metadata=None):
         self._channel = grpc_channel
-        self._service = pb_inst.InstrumentServiceStub(self._channel, metadata=metadata)
+        self._service = pb_inst.InstrumentServiceStub(
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
 
     @override
     async def get_status(
@@ -129,7 +132,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
         resp = await call_with_retry(
-            lambda: self._service.fetch_result(req, metadata=metadata), idempotent=True
+            lambda: self._service.fetch_result(
+                req, metadata=metadata, timeout=FETCH_TIMEOUT_SEC
+            ),
+            idempotent=True,
         )
 
         if resp.result_container:
@@ -148,6 +154,8 @@ class InstrumentAgentGrpc(InstrumentAgent):
             while True:
                 try:
                     return await self.fetch_result(token, resource_id)
+                except TimeoutError:
+                    pass
                 except GRPCError as e:
                     if e.status is not Status.DEADLINE_EXCEEDED:
                         raise

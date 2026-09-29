@@ -11,12 +11,15 @@ from quelware_core.entities.session import SessionToken
 from quelware_client.core.exceptions import ServiceUnavailableError
 from quelware_client.core.interfaces.trigger_agent import TriggerAgent
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC
 
 
 class TriggerAgentGrpc(TriggerAgent):
     def __init__(self, grpc_channel: Channel, metadata: MetadataLike | None = None):
         self._channel = grpc_channel
-        self._service = pb_trigger.TriggerServiceStub(self._channel, metadata=metadata)
+        self._service = pb_trigger.TriggerServiceStub(
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
 
     async def trigger(
         self,
@@ -30,9 +33,13 @@ class TriggerAgentGrpc(TriggerAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
+        # the manager may retry a unit until shortly before the trigger fires
+        timeout_sec = CALL_TIMEOUT_SEC + (requested_min_wait_ms or 0) / 1000
         try:
             resp = await call_with_retry(
-                lambda: self._service.trigger(req, metadata=metadata)
+                lambda: self._service.trigger(
+                    req, metadata=metadata, timeout=timeout_sec
+                )
             )
         except GRPCError as e:
             if e.status is Status.UNIMPLEMENTED:

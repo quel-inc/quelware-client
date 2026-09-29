@@ -23,12 +23,15 @@ from quelware_client.core.interfaces.session_agent import (
     SessionAgent,
 )
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC
 
 
 class SessionAgentGrpc(SessionAgent):
     def __init__(self, grpc_channel: Channel, metadata: MetadataLike | None = None):
         self._channel = grpc_channel
-        self._service = pb_session.SessionServiceStub(self._channel, metadata=metadata)
+        self._service = pb_session.SessionServiceStub(
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
 
     async def open_session(
         self,

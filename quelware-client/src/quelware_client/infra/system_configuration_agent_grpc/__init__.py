@@ -7,13 +7,14 @@ from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC
 
 
 class SystemConfigurationAgentGrpc(SystemConfigurationAgent):
     def __init__(self, grpc_channel: Channel, metadata: MetadataLike | None = None):
         self._channel = grpc_channel
         self._service = pb_conf.SystemConfigurationServiceStub(
-            self._channel, metadata=metadata
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
         )
 
     async def list_units(self) -> list[UnitLabel]:

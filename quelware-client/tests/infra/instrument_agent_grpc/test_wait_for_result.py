@@ -44,6 +44,15 @@ async def test_returns_after_retrying_deadline_exceeded():
 
 
 @pytest.mark.asyncio
+async def test_a_fetch_past_its_timeout_is_made_again():
+    expected = ResultContainer()
+    agent = _FakeAgent([TimeoutError("Deadline exceeded"), expected])
+    got = await agent.wait_for_result(TOKEN, RID, timeout_sec=5.0)
+    assert got is expected
+    assert agent._outcomes == []
+
+
+@pytest.mark.asyncio
 async def test_propagates_non_deadline_grpc_error():
     agent = _FakeAgent([GRPCError(Status.FAILED_PRECONDITION, "not ready")])
     with pytest.raises(GRPCError) as info:

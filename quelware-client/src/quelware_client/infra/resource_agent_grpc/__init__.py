@@ -18,12 +18,15 @@ from quelware_core.pb_converter.resource import resource_info_from_pb
 
 from quelware_client.core.interfaces.resource_agent import ResourceAgent
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC
 
 
 class ResourceAgentGrpc(ResourceAgent):
     def __init__(self, grpc_channel: Channel, metadata=None):
         self._channel = grpc_channel
-        self._service = pb_res.ResourceServiceStub(self._channel, metadata=metadata)
+        self._service = pb_res.ResourceServiceStub(
+            self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
 
     async def list_resource_infos(self) -> list[ResourceInfo]:
         req = pb_res.ListResourcesRequest()
