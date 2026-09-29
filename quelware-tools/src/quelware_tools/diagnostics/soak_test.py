@@ -75,6 +75,7 @@ _PROFILE_HALF_HZ = 200e6
 _WAIT_MARGIN_SEC = 10.0
 _SESSION_TTL_MS = 20_000
 _LEASE_EXTEND_SEC = 5.0
+_CONCURRENT_DISCARDS = 32
 
 
 @dataclass(frozen=True)
@@ -351,8 +352,14 @@ async def _deploy(
 
 
 async def _discard(client: QuelwareClient, ports: Sequence[ResourceId]) -> None:
+    calls = asyncio.Semaphore(_CONCURRENT_DISCARDS)
+
+    async def _discard_one(port: ResourceId) -> None:
+        async with calls:
+            await session.discard_instruments(port)
+
     async with _leased_session(client, ports) as (session, _):
-        await _per_unit(ports, session.discard_instruments)
+        await asyncio.gather(*(_discard_one(p) for p in ports))
 
 
 async def _judge_run(
@@ -478,9 +485,15 @@ async def run_soak_test(  # noqa: PLR0913
     emit_ports: list[ResourceId] = []
     started_at = time.monotonic()
     try:
+        if discard_instruments:
+            ports = [p for unit in units for p in await _monitor.port_ids(client, unit)]
+            logger.info(
+                "discarding the instruments on %d ports of %d units",
+                len(ports),
+                len(units),
+            )
+            await _discard(client, ports)
         for unit in units:
-            if discard_instruments:
-                await _monitor.discard_unit_instruments(client, unit)
             emit_ports += sorted(await _monitor.emit_ports(client, unit), key=str)
         emit_infos = await _deploy(client, emit_ports, tx_hz)
         capture_ports = [p for p in emit_infos if _is_capture_port(p)]
