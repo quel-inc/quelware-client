@@ -43,6 +43,7 @@ class InstrumentAgent(Protocol):
     async def trigger_now(
         self,
         token: SessionToken,
+        min_wait_ms: int | None = None,
     ) -> int: ...
 
     async def fetch_result(

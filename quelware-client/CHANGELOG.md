@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The client-side fallback trigger of a single unit passes `wait_ms` (raised to 500 ms) to the unit, which used to fire after its own fixed 150 ms whatever was asked. `InstrumentAgent.trigger_now` takes `min_wait_ms`.
+
 ## [0.7.0] - 2026-09-29
 
 ### Added

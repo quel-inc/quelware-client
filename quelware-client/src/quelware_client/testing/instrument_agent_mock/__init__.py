@@ -50,6 +50,7 @@ class InstrumentAgentMock(InstrumentAgent):
     async def trigger_now(
         self,
         token: SessionToken,
+        min_wait_ms: int | None = None,
     ) -> int:
         return 1234
 

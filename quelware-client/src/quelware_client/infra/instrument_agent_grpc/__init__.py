@@ -101,8 +101,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
     async def trigger_now(
         self,
         token: SessionToken,
+        min_wait_ms: int | None = None,
     ) -> int:
-        req = pb_inst.TriggerNowRequest()
+        req = pb_inst.TriggerNowRequest(requested_min_wait_ms=min_wait_ms)
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
         resp = await call_with_retry(

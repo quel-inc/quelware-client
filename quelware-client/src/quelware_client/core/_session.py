@@ -271,9 +271,11 @@ class Session:
 
         Args:
             instrument_ids: Instruments to trigger.
-            wait_ms: Minimum delay, in milliseconds, before the trigger fires.
-                Gives all units time to be armed; a lower bound is enforced on
-                the client-side fallback path.
+            wait_ms: Delay, in milliseconds, from now to when the trigger
+                fires, giving every unit time to start on it. ``None`` leaves
+                it to the server (600 ms across units, 200 ms for one); the
+                server raises a shorter one to 150 ms, and the client-side
+                fallback path to 500 ms.
 
         Returns:
             The clock count at which the trigger was scheduled.
@@ -366,8 +368,12 @@ class Session:
     ) -> int:
         if len(unit_to_ids) == 1:
             unit_label = next(iter(unit_to_ids))
-            logger.info(f"fallback: self-timed trigger (unit={unit_label})")
-            scheduled = await self._agent.instrument(unit_label).trigger_now(self.token)
+            logger.info(
+                f"fallback: self-timed trigger (unit={unit_label}, wait_ms={wait_ms})"
+            )
+            scheduled = await self._agent.instrument(unit_label).trigger_now(
+                self.token, wait_ms
+            )
             logger.info(f"trigger scheduled at clock_count={scheduled}")
             return scheduled
 
