@@ -5,9 +5,11 @@ import betterproto2
 from betterproto2 import grpclib as betterproto2_grpclib
 from grpclib import GRPCError
 from grpclib.client import Channel
+from grpclib.exceptions import StreamTerminatedError
 
 from quelware_client.core.interfaces.health_agent import HealthAgent
 from quelware_client.infra._grpc_retry import call_with_retry
+from quelware_client.infra._timeouts import HEALTH_CHECK_TIMEOUT_SEC
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,9 @@ class HealthServiceStub(betterproto2_grpclib.ServiceStub):
 class HealthAgentGrpc(HealthAgent):
     def __init__(self, grpc_channel: Channel, metadata=None):
         self._channel = grpc_channel
-        self._service = HealthServiceStub(self._channel, metadata=metadata)
+        self._service = HealthServiceStub(
+            self._channel, metadata=metadata, timeout=HEALTH_CHECK_TIMEOUT_SEC
+        )
 
     async def check(self) -> bool:
         try:
@@ -76,4 +80,7 @@ class HealthAgentGrpc(HealthAgent):
                 exc.status,
                 exc.message,
             )
+            return False
+        except (TimeoutError, StreamTerminatedError, OSError) as exc:
+            logger.error("no answer to the health check: %r, %s", exc, self._channel)
             return False

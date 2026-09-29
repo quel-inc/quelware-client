@@ -5,6 +5,7 @@
 ### Changed
 
 - Every call has a deadline: 30 s, or 120 s to configure a unit, and a trigger through the manager the wait it asks for longer. A unit that is gone fails a call instead of holding it until a proxy gives up, which was 600 s. A fetch waits 60 s at a time and is made again past it, so a long run is still waited for; how long in all is still up to `wait_for_results(timeout_sec=...)`.
+- The health check gives a unit 10 s to answer, and takes one that does not, or whose connection cannot be made, as not healthy, instead of waiting on it.
 
 ## [0.7.1] - 2026-09-29
 
