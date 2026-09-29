@@ -63,7 +63,9 @@ message ScheduleTriggerRequest {
 
 message ScheduleTriggerResponse {}
 
-message TriggerNowRequest {}
+message TriggerNowRequest {
+  optional uint32 requested_min_wait_ms = 1;
+}
 
 message TriggerNowResponse {
   uint64 scheduled_clock_count = 1;

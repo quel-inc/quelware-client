@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `TriggerNowRequest.requested_min_wait_ms`: how long from now a single unit's self-timed trigger fires, as `TriggerRequest.requested_min_wait_ms` does across units.
+
 ## [0.8.0] - 2026-09-26
 
 ### Changed
