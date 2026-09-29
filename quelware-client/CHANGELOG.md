@@ -5,6 +5,7 @@
 ### Changed
 
 - The client-side fallback trigger of a single unit passes `wait_ms` (raised to 500 ms) to the unit, which used to fire after its own fixed 150 ms whatever was asked. `InstrumentAgent.trigger_now` takes `min_wait_ms`.
+- `InstrumentAgentGrpc.initialize`, `configure`, `apply` and `trigger_now` are retried when their connection is lost, as when a proxy closes it after an hour: making any of them again leaves the unit as the first did. `schedule_trigger` is not, since a late one would start the run past its count.
 
 ## [0.7.0] - 2026-09-29
 

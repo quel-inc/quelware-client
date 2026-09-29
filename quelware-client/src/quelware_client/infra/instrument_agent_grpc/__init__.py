@@ -51,7 +51,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await call_with_retry(lambda: self._service.initialize(req, metadata=metadata))
+        await call_with_retry(
+            lambda: self._service.initialize(req, metadata=metadata), idempotent=True
+        )
 
     @override
     async def configure(
@@ -66,7 +68,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await call_with_retry(lambda: self._service.configure(req, metadata=metadata))
+        # the same directives again leave the instrument as they did the first time
+        await call_with_retry(
+            lambda: self._service.configure(req, metadata=metadata), idempotent=True
+        )
         return True
 
     @override
@@ -78,7 +83,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.ApplyRequest(resource_ids=list(resource_ids))
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
-        await call_with_retry(lambda: self._service.apply(req, metadata=metadata))
+        await call_with_retry(
+            lambda: self._service.apply(req, metadata=metadata), idempotent=True
+        )
         return True
 
     @override
@@ -106,8 +113,9 @@ class InstrumentAgentGrpc(InstrumentAgent):
         req = pb_inst.TriggerNowRequest(requested_min_wait_ms=min_wait_ms)
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
+        # the unit takes the same trigger again as done
         resp = await call_with_retry(
-            lambda: self._service.trigger_now(req, metadata=metadata)
+            lambda: self._service.trigger_now(req, metadata=metadata), idempotent=True
         )
         return resp.scheduled_clock_count
 
