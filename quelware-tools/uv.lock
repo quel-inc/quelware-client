@@ -1176,7 +1176,7 @@ wheels = [
 
 [[package]]
 name = "quelware-client"
-version = "0.7.0"
+version = "0.7.1"
 source = { editable = "../quelware-client" }
 dependencies = [
     { name = "betterproto2" },
