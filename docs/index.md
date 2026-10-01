@@ -45,6 +45,7 @@ New here? **Start with [Getting started](getting-started.md).**
 
 - [Access control](concepts/access-control.md)
 - [Instruments](concepts/instruments.md)
+- [Triggering](concepts/triggering.md)
 
 ## License
 

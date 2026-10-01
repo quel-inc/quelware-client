@@ -38,4 +38,5 @@ response, and prints a short summary.
 
 - [Tools](tools/index.md) — the rest of the command-line tools
 - [Fixed-timeline tutorial](tutorials/fixed-timeline.md) — build a measurement yourself, step by step
+- [Triggering](concepts/triggering.md) — how a run starts, and how to get its results
 - [Access control](concepts/access-control.md) — roles, sessions, and unit status

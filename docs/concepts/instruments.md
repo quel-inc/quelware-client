@@ -64,6 +64,7 @@ run in three moves:
 1. Build a timeline of waveform events and capture windows with a `Sequencer`.
 2. Apply configuration — frequency, capture mode, and the timeline — to the
    instrument.
-3. Trigger it, then fetch the captured result.
+3. Trigger it, then wait for its result.
 
-See the [Tutorial](../tutorials/fixed-timeline.md) for a worked example.
+See [Triggering](triggering.md) for how a run starts and fails, and the
+[Tutorial](../tutorials/fixed-timeline.md) for a worked example.

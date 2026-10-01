@@ -89,6 +89,7 @@ nav:
   - Concepts:
       - Access control: concepts/access-control.md
       - Instruments: concepts/instruments.md
+      - Triggering: concepts/triggering.md
   - Client:
       - client/index.md
       - API Reference:

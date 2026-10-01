@@ -5,7 +5,7 @@ The errors `quelware-client` raises. Each of them derives from
 
 An error that a unit reports while it runs an instrument comes as it is: as a
 `grpclib.GRPCError` from `wait_for_result()`, and in `RunFailedError.failures`
-from `wait_for_results()`.
+from `wait_for_results()`. See [Triggering](../../concepts/triggering.md).
 
 ## Errors of a run
 
