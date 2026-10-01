@@ -70,9 +70,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-For more advanced usage, including pulse generation and sequencer
-configuration, see the
-[examples directory](https://github.com/quel-inc/quelware-client/tree/main/quelware-client/examples).
+To deploy an instrument, program a pulse and run it, follow the
+[fixed-timeline tutorial](../tutorials/fixed-timeline.md). [Triggering](../concepts/triggering.md)
+explains how a run starts, and how to get its results.
 
 ## API reference
 
