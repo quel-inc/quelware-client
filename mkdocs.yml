@@ -97,6 +97,7 @@ nav:
           - QuelwareClient: client/api/client.md
           - Session: client/api/session.md
           - Helpers: client/api/helpers.md
+          - Exceptions: client/api/exceptions.md
           - Testing: client/api/testing.md
   - Admin:
       - admin/index.md
