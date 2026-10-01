@@ -6,64 +6,36 @@ pulse and captures the response. It takes four steps: deploy the instruments,
 program their pulses with the sequencer, trigger them, and wait for their
 results. It assumes you have finished [Getting started](../getting-started.md).
 
+The code is the script
+[`examples/fixed_timeline.py`](https://github.com/quel-inc/quelware-client/blob/main/quelware-client/examples/fixed_timeline.py),
+which you can run as it is:
+
+```sh
+python fixed_timeline.py <host> --unit <label>
+```
+
+It deploys a drive on the transmitter port `tx_p02` and a readout on the
+transceiver port `trx_p00p01`; choose other ports with `--drive-port` and
+`--readout-port`.
+
 Deploying an instrument is easier once you know what one is — see
 [Instruments](../concepts/instruments.md) for the concept.
 
-The imports and constants used throughout:
+The imports used throughout:
 
 ```python
-import asyncio
-
-import numpy as np
-from quelware_core.entities import directives
-from quelware_core.entities.instrument import (
-    FixedTimelineProfile,
-    InstrumentDefinition,
-    InstrumentMode,
-    InstrumentRole,
-)
-
-from quelware_client import create_quelware_client
-from quelware_client.client.helpers.sequencer import Sequencer
-from quelware_client.core.exceptions import RunFailedError
-from quelware_client.core.instrument_driver import (
-    create_instrument_driver_fixed_timeline,
-)
-
-UNIT = "quel3-01-028"              # your unit label
-READOUT_PORT = f"{UNIT}:trx_p00p01"  # a transceiver port on that unit
-DRIVE_PORT = f"{UNIT}:tx_p02"        # a transmitter port on that unit
+--8<-- "quelware-client/examples/fixed_timeline.py:imports"
 ```
 
 ## Step 1: Deploy the instruments
 
 An [instrument](../concepts/instruments.md) is a logical device you place on a
-port. Open a session over the ports and deploy a transmitter for the drive and
-a transceiver for the readout:
+port. Open a session over the two ports, such as `quel3-01-028:tx_p02` and
+`quel3-01-028:trx_p00p01`, and deploy a transmitter for the drive and a
+transceiver for the readout:
 
 ```python
-def definition(alias, role, center_hz):
-    return InstrumentDefinition(
-        alias=alias,
-        mode=InstrumentMode.FIXED_TIMELINE,
-        role=role,
-        profile=FixedTimelineProfile(
-            frequency_range_min=center_hz - 2.5e6,
-            frequency_range_max=center_hz + 2.5e6,
-        ),
-    )
-
-
-async def deploy(qc):
-    async with qc.create_session([DRIVE_PORT, READOUT_PORT]) as session:
-        (drive,) = await session.deploy_instruments(
-            DRIVE_PORT, [definition("drive", InstrumentRole.TRANSMITTER, 5.0e9)]
-        )
-        (readout,) = await session.deploy_instruments(
-            READOUT_PORT,
-            [definition("readout", InstrumentRole.TRANSCEIVER_LOOPBACK, 6.0e9)],
-        )
-    return drive, readout
+--8<-- "quelware-client/examples/fixed_timeline.py:deploy"
 ```
 
 `deploy_instruments()` returns an `InstrumentInfo` for each deployed instrument
@@ -79,27 +51,7 @@ trigger. Bind it to an instrument's timing, register a waveform, then place an
 event, and a capture window for the readout:
 
 ```python
-def build_timeline(inst_info, pulse_start_ns, capture):
-    alias = inst_info.definition.alias
-    sampling_period_ns = inst_info.config.sampling_period_fs * 1e-6
-
-    seq = Sequencer(default_sampling_period_ns=sampling_period_ns)
-    seq.bind(
-        alias,
-        sampling_period_fs=inst_info.config.sampling_period_fs,
-        step_samples=inst_info.config.timeline_step_samples,
-    )
-
-    n = int(200.0 / sampling_period_ns)  # a 200 ns rectangular pulse
-    seq.register_waveform("pulse", np.ones(n, dtype=complex))
-    seq.add_event(alias, "pulse", start_offset_ns=pulse_start_ns)
-    if capture:
-        seq.add_capture_window(
-            alias, "capture", start_offset_ns=pulse_start_ns, length_ns=1000.0
-        )
-    seq.extend_length_ns(100_000.0)  # gap before the next shot
-    seq.set_iterations(1000)         # average over 1000 shots
-    return seq
+--8<-- "quelware-client/examples/fixed_timeline.py:timeline"
 ```
 
 Both instruments start their timelines at the same trigger, so the offsets line
@@ -111,27 +63,7 @@ Create a driver for each instrument and apply its frequency and timeline, and
 for the readout the capture mode. Then trigger both instruments at once:
 
 ```python
-async def configure(session, inst_info, hz, seq, capture):
-    driver = create_instrument_driver_fixed_timeline(session, inst_info)
-    alias = inst_info.definition.alias
-    settings = [directives.SetFrequency(hz=hz)]
-    if capture:
-        settings.append(
-            directives.SetCaptureMode(mode=directives.CaptureMode.AVERAGED_WAVEFORM)
-        )
-    settings.append(seq.export_set_fixed_timeline_directive(alias))
-    await driver.initialize()
-    await driver.apply(settings)
-
-
-async def trigger(session, drive, readout):
-    await configure(
-        session, drive, 5.0e9, build_timeline(drive, 0.0, capture=False), False
-    )
-    await configure(
-        session, readout, 6.0e9, build_timeline(readout, 300.0, capture=True), True
-    )
-    await session.trigger([drive.id, readout.id])
+--8<-- "quelware-client/examples/fixed_timeline.py:trigger"
 ```
 
 `driver.apply()` only sends the settings; the unit puts them on the device when
@@ -144,16 +76,7 @@ Wait for every instrument you triggered, also the drive, which captures
 nothing:
 
 ```python
-async def wait(session, drive, readout):
-    try:
-        results = await session.wait_for_results(
-            [drive.id, readout.id], timeout_sec=10.0
-        )
-    except RunFailedError as e:
-        for instrument_id, error in e.failures.items():
-            print(f"{instrument_id} failed: {error}")
-        raise
-    return results[readout.id].iq_waveform_result["capture"][0].iq_array
+--8<-- "quelware-client/examples/fixed_timeline.py:wait"
 ```
 
 `wait_for_results()` returns when every instrument you pass has finished, with
@@ -173,17 +96,7 @@ it can fail.
 ## Putting it together
 
 ```python
-async def main():
-    qc = create_quelware_client("192.0.2.1", 50051)  # your server address
-    async with qc:
-        drive, readout = await deploy(qc)
-        async with qc.create_session([drive.id, readout.id], ttl_ms=10_000) as session:
-            await trigger(session, drive, readout)
-            iq = await wait(session, drive, readout)
-    print(f"captured {len(iq)} samples")
-
-
-asyncio.run(main())
+--8<-- "quelware-client/examples/fixed_timeline.py:main"
 ```
 
 ## Next steps

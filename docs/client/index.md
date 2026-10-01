@@ -71,8 +71,11 @@ if __name__ == "__main__":
 ```
 
 To deploy an instrument, program a pulse and run it, follow the
-[fixed-timeline tutorial](../tutorials/fixed-timeline.md). [Triggering](../concepts/triggering.md)
-explains how a run starts, and how to get its results.
+[fixed-timeline tutorial](../tutorials/fixed-timeline.md). Its code is a script
+you can run, in the
+[examples directory](https://github.com/quel-inc/quelware-client/tree/main/quelware-client/examples).
+[Triggering](../concepts/triggering.md) explains how a run starts, and how to
+get its results.
 
 ## API reference
 

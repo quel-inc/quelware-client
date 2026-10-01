@@ -4,6 +4,7 @@
 
 ### Added
 
+- `examples/fixed_timeline.py`, the code of the fixed-timeline tutorial as a script you can run against a system. The docs quote it, and the lint and the type check cover it, so it keeps up with the API.
 - `NotTriggeredError`: `Session.wait_for_results`, `Session.wait_for_result`, `Session.fetch_result` and the same methods of `InstrumentDriver` raise it immediately if an instrument was not in the last trigger on its unit. Before, the request went to the unit, which could hang (armed but not triggered), return an empty result, or fail with `INTERNAL`. Within a session, each unit has at most one run: a new trigger on the unit replaces it, and initializing an instrument on the unit clears it. Other sessions on the unit have their own runs.
 - `UnitBusyError`: `Session.trigger` and `Session.initialize` raise it immediately if a trigger or initialize of the same session is already running on the unit.
 - `InitializeFailedError`: `Session.initialize` raises it, once every unit has finished, when some units failed; `failures` holds the error of each, by unit.
