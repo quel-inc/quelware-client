@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `InstrumentService` documents the session's execution: within a session, each unit has at most one, and other sessions on the unit have their own. `Apply` arms it, replacing the previous one, `Initialize` clears it, and `FetchResult` works only for an instrument in it after it is triggered.
+
 ## [0.9.0] - 2026-09-29
 
 ### Added

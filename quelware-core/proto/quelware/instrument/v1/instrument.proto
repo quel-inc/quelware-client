@@ -6,15 +6,26 @@ import "quelware/models/v1/directive.proto";
 import "quelware/models/v1/instrument.proto";
 import "quelware/models/v1/result.proto";
 
+// Controls the instruments of one unit, for the session given in the
+// x-session-token metadata.
+//
+// Within a session, each unit has at most one execution. Other sessions on the
+// same unit have their own. Apply arms instruments as the session's execution,
+// replacing the previous one, and Initialize clears it. FetchResult works only
+// for an instrument in that execution, after it is triggered.
 service InstrumentService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // Clear the content of the given instruments.
   rpc Initialize(InitializeRequest) returns (InitializeResponse);
   rpc Configure(ConfigureRequest) returns (ConfigureResponse);
+  // Arm the given instruments as the session's execution on this unit.
   rpc Apply(ApplyRequest) returns (ApplyResponse);
   rpc GetClockSnapshot(GetClockSnapshotRequest) returns (GetClockSnapshotResponse);
   rpc ScheduleTrigger(ScheduleTriggerRequest) returns (ScheduleTriggerResponse);
   rpc TriggerNow(TriggerNowRequest) returns (TriggerNowResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
+  // Wait until the given instrument finishes the execution, then return its
+  // result.
   rpc FetchResult(FetchResultRequest) returns (FetchResultResponse);
 }
 
