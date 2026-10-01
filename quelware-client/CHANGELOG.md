@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-10-01
+
 ### Added
 
 - `examples/fixed_timeline.py`, the code of the fixed-timeline tutorial as a script you can run against a system. The docs quote it, and the lint and the type check cover it, so it keeps up with the API.
