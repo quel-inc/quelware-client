@@ -88,7 +88,7 @@ def build_timeline(inst_info):
 ## Step 3: Execute the instrument
 
 Create an instrument driver, apply the frequency, capture mode, and timeline,
-then trigger and fetch the result:
+then trigger the instrument and wait for its result:
 
 ```python
 async def run(qc, inst_info):
@@ -105,10 +105,17 @@ async def run(qc, inst_info):
             ]
         )
         await session.trigger([inst_info.id])
-        result = await driver.fetch_result()
+        results = await session.wait_for_results([inst_info.id], timeout_sec=10.0)
 
-    return result.iq_waveform_result["capture"][0].iq_array
+    return results[inst_info.id].iq_waveform_result["capture"][0].iq_array
 ```
+
+`wait_for_results()` returns when every instrument you pass has finished, with
+the result of each. Pass it every instrument you gave to `trigger()`, and a
+`timeout_sec` a little longer than your run takes. If an instrument fails, it
+raises `RunFailedError` with the error of each one that failed. See
+[Triggering](../concepts/triggering.md) for how a run starts and how it can
+fail.
 
 ## Putting it together
 
