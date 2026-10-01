@@ -369,9 +369,11 @@ async def _judge_run(
     ids: list[ResourceId],
     plan: RunPlan,
     directives: dict[str, SetFixedTimeline],
+    initialize: bool = False,
 ) -> RunFailure | None:
     """Run one plan on every unit at once, configuring the units in parallel;
-    None when it completed, a refusal or a failure otherwise."""
+    None when it completed, a refusal or a failure otherwise. With
+    ``initialize``, the instruments are initialized first."""
     period_ns = plan.length_ns + plan.iteration_blank_ns
     timeout_sec = plan.iterations * period_ns * 1e-9 + _WAIT_MARGIN_SEC
     laps: dict[str, float] = {}
@@ -388,6 +390,9 @@ async def _judge_run(
             await drivers[alias].apply(directives[alias])
 
     try:
+        if initialize:
+            await session.initialize(ids)
+            _lap("initialize")
         await asyncio.gather(*(_configure_unit(a) for a in unit_aliases.values()))
         _lap("configure")
         await session.trigger(ids)
@@ -472,13 +477,16 @@ async def run_soak_test(  # noqa: PLR0913
     stop_on_failure: bool = False,
     report_every: int = 100,
     discard_instruments: bool = False,
+    initialize_each_run: bool = False,
 ) -> SoakReport:
     """Run the soak test on the units until ``runs`` or ``duration_sec`` is spent.
 
     Every run goes on all the units at once, under one session and one trigger;
     ``unit_labels`` of None takes every unit the manager knows. With neither
     ``runs`` nor ``duration_sec`` it runs until interrupted. The units' tx/trx
-    ports must be idle, unless ``discard_instruments`` is set.
+    ports must be idle, unless ``discard_instruments`` is set. With
+    ``initialize_each_run``, every run initializes the instruments before it
+    configures them, as a client that starts each run afresh does.
     """
     units = list(unit_labels) if unit_labels else await _find_units(client)
     report = SoakReport([str(u) for u in units])
@@ -547,7 +555,13 @@ async def run_soak_test(  # noqa: PLR0913
                 )
                 directives = build_directives(plan, emit_infos)
                 failure = await _judge_run(
-                    session, drivers, unit_aliases, ids, plan, directives
+                    session,
+                    drivers,
+                    unit_aliases,
+                    ids,
+                    plan,
+                    directives,
+                    initialize=initialize_each_run,
                 )
                 report.runs += 1
                 if failure is None:

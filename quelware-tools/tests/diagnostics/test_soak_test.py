@@ -1,9 +1,13 @@
+from typing import cast
+
 import numpy as np
 import pytest
 from grpclib import GRPCError
 from grpclib.const import Status
 from grpclib.exceptions import StreamTerminatedError
+from quelware_client.core import Session
 from quelware_client.core.exceptions import RunFailedError
+from quelware_client.core.instrument_driver import FixedTimelineInstrumentDriver
 from quelware_core.entities.instrument import (
     FixedTimelineConfig,
     FixedTimelineProfile,
@@ -13,6 +17,7 @@ from quelware_core.entities.instrument import (
     InstrumentRole,
 )
 from quelware_core.entities.resource import ResourceId
+from quelware_core.entities.unit import UnitLabel
 
 from quelware_tools.diagnostics.soak_test import (
     HIDDEN_AMPLITUDE,
@@ -20,6 +25,7 @@ from quelware_tools.diagnostics.soak_test import (
     TICK_NS,
     SoakProfile,
     _classify,
+    _judge_run,
     build_directives,
     draw_plan,
 )
@@ -166,3 +172,54 @@ def test_every_instrument_shares_the_run_s_length() -> None:
 )
 def test_a_failure_is_told_apart_by_its_kind(error: Exception, kind: str) -> None:
     assert _classify(error)[0] == kind
+
+
+class _Recorder:
+    """Stands in for the session and the drivers, and records what a run asks."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def initialize(self, ids) -> None:
+        self.calls.append("initialize")
+
+    async def trigger(self, ids) -> int:
+        self.calls.append("trigger")
+        return 0
+
+    async def wait_for_results(self, ids, timeout_sec=None) -> dict:
+        self.calls.append("wait")
+        return {}
+
+    async def apply(self, directive) -> bool:
+        self.calls.append("configure")
+        return True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("initialize", "first"), [(False, "configure"), (True, "initialize")]
+)
+async def test_a_run_initializes_first_only_when_asked(
+    initialize: bool, first: str
+) -> None:
+    plan = draw_plan(np.random.default_rng([7, 3]), 3, _PORTS)
+    directives = build_directives(plan, _EMIT_INFOS)
+    recorder = _Recorder()
+    aliases = [info.definition.alias for info in _EMIT_INFOS.values()]
+    ids = [info.id for info in _EMIT_INFOS.values()]
+
+    failure = await _judge_run(
+        cast(Session, recorder),
+        dict.fromkeys(aliases, cast(FixedTimelineInstrumentDriver, recorder)),
+        {UnitLabel("u"): aliases},
+        ids,
+        plan,
+        directives,
+        initialize=initialize,
+    )
+
+    assert failure is None
+    assert recorder.calls[0] == first
+    assert recorder.calls.count("initialize") == int(initialize)
+    assert recorder.calls[-2:] == ["trigger", "wait"]

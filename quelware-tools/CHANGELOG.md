@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `quel-soak-test --initialize-each-run` (`run_soak_test(initialize_each_run=True)`) initializes the instruments at the start of every run, before it configures them, as a client that starts each run afresh does, and logs how long it took.
+
 ## [0.1.6] - 2026-09-29
 
 ### Added

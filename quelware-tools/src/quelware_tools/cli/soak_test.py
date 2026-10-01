@@ -62,6 +62,10 @@ def _entry(  # noqa: PLR0913
         bool,
         typer.Option(help="discard instruments already on the units before starting"),
     ] = False,
+    initialize_each_run: Annotated[
+        bool,
+        typer.Option(help="initialize the instruments at the start of every run"),
+    ] = False,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Run the soak test on QuEL-3 units, all at once."""
@@ -87,6 +91,7 @@ def _entry(  # noqa: PLR0913
                 stop_on_failure=stop_on_failure,
                 report_every=report_every,
                 discard_instruments=discard_instruments,
+                initialize_each_run=initialize_each_run,
             )
         print(
             f"{report.runs} runs on {', '.join(report.unit_labels)}: "

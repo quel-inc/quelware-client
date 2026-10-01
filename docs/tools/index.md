@@ -116,6 +116,8 @@ random capture windows on every trx port, all under one trigger per run. It
 runs until a number of runs or a duration is spent, and logs how long each
 step of a run took. A failed run is counted by its kind; `--save-dir` saves
 its plan as JSON, which you can replay from its seed and run index.
+`--initialize-each-run` initializes the instruments at the start of every run,
+as a client that starts each run afresh does.
 
 ```sh
 quel-soak-test <host> --duration-sec 3600
