@@ -280,20 +280,21 @@ class Session:
         instrument_ids: Collection[ResourceId],
         wait_ms: int | None = None,
     ) -> int:
-        """Apply pending configuration and trigger the given instruments.
+        """Arm the given instruments, then trigger them.
 
-        The instruments' configuration is applied first, then a trigger is
-        scheduled. If the manager-side trigger service is unavailable, the
-        client falls back to a client-side trigger: a self-timed trigger for a
-        single unit, or a clock-synchronized trigger across multiple units.
+        Arming puts the configuration of each instrument on its unit's device,
+        as the run of the session there. Then the server schedules a trigger,
+        at which every unit starts. If the server's trigger service is
+        unavailable, the client triggers the units itself: a self-timed trigger
+        for a single unit, or a clock-synchronized trigger across several.
 
         Args:
             instrument_ids: Instruments to trigger.
-            wait_ms: Delay, in milliseconds, from now to when the trigger
-                fires, giving every unit time to start on it. ``None`` leaves
-                it to the server (600 ms across units, 200 ms for one); the
-                server raises a shorter one to 150 ms, and the client-side
-                fallback path to 500 ms.
+            wait_ms: Delay, in milliseconds, from now to when the run starts,
+                giving every unit time to start on it. ``None`` leaves it to
+                the server, which also raises a wait shorter than it allows.
+                When the client triggers the units itself, it waits at least
+                500 ms.
 
         Returns:
             The clock count at which the trigger was scheduled.
