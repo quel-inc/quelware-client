@@ -29,6 +29,12 @@ P = TypeVar("P", bound="ProfileVariant")
 
 
 class InstrumentDriver(Generic[D, C, P]):
+    """Configure one deployed instrument, within the session it belongs to.
+
+    Build one with `create_instrument_driver_fixed_timeline()`. Its settings
+    take effect when the session triggers it; see `Session.trigger()`.
+    """
+
     def __init__(  # noqa: PLR0913
         self,
         session_token: SessionToken,
@@ -55,6 +61,13 @@ class InstrumentDriver(Generic[D, C, P]):
     async def apply(self, directive: Sequence[D]) -> bool: ...
 
     async def apply(self, directive) -> bool:
+        """Send one directive, or a sequence of them, to the instrument.
+
+        A directive sets the instrument's frequency, its timeline and the like.
+        The unit keeps them, and puts them on the device at the next trigger of
+        the instrument. Applying after a run means the run's result can no
+        longer be fetched. Returns True once the unit has taken them.
+        """
         if isinstance(directive, Sequence):
             return await self._agent.configure(self._token, self._id, directive)
         else:
@@ -66,6 +79,7 @@ class InstrumentDriver(Generic[D, C, P]):
 
     @property
     def instrument_config(self) -> C:
+        """The hardware timing of the instrument, such as its sampling period."""
         return self._config
 
     async def fetch_result(self) -> ResultContainer:
@@ -93,6 +107,17 @@ FixedTimelineInstrumentDriver: TypeAlias = InstrumentDriver[
 def create_instrument_driver_fixed_timeline(
     session: Session, instrument_info: InstrumentInfo
 ) -> FixedTimelineInstrumentDriver:
+    """Create a driver for a fixed-timeline instrument of the session.
+
+    Args:
+        session: An open session that holds the instrument.
+        instrument_info: The instrument, as `Session.deploy_instruments()` or
+            the instrument resolver returns it.
+
+    Raises:
+        ValueError: If the instrument is not in fixed-timeline mode, or not
+            held by the session.
+    """
     if instrument_info.definition.mode is not InstrumentMode.FIXED_TIMELINE:
         raise ValueError(
             f"Instrument mode is mismatched: '{instrument_info.definition.mode}' "
