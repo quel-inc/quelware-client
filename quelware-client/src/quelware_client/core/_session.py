@@ -282,13 +282,13 @@ class Session:
         """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
 
-        logger.info(f"starting application (token= {self.token} )")
-        apply_coros = [
-            self._agent.instrument(unit_label).apply(self.token, ids)
+        logger.info(f"starting arming (token= {self.token} )")
+        arm_coros = [
+            self._agent.instrument(unit_label).arm(self.token, ids)
             for unit_label, ids in unit_to_ids.items()
         ]
-        await asyncio.gather(*apply_coros)
-        logger.info(f"finished application (token= {self.token} )")
+        await asyncio.gather(*arm_coros)
+        logger.info(f"finished arming (token= {self.token} )")
 
         try:
             scheduled = await self._agent.trigger.trigger(

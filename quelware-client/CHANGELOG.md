@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `InstrumentAgent.apply` is renamed `arm`, because it arms the instruments (`InstrumentDriver.apply` configures an instrument). It still calls the `Apply` RPC.
+
 ## [0.7.2] - 2026-09-29
 
 ### Changed

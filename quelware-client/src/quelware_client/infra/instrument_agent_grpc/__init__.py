@@ -78,11 +78,12 @@ class InstrumentAgentGrpc(InstrumentAgent):
         return True
 
     @override
-    async def apply(
+    async def arm(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],
     ) -> bool:
+        # the Apply RPC arms the instruments; it will be renamed Arm
         req = pb_inst.ApplyRequest(resource_ids=list(resource_ids))
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)

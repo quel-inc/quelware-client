@@ -33,7 +33,7 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> bool:
         return True
 
-    async def apply(
+    async def arm(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],

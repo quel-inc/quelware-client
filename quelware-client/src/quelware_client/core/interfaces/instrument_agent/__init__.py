@@ -28,7 +28,7 @@ class InstrumentAgent(Protocol):
         directives: Sequence[Directive],
     ) -> bool: ...
 
-    async def apply(
+    async def arm(
         self,
         token: SessionToken,
         resource_ids: Collection[ResourceId],

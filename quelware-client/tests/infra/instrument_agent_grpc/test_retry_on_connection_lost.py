@@ -44,7 +44,7 @@ def _agent() -> tuple[InstrumentAgentGrpc, _LosesTheFirstCall]:
     [
         ("initialize", lambda a: a.initialize(TOKEN, [RID])),
         ("configure", lambda a: a.configure(TOKEN, RID, [SetFrequency(hz=5e9)])),
-        ("apply", lambda a: a.apply(TOKEN, [RID])),
+        ("apply", lambda a: a.arm(TOKEN, [RID])),
         ("trigger_now", lambda a: a.trigger_now(TOKEN, None)),
     ],
 )
