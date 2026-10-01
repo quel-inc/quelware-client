@@ -5,7 +5,9 @@
 ### Added
 
 - `NotTriggeredError`: `Session.wait_for_results`, `Session.wait_for_result`, `Session.fetch_result` and the same methods of `InstrumentDriver` raise it immediately if an instrument was not in the last trigger on its unit. Before, the request went to the unit, which could hang (armed but not triggered), return an empty result, or fail with `INTERNAL`. Within a session, each unit has at most one run: a new trigger on the unit replaces it, and initializing an instrument on the unit clears it. Other sessions on the unit have their own runs.
-- `Session.initialize(instrument_ids)`, `Session.fetch_result(instrument_id)` and `Session.wait_for_result(instrument_id, timeout_sec=None)`. The `InstrumentDriver` methods of the same names now call them, so the session knows which instruments can be waited for.
+- `UnitBusyError`: `Session.trigger` and `Session.initialize` raise it immediately if a trigger or initialize of the same session is already running on the unit.
+- `InitializeFailedError`: `Session.initialize` raises it, once every unit has finished, when some units failed; `failures` holds the error of each, by unit.
+- `Session.initialize(instrument_ids, parallel=True)`, which initializes the units at the same time, or one after another when not `parallel`, and every unit also after one fails, `Session.fetch_result(instrument_id)` and `Session.wait_for_result(instrument_id, timeout_sec=None)`. The `InstrumentDriver` methods of the same names now call them, so the session knows which instruments can be waited for.
 
 ### Changed
 

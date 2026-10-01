@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import math
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Iterator, Mapping
+from contextlib import contextmanager
 from types import TracebackType
 from typing import cast
 
@@ -16,9 +17,11 @@ from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
 from quelware_client.core.exceptions import (
+    InitializeFailedError,
     NotTriggeredError,
     RunFailedError,
     ServiceUnavailableError,
+    UnitBusyError,
 )
 from quelware_client.core.trigger_count_proposer import (
     FixedOffsetTriggerCountProposer,
@@ -103,6 +106,8 @@ class Session:
         self._check_lock = not skip_lock_check
         # instruments in the last trigger on each unit of this session
         self._triggered: set[ResourceId] = set()
+        # units where a trigger or initialize of this session is running now
+        self._busy_units: set[UnitLabel] = set()
 
     async def open(self):
         """Open the session, locking its resources and obtaining a token.
@@ -292,13 +297,20 @@ class Session:
 
         Returns:
             The clock count at which the trigger was scheduled.
+
+        Raises:
+            UnitBusyError: Immediately, if a trigger or initialize of this
+                session is already running on one of the units.
         """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
-        # arming replaces the session's run on the unit, so forget the old one
-        # now, even if this trigger fails
-        self._forget_runs_on(unit_to_ids)
-        scheduled = await self._arm_and_trigger(instrument_ids, unit_to_ids, wait_ms)
-        self._triggered.update(instrument_ids)
+        with self._claiming(unit_to_ids):
+            # arming replaces the session's run on the unit, so forget the old
+            # one now, even if this trigger fails
+            self._forget_runs_on(unit_to_ids)
+            scheduled = await self._arm_and_trigger(
+                instrument_ids, unit_to_ids, wait_ms
+            )
+            self._triggered.update(instrument_ids)
         return scheduled
 
     async def _arm_and_trigger(
@@ -391,23 +403,65 @@ class Session:
             raise RunFailedError(failures, results)
         return results
 
-    async def initialize(self, instrument_ids: Collection[ResourceId]) -> None:
+    async def initialize(
+        self, instrument_ids: Collection[ResourceId], parallel: bool = True
+    ) -> None:
         """Initialize the given instruments.
 
-        This clears the session's run on each of their units. No instrument on
-        those units can be waited for until the next trigger there.
+        An initialized instrument is empty: armed, it plays and captures
+        nothing until it is given a timeline again. This also clears the
+        session's run on each of their units: no instrument on those units can
+        be waited for until the next trigger there.
 
         Args:
             instrument_ids: Instruments to initialize.
+            parallel: Initialize the units at the same time, the default; when
+                False, one unit after another. Either way every unit is
+                initialized, also after one fails, and the instruments of one
+                unit are always initialized in one call.
+
+        Raises:
+            UnitBusyError: Immediately, if a trigger or initialize of this
+                session is already running on one of the units.
+            InitializeFailedError: If some units failed, once every unit has
+                finished, with the error of each unit that failed.
         """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
-        self._forget_runs_on(unit_to_ids)
-        await asyncio.gather(
-            *(
-                self._agent.instrument(unit_label).initialize(self.token, ids)
-                for unit_label, ids in unit_to_ids.items()
+        with self._claiming(unit_to_ids):
+            self._forget_runs_on(unit_to_ids)
+            if parallel:
+                # wait for every unit, so that none is still initializing once
+                # the units are let go
+                outcomes = await asyncio.gather(
+                    *(
+                        self._initialize_unit(unit_label, ids)
+                        for unit_label, ids in unit_to_ids.items()
+                    )
+                )
+            else:
+                outcomes = [
+                    await self._initialize_unit(unit_label, ids)
+                    for unit_label, ids in unit_to_ids.items()
+                ]
+            failures = {
+                unit_label: outcome
+                for unit_label, outcome in zip(unit_to_ids, outcomes, strict=True)
+                if outcome is not None
+            }
+            if failures:
+                raise InitializeFailedError(failures, len(unit_to_ids))
+
+    async def _initialize_unit(
+        self, unit_label: UnitLabel, instrument_ids: list[ResourceId]
+    ) -> Exception | None:
+        """Initialize the instruments of a unit, and return its error, if any."""
+        try:
+            await self._agent.instrument(unit_label).initialize(
+                self.token, instrument_ids
             )
-        )
+        except Exception as e:
+            return e
+        return None
 
     async def fetch_result(self, instrument_id: ResourceId) -> ResultContainer:
         """Fetch the result of one instrument, with a single request.
@@ -442,6 +496,22 @@ class Session:
         self._ensure_triggered([instrument_id])
         agent = self._agent.instrument(extract_unit_label(instrument_id))
         return await agent.wait_for_result(self.token, instrument_id, timeout_sec)
+
+    @contextmanager
+    def _claiming(self, unit_labels: Collection[UnitLabel]) -> Iterator[None]:
+        """Mark the units as busy during a trigger or initialize.
+
+        Two of them at the same time on one unit would make the record of
+        triggered instruments wrong.
+        """
+        units = set(unit_labels)
+        if busy := sorted(units & self._busy_units):
+            raise UnitBusyError().with_unit_labels(busy)
+        self._busy_units |= units
+        try:
+            yield
+        finally:
+            self._busy_units -= units
 
     def _forget_runs_on(self, unit_labels: Collection[UnitLabel]) -> None:
         """Forget the triggered instruments on the units."""
