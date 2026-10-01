@@ -23,6 +23,13 @@ from quelware_client.testing.instrument_agent_mock import InstrumentAgentMock
 
 def _create_inst_driver():
     inst_agent = InstrumentAgentMock()
+    agent_container = AgentContainer()
+    agent_container.update_instrument_agent(UnitLabel("unit-a"), inst_agent)
+    session = Session(
+        resource_ids=[ResourceId("unit-a:i1")],
+        agent=agent_container,
+        token=SessionToken("token"),
+    )
     inst_driver = InstrumentDriver(
         SessionToken("token"),
         ResourceId("unit-a:i1"),
@@ -42,6 +49,7 @@ def _create_inst_driver():
             samples_per_tick=4,
         ),
         inst_agent,
+        session,
     )
     return inst_driver
 

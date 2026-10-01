@@ -9,6 +9,7 @@ from quelware_core.entities.unit import UnitLabel
 from quelware_client.core import AgentContainer, Session
 from quelware_client.core.exceptions import RunFailedError
 from quelware_client.testing.instrument_agent_mock import InstrumentAgentMock
+from quelware_client.testing.trigger_agent_mock import TriggerAgentMock
 
 _OK_A = ResourceId("unit-a:ok")
 _OK_B = ResourceId("unit-b:ok")
@@ -38,24 +39,32 @@ class _Agent(InstrumentAgentMock):
         return ResultContainer()
 
 
-def _session(agent: _Agent) -> Session:
+async def _triggered(agent: _Agent, ids: list[ResourceId]) -> Session:
     agents = AgentContainer()
+    agents.trigger = TriggerAgentMock(scheduled_clock_count=0)
     for unit in ("unit-a", "unit-b"):
         agents.update_instrument_agent(UnitLabel(unit), agent)
-    return Session([_OK_A, _OK_B, _FAILS, _HANGS], agents, token=SessionToken("tok"))
+    session = Session([_OK_A, _OK_B, _FAILS, _HANGS], agents, token=SessionToken("tok"))
+    await session.trigger(ids)
+    return session
 
 
 @pytest.mark.asyncio
 async def test_returns_every_instrument_s_result() -> None:
-    results = await _session(_Agent()).wait_for_results([_OK_A, _OK_B])
+    session = await _triggered(_Agent(), [_OK_A, _OK_B])
+
+    results = await session.wait_for_results([_OK_A, _OK_B])
 
     assert set(results) == {_OK_A, _OK_B}
 
 
 @pytest.mark.asyncio
 async def test_a_failure_is_reported_after_the_others_complete() -> None:
+    ids = [_OK_A, _FAILS, _OK_B]
+    session = await _triggered(_Agent(), ids)
+
     with pytest.raises(RunFailedError, match="past_counter") as raised:
-        await _session(_Agent()).wait_for_results([_OK_A, _FAILS, _OK_B])
+        await session.wait_for_results(ids)
 
     assert set(raised.value.failures) == {_FAILS}
     assert set(raised.value.results) == {_OK_A, _OK_B}
@@ -64,13 +73,16 @@ async def test_a_failure_is_reported_after_the_others_complete() -> None:
 @pytest.mark.asyncio
 async def test_a_timeout_names_the_instruments_still_running() -> None:
     agent = _Agent()
+    session = await _triggered(agent, [_OK_A, _HANGS])
 
     with pytest.raises(TimeoutError, match="hangs"):
-        await _session(agent).wait_for_results([_OK_A, _HANGS], timeout_sec=0.1)
+        await session.wait_for_results([_OK_A, _HANGS], timeout_sec=0.1)
 
     assert agent.cancelled == [_HANGS]
 
 
 @pytest.mark.asyncio
 async def test_no_instruments_returns_at_once() -> None:
-    assert await _session(_Agent()).wait_for_results([]) == {}
+    session = await _triggered(_Agent(), [])
+
+    assert await session.wait_for_results([]) == {}

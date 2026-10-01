@@ -101,3 +101,14 @@ class RunFailedError(QuelwareClientError):
             f"{len(self.failures)} of {len(self.failures) + len(self.results)} "
             f"instruments failed: {detail}"
         )
+
+
+class NotTriggeredError(_ErrorWithResourceIdsMixin, QuelwareClientError):
+    """Raised when waiting for an instrument that was not triggered.
+
+    Within a session, each unit has at most one run. A new trigger on the unit
+    replaces it, and initializing an instrument on the unit clears it. So only
+    the instruments in the last trigger on each unit can be waited for.
+    """
+
+    DEFAULT_MESSAGE = "The instruments were not in the last trigger on their unit."

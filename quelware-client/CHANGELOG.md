@@ -2,8 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `NotTriggeredError`: `Session.wait_for_results`, `Session.wait_for_result`, `Session.fetch_result` and the same methods of `InstrumentDriver` raise it immediately if an instrument was not in the last trigger on its unit. Before, the request went to the unit, which could hang (armed but not triggered), return an empty result, or fail with `INTERNAL`. Within a session, each unit has at most one run: a new trigger on the unit replaces it, and initializing an instrument on the unit clears it. Other sessions on the unit have their own runs.
+- `Session.initialize(instrument_ids)`, `Session.fetch_result(instrument_id)` and `Session.wait_for_result(instrument_id, timeout_sec=None)`. The `InstrumentDriver` methods of the same names now call them, so the session knows which instruments can be waited for.
+
 ### Changed
 
+- `InstrumentDriver` requires the `session` it belongs to. `create_instrument_driver_fixed_timeline` passes it, so only code that builds a driver directly needs a change.
 - `InstrumentAgent.apply` is renamed `arm`, because it arms the instruments (`InstrumentDriver.apply` configures an instrument). It still calls the `Apply` RPC.
 
 ## [0.7.2] - 2026-09-29

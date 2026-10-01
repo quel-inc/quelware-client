@@ -37,6 +37,7 @@ class InstrumentDriver(Generic[D, C, P]):
         definition: InstrumentDefinition[P],
         config: C,
         instrument_agent: InstrumentAgent,
+        session: Session,
     ):
         self._token = session_token
         self._id = instrument_id
@@ -44,6 +45,8 @@ class InstrumentDriver(Generic[D, C, P]):
         self._definition = definition
         self._config = config
         self._agent = instrument_agent
+        # the session knows which instruments can be waited for
+        self._session = session
 
     @overload
     async def apply(self, directive: D) -> bool: ...
@@ -58,15 +61,16 @@ class InstrumentDriver(Generic[D, C, P]):
             return await self._agent.configure(self._token, self._id, [directive])
 
     async def initialize(self):
-        await self._agent.initialize(self._token, [self._id])
+        """Initialize the instrument. See `Session.initialize`."""
+        await self._session.initialize([self._id])
 
     @property
     def instrument_config(self) -> C:
         return self._config
 
     async def fetch_result(self) -> ResultContainer:
-        res = await self._agent.fetch_result(self._token, self._id)
-        return res
+        """Fetch the result of the instrument. See `Session.fetch_result`."""
+        return await self._session.fetch_result(self._id)
 
     async def wait_for_result(
         self, timeout_sec: float | None = None
@@ -74,8 +78,9 @@ class InstrumentDriver(Generic[D, C, P]):
         """Block until the result is ready, retrying transient fetch timeouts.
 
         ``timeout_sec`` caps the total client-side wait; ``None`` is unlimited.
+        See `Session.wait_for_result`.
         """
-        return await self._agent.wait_for_result(self._token, self._id, timeout_sec)
+        return await self._session.wait_for_result(self._id, timeout_sec)
 
 
 FixedTimelineInstrumentDriver: TypeAlias = InstrumentDriver[
@@ -106,6 +111,7 @@ def create_instrument_driver_fixed_timeline(
         instrument_info.definition,
         instrument_info.config,
         session.agent_container.instrument(extract_unit_label(instrument_info.id)),
+        session,
     )
 
 

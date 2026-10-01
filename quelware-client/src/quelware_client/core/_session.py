@@ -15,7 +15,11 @@ from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
-from quelware_client.core.exceptions import RunFailedError, ServiceUnavailableError
+from quelware_client.core.exceptions import (
+    NotTriggeredError,
+    RunFailedError,
+    ServiceUnavailableError,
+)
 from quelware_client.core.trigger_count_proposer import (
     FixedOffsetTriggerCountProposer,
     TriggerCountProposer,
@@ -45,6 +49,13 @@ class Session:
         await session.trigger(instrument_ids)
         results = await session.wait_for_results(instrument_ids)
     ```
+
+    Within a session, each unit has at most one run. A new trigger on a unit
+    replaces its run, and initializing an instrument on the unit clears it.
+    Other sessions on the same unit have their own runs. The session remembers
+    which instruments were in the last trigger on each unit, and waits only for
+    those. Another `Session` object built with the same token does not share
+    this record.
     """
 
     def __init__(  # noqa: PLR0913
@@ -90,6 +101,8 @@ class Session:
             self._unit_to_ids.setdefault(ul, []).append(rid)
 
         self._check_lock = not skip_lock_check
+        # instruments in the last trigger on each unit of this session
+        self._triggered: set[ResourceId] = set()
 
     async def open(self):
         """Open the session, locking its resources and obtaining a token.
@@ -281,7 +294,19 @@ class Session:
             The clock count at which the trigger was scheduled.
         """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
+        # arming replaces the session's run on the unit, so forget the old one
+        # now, even if this trigger fails
+        self._forget_runs_on(unit_to_ids)
+        scheduled = await self._arm_and_trigger(instrument_ids, unit_to_ids, wait_ms)
+        self._triggered.update(instrument_ids)
+        return scheduled
 
+    async def _arm_and_trigger(
+        self,
+        instrument_ids: Collection[ResourceId],
+        unit_to_ids: dict[UnitLabel, list[ResourceId]],
+        wait_ms: int | None,
+    ) -> int:
         logger.info(f"starting arming (token= {self.token} )")
         arm_coros = [
             self._agent.instrument(unit_label).arm(self.token, ids)
@@ -314,8 +339,10 @@ class Session:
     ) -> dict[ResourceId, ResultContainer]:
         """Wait for the result of every one of the instruments of a run.
 
-        Pass the instruments given to `trigger()`: an instrument without a
-        capture window is waited for as well, and its result is empty.
+        Pass the instruments given to `trigger()`. An instrument without a
+        capture window is waited for too, and its result is empty. Only the
+        instruments in the last trigger on each unit can be waited for, and not
+        after an instrument on that unit is initialized.
 
         Args:
             instrument_ids: Instruments to wait for.
@@ -325,11 +352,14 @@ class Session:
             Each instrument's result.
 
         Raises:
+            NotTriggeredError: Immediately, if an instrument was not in the last
+                trigger on its unit.
             RunFailedError: If any instrument failed, once all of them have
                 finished, with the error of each that failed and the results of
                 the others.
             TimeoutError: If some are still running when ``timeout_sec`` runs out.
         """
+        self._ensure_triggered(instrument_ids)
         tasks = {
             asyncio.ensure_future(
                 self._agent.instrument(extract_unit_label(rid)).wait_for_result(
@@ -360,6 +390,75 @@ class Session:
         if failures:
             raise RunFailedError(failures, results)
         return results
+
+    async def initialize(self, instrument_ids: Collection[ResourceId]) -> None:
+        """Initialize the given instruments.
+
+        This clears the session's run on each of their units. No instrument on
+        those units can be waited for until the next trigger there.
+
+        Args:
+            instrument_ids: Instruments to initialize.
+        """
+        unit_to_ids = create_unit_to_ids_map(instrument_ids)
+        self._forget_runs_on(unit_to_ids)
+        await asyncio.gather(
+            *(
+                self._agent.instrument(unit_label).initialize(self.token, ids)
+                for unit_label, ids in unit_to_ids.items()
+            )
+        )
+
+    async def fetch_result(self, instrument_id: ResourceId) -> ResultContainer:
+        """Fetch the result of one instrument, with a single request.
+
+        Unlike `wait_for_result()`, this does not retry when the request times
+        out.
+
+        Raises:
+            NotTriggeredError: Immediately, if the instrument was not in the last
+                trigger on its unit.
+        """
+        self._ensure_triggered([instrument_id])
+        agent = self._agent.instrument(extract_unit_label(instrument_id))
+        return await agent.fetch_result(self.token, instrument_id)
+
+    async def wait_for_result(
+        self, instrument_id: ResourceId, timeout_sec: float | None = None
+    ) -> ResultContainer:
+        """Wait for the result of one instrument.
+
+        Unlike `wait_for_results()`, this raises the instrument's own error if
+        it failed.
+
+        Args:
+            instrument_id: Instrument to wait for.
+            timeout_sec: Maximum time to wait; ``None`` waits without limit.
+
+        Raises:
+            NotTriggeredError: Immediately, if the instrument was not in the last
+                trigger on its unit.
+        """
+        self._ensure_triggered([instrument_id])
+        agent = self._agent.instrument(extract_unit_label(instrument_id))
+        return await agent.wait_for_result(self.token, instrument_id, timeout_sec)
+
+    def _forget_runs_on(self, unit_labels: Collection[UnitLabel]) -> None:
+        """Forget the triggered instruments on the units."""
+        units = set(unit_labels)
+        self._triggered = {
+            rid for rid in self._triggered if extract_unit_label(rid) not in units
+        }
+
+    def _ensure_triggered(self, instrument_ids: Collection[ResourceId]) -> None:
+        """Raise if an instrument was not in the last trigger on its unit.
+
+        Raises:
+            NotTriggeredError: With the ids of those instruments.
+        """
+        missing = sorted(set(instrument_ids) - self._triggered)
+        if missing:
+            raise NotTriggeredError().with_resource_ids(missing)
 
     async def _client_side_trigger_fallback(
         self,
