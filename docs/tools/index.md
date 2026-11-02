@@ -30,6 +30,7 @@ They default to the PAT configured for `quelware-client`; every command but
 | [`quel-trigger-wait-test`](#quel-trigger-wait-test) | How short a trigger wait the units start in time on | privileged | free tx/trx ports | one or more units |
 | [`quel-soak-test`](#quel-soak-test) | Load over a long time | privileged | free tx/trx ports | one or more units |
 | [`quel-unit-config`](#quel-unit-config) | Show or set a unit's controls | any (`show`), admin (`set`) | an idle unit (`set`) | one unit |
+| [`quel-recover-past-counter`](#quel-recover-past-counter) | Back to normal after `past_counter`, without a reboot | privileged | nobody else on the units | every port of the units |
 
 "Privileged" means a `PRIVILEGED_USER` or `ADMIN` PAT: these commands deploy
 instruments. An idle unit has no deployed instruments; `--discard-instruments`
@@ -134,6 +135,18 @@ Shows or sets a unit's configuration controls. Find the keys with `show`.
 ```sh
 quel-unit-config show <host> --unit <label>
 quel-unit-config set <host> --unit <label> KEY=VALUE
+```
+
+## Recovery
+
+### `quel-recover-past-counter`
+
+A temporary workaround that brings a unit back to normal after a run failed
+with `past_counter`, without a reboot. It removes the instruments on every port
+of the units, so run it only when nobody else uses them.
+
+```sh
+quel-recover-past-counter <host> --unit <label>
 ```
 
 ## From Python

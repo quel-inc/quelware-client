@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `quel-recover-past-counter` (`run_recover_past_counter`) brings a unit back to normal after a run that failed with `past_counter`, without a reboot. A temporary workaround, until an update of the units makes it unnecessary: it triggers every port a few seconds ahead and cancels the run on purpose before it starts. It replaces the instruments on every port of the units and removes them at the end.
+
 ### Changed
 
 - `quel-trigger-wait-test` no longer reports a trigger time per wait: it was the median of the client's wall time of `Session.trigger`, arming included, which says nothing about whether a run starts in time. Each run's time is logged instead, and `WaitResult.trigger_sec` is gone.

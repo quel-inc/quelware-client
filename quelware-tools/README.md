@@ -29,6 +29,10 @@ start nothing themselves.
   port, for a number of runs or a duration, and tally the runs that fail.
 - `quel-unit-config` — `show` / `set` a unit's configuration controls.
   `set` needs an admin PAT and an idle unit.
+- `quel-recover-past-counter` — bring a unit back to normal after a run that
+  failed with `past_counter`, without a reboot: a temporary workaround that
+  triggers every port and cancels the run before it starts. It removes the
+  instruments on every port of the unit.
 
 The tests are also Python functions in `quelware_tools.diagnostics`
 (`run_tone_test`, `run_pulse_test`, `run_delay_test`, `run_trigger_wait_test`,

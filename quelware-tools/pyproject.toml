@@ -27,6 +27,7 @@ quel-measure-delay = "quelware_tools.cli.measure_delay:cli"
 quel-pulse-test = "quelware_tools.cli.pulse_test:cli"
 quel-soak-test = "quelware_tools.cli.soak_test:cli"
 quel-unit-config = "quelware_tools.cli.unit_config:cli"
+quel-recover-past-counter = "quelware_tools.cli.recover_past_counter:cli"
 
 [project.urls]
 Repository = "https://github.com/quel-inc/quelware-client"
