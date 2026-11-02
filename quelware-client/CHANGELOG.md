@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `Session.abort_runs()`, which stops the session's runs on every unit, before the trigger time or part way through. A run stops as a whole, because its instruments share the unit's waveform generators and captures, so it takes no instruments. Waiting for an instrument of a run raises the server's abort error. `AbortFailedError` is raised, once every unit has been asked, when some units failed; `failures` holds the error of each, by unit.
+- `UnitBusyError` is raised also by `Session.abort_runs` while a trigger or initialize of the session is running, and by a trigger or initialize while `abort_runs` is.
+
 ## [0.7.3] - 2026-10-01
 
 ### Added

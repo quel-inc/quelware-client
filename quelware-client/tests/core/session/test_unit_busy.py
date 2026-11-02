@@ -17,7 +17,7 @@ _B1 = ResourceId("unit-b:i1")
 
 
 class _Agent(InstrumentAgentMock):
-    """Holds each arm and initialize until released, or fails them."""
+    """Holds each arm, initialize and abort until released, or fails them."""
 
     def __init__(self) -> None:
         self.entered = asyncio.Event()
@@ -41,6 +41,11 @@ class _Agent(InstrumentAgentMock):
     ) -> None:
         await self._hold()
 
+    async def abort(
+        self, token: SessionToken, resource_ids: Collection[ResourceId]
+    ) -> None:
+        await self._hold()
+
 
 def _session(agent: _Agent) -> Session:
     agents = AgentContainer()
@@ -50,8 +55,15 @@ def _session(agent: _Agent) -> Session:
     return Session([_A1, _A2, _B1], agents, token=SessionToken("tok"))
 
 
+def _call(session: Session, name: str, rid: ResourceId):
+    """Start a trigger or an initialize of the instrument, or abort_runs."""
+    if name == "abort_runs":
+        return session.abort_runs()
+    return getattr(session, name)([rid])
+
+
 async def _under_way(agent: _Agent, coro) -> asyncio.Future:
-    """Start a trigger or an initialize, and return once it reaches the unit."""
+    """Start a trigger, initialize or abort_runs; return once it reaches the unit."""
     task = asyncio.ensure_future(coro)
     await asyncio.wait_for(agent.entered.wait(), timeout=5.0)
     assert not task.done()
@@ -64,17 +76,28 @@ async def _under_way(agent: _Agent, coro) -> asyncio.Future:
     [
         ("trigger", "trigger"),
         ("trigger", "initialize"),
+        ("trigger", "abort_runs"),
         ("initialize", "trigger"),
         ("initialize", "initialize"),
+        ("initialize", "abort_runs"),
+        ("abort_runs", "trigger"),
+        ("abort_runs", "initialize"),
+        ("abort_runs", "abort_runs"),
     ],
 )
 async def test_a_second_one_on_a_unit_under_way_is_refused(first, second) -> None:
     agent = _Agent()
     session = _session(agent)
-    under_way = await _under_way(agent, getattr(session, first)([_A1]))
+    if first == "abort_runs":
+        # abort_runs reaches the unit only for a run there
+        agent.release.set()
+        await session.trigger([_A1, _A2])
+        agent.release.clear()
+        agent.entered.clear()
+    under_way = await _under_way(agent, _call(session, first, _A1))
 
     with pytest.raises(UnitBusyError, match="unit-a"):
-        await getattr(session, second)([_A2])
+        await _call(session, second, _A2)
 
     agent.release.set()
     await under_way

@@ -118,6 +118,21 @@ class InitializeFailedError(QuelwareClientError):
         )
 
 
+class AbortFailedError(QuelwareClientError):
+    """Raised when abort_runs failed on some units.
+
+    ``failures`` holds the error of each unit that failed, by its label. The
+    other units were aborted.
+    """
+
+    def __init__(self, failures: Mapping[UnitLabel, BaseException], units: int):
+        self.failures = dict(failures)
+        detail = "; ".join(f"{u}: {e}" for u, e in sorted(self.failures.items()))
+        super().__init__(
+            f"abort_runs failed on {len(self.failures)} of {units} units: {detail}"
+        )
+
+
 class NotTriggeredError(_ErrorWithResourceIdsMixin, QuelwareClientError):
     """Raised when waiting for an instrument that was not triggered.
 
@@ -130,9 +145,10 @@ class NotTriggeredError(_ErrorWithResourceIdsMixin, QuelwareClientError):
 
 
 class UnitBusyError(_ErrorWithUnitLabelsMixin, QuelwareClientError):
-    """Raised when a trigger or initialize of the same session is already
+    """Raised when a trigger, initialize or abort_runs of the same session is already
     running on the unit."""
 
     DEFAULT_MESSAGE = (
-        "A trigger or initialize of this session is already running on the unit."
+        "A trigger, initialize or abort_runs of this session is already running "
+        "on the unit."
     )

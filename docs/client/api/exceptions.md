@@ -25,6 +25,10 @@ from `wait_for_results()`. See [Triggering](../../concepts/triggering.md).
     options:
       heading_level: 3
 
+::: quelware_client.core.exceptions.AbortFailedError
+    options:
+      heading_level: 3
+
 ## Other errors
 
 ::: quelware_client.core.exceptions.QuelwareClientError

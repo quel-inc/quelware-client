@@ -17,6 +17,7 @@ from quelware_core.entities.unit import UnitLabel
 
 from quelware_client.core import AgentContainer
 from quelware_client.core.exceptions import (
+    AbortFailedError,
     InitializeFailedError,
     NotTriggeredError,
     RunFailedError,
@@ -106,7 +107,7 @@ class Session:
         self._check_lock = not skip_lock_check
         # instruments in the last trigger on each unit of this session
         self._triggered: set[ResourceId] = set()
-        # units where a trigger or initialize of this session is running now
+        # units where a trigger, initialize or abort_runs of this session is running now
         self._busy_units: set[UnitLabel] = set()
 
     async def open(self):
@@ -300,7 +301,7 @@ class Session:
             The clock count at which the trigger was scheduled.
 
         Raises:
-            UnitBusyError: Immediately, if a trigger or initialize of this
+            UnitBusyError: Immediately, if a trigger, initialize or abort_runs of this
                 session is already running on one of the units.
         """
         unit_to_ids = create_unit_to_ids_map(instrument_ids)
@@ -422,7 +423,7 @@ class Session:
                 unit are always initialized in one call.
 
         Raises:
-            UnitBusyError: Immediately, if a trigger or initialize of this
+            UnitBusyError: Immediately, if a trigger, initialize or abort_runs of this
                 session is already running on one of the units.
             InitializeFailedError: If some units failed, once every unit has
                 finished, with the error of each unit that failed.
@@ -464,6 +465,45 @@ class Session:
             return e
         return None
 
+    async def abort_runs(self) -> None:
+        """Stop the session's runs, on every unit.
+
+        The run on a unit is the session's last trigger there, and it stops as
+        a whole: its instruments share the unit's waveform generators and
+        captures, so one of them cannot stop without the others. Every
+        instrument of the runs is aborted, and waiting for one raises the
+        server's abort error. A unit stops its run before the trigger time
+        comes, or part way through, and leaves a run that has already finished
+        as it is. The instruments keep their configuration, so the same runs
+        can be triggered again.
+
+        Raises:
+            UnitBusyError: Immediately, if a trigger, initialize or abort_runs of this
+                session is running on any unit, since the run it makes is not
+                known yet.
+            AbortFailedError: If some units failed, once every unit has been
+                asked, with the error of each unit that failed.
+        """
+        runs = {
+            unit_label: sorted(ids)
+            for unit_label, ids in create_unit_to_ids_map(self._triggered).items()
+        }
+        with self._claiming(set(runs) | self._busy_units):
+            outcomes = await asyncio.gather(
+                *(
+                    self._agent.instrument(unit_label).abort(self.token, ids)
+                    for unit_label, ids in runs.items()
+                ),
+                return_exceptions=True,
+            )
+        failures = {
+            unit_label: outcome
+            for unit_label, outcome in zip(runs, outcomes, strict=True)
+            if isinstance(outcome, BaseException)
+        }
+        if failures:
+            raise AbortFailedError(failures, len(runs))
+
     async def fetch_result(self, instrument_id: ResourceId) -> ResultContainer:
         """Fetch the result of one instrument, with a single request.
 
@@ -500,7 +540,7 @@ class Session:
 
     @contextmanager
     def _claiming(self, unit_labels: Collection[UnitLabel]) -> Iterator[None]:
-        """Mark the units as busy during a trigger or initialize.
+        """Mark the units as busy during a trigger, initialize or abort_runs.
 
         Two of them at the same time on one unit would make the record of
         triggered instruments wrong.
