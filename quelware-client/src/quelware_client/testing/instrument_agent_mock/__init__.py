@@ -54,6 +54,12 @@ class InstrumentAgentMock(InstrumentAgent):
     ) -> int:
         return 1234
 
+    async def abort(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+    ) -> None: ...
+
     async def fetch_result(
         self,
         token: SessionToken,

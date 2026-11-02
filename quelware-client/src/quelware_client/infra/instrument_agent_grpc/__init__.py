@@ -124,6 +124,20 @@ class InstrumentAgentGrpc(InstrumentAgent):
         return resp.scheduled_clock_count
 
     @override
+    async def abort(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+    ) -> None:
+        req = pb_inst.AbortRequest(resource_ids=list(resource_ids))
+        metadata = dict(self._service.metadata or {})
+        metadata["x-session-token"] = str(token)
+        # a run already stopped is left as it is
+        await call_with_retry(
+            lambda: self._service.abort(req, metadata=metadata), idempotent=True
+        )
+
+    @override
     async def fetch_result(
         self,
         token: SessionToken,

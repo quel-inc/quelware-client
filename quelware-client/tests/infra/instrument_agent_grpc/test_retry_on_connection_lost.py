@@ -46,6 +46,7 @@ def _agent() -> tuple[InstrumentAgentGrpc, _LosesTheFirstCall]:
         ("configure", lambda a: a.configure(TOKEN, RID, [SetFrequency(hz=5e9)])),
         ("apply", lambda a: a.arm(TOKEN, [RID])),
         ("trigger_now", lambda a: a.trigger_now(TOKEN, None)),
+        ("abort", lambda a: a.abort(TOKEN, [RID])),
     ],
 )
 async def test_a_call_that_can_be_made_again_is_retried_on_a_lost_connection(

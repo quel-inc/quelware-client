@@ -46,6 +46,12 @@ class InstrumentAgent(Protocol):
         min_wait_ms: int | None = None,
     ) -> int: ...
 
+    async def abort(
+        self,
+        token: SessionToken,
+        resource_ids: Collection[ResourceId],
+    ) -> None: ...
+
     async def fetch_result(
         self,
         token: SessionToken,
