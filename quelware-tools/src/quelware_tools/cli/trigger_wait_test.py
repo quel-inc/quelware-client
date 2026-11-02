@@ -10,7 +10,6 @@ manager. Exits non-zero if any run failed.
 
 import asyncio
 import logging
-import statistics
 from typing import Annotated
 
 import typer
@@ -66,14 +65,9 @@ def _entry(  # noqa: PLR0913
             )
         print(f"{report.ports} ports on {', '.join(report.unit_labels)}")
         for r in report.results:
-            trigger = (
-                f"trigger {statistics.median(r.trigger_sec):.2f} s"
-                if r.trigger_sec
-                else "no trigger"
-            )
             reasons = ", ".join(f"{k} {n}" for k, n in r.failures.most_common())
             print(
-                f"  {r.wait_ms:5d} ms: {r.completed}/{r.runs} completed, {trigger}"
+                f"  {r.wait_ms:5d} ms: {r.completed}/{r.runs} completed"
                 + (f"; failed on {reasons}" if reasons else "")
             )
         if any(r.failed for r in report.results):

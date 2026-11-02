@@ -64,7 +64,6 @@ class WaitResult:
     # a failed run once per reason: "past_counter", another unit error, or the
     # kind of error the run broke on
     failures: Counter[str] = field(default_factory=Counter)
-    trigger_sec: list[float] = field(default_factory=list)
 
     @property
     def failed(self) -> int:
@@ -155,7 +154,12 @@ async def _run_once(
     started = time.monotonic()
     try:
         await session.trigger(ids, wait_ms=result.wait_ms)
-        result.trigger_sec.append(time.monotonic() - started)
+        # the client's wall time of the call, arming included
+        logger.info(
+            "wait %d ms: trigger() returned in %.3f s",
+            result.wait_ms,
+            time.monotonic() - started,
+        )
         await session.wait_for_results(
             ids, timeout_sec=result.wait_ms / 1000 + _WAIT_MARGIN_SEC
         )

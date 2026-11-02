@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `quel-trigger-wait-test` no longer reports a trigger time per wait: it was the median of the client's wall time of `Session.trigger`, arming included, which says nothing about whether a run starts in time. Each run's time is logged instead, and `WaitResult.trigger_sec` is gone.
+
 ## [0.1.7] - 2026-10-01
 
 ### Added
