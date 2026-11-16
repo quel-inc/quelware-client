@@ -61,6 +61,8 @@ class Shot:
     # every iteration's waveform, rather than their average
     raw: bool = False
     label: str = ""
+    # measures the delay of the paths it sends along, which later shots are held to
+    measures_delay: bool = False
 
 
 def to_samples(ns: float, period_ns: float) -> int:

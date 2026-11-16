@@ -154,7 +154,8 @@ class RunFailure:
     # "refused" before it started; "run" when an instrument failed; "timeout";
     # "unavailable" when a unit could not be reached, the run aborted everywhere;
     # "connection" when the call was lost on the way; "wrong" when a monitor
-    # captured otherwise than was sent; "error" for anything else
+    # captured otherwise than was sent; "delay" when a port's delay to its monitor
+    # could not be measured; "error" for anything else
     kind: str
     detail: str
 
@@ -485,17 +486,21 @@ def _judge_monitors(
     plan: RunPlan,
     monitors: dict[UnitLabel, InstrumentInfo],
     results: dict[ResourceId, ResultContainer],
+    *,
+    measures_delay: bool = False,
 ) -> RunFailure | None:
-    """A failure when a monitor captured otherwise than its unit's shown port sent."""
+    """A failure when a monitor captured otherwise than its unit's shown port sent;
+    with ``measures_delay``, the run measures the delay of each shown port's path."""
     problems: list[str] = []
     for shown in plan.shown_ports:
         monitor = monitors[extract_unit_label(ResourceId(shown))]
         waves = results[monitor.id].iq_waveform_result
+        shot = monitor_shot(plan, shown, str(monitor.port_id))
         problems += judge.check(
             correctness.Record(
                 str(monitor.id),
                 monitor.config.sampling_period_fs * 1e-6,
-                monitor_shot(plan, shown, str(monitor.port_id)),
+                dataclasses.replace(shot, measures_delay=measures_delay),
                 {
                     name: (
                         np.stack([w.iq_array for w in waves[name]])
@@ -509,7 +514,62 @@ def _judge_monitors(
     if not problems:
         return None
     more = f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""
-    return RunFailure(plan.run, "wrong", "; ".join(problems[:3]) + more)
+    kind = "delay" if measures_delay else "wrong"
+    return RunFailure(plan.run, kind, "; ".join(problems[:3]) + more)
+
+
+async def _measure_delays(  # noqa: PLR0913
+    session: Session,
+    drivers: dict[str, FixedTimelineInstrumentDriver],
+    unit_aliases: dict[UnitLabel, list[str]],
+    ids: list[ResourceId],
+    infos: dict[str, InstrumentInfo],
+    emit_ports: Sequence[ResourceId],
+    monitors: dict[UnitLabel, InstrumentInfo],
+    judge: correctness.Judge,
+    profile: SoakProfile,
+) -> RunFailure | None:
+    """Measure the delay from every emit port to its unit's monitor, one port of each
+    unit at a time, as `correctness.delay_shot` does; a failure when one cannot be."""
+    by_unit: dict[UnitLabel, list[str]] = {}
+    for port in emit_ports:
+        by_unit.setdefault(extract_unit_label(port), []).append(str(port))
+    rounds = max(len(ports) for ports in by_unit.values())
+    for k in range(rounds):
+        shown = tuple(ports[k] for ports in by_unit.values() if k < len(ports))
+        delay_shot = correctness.delay_shot(tolerance=judge.tolerance)
+        (pulse,) = delay_shot.pulses
+        (window,) = delay_shot.windows
+        wave = Wave(pulse.start_ns, pulse.shape.length_ns, pulse.gain, pulse.phase_deg)
+        plan = RunPlan(
+            run=-1 - k,
+            length_ns=profile.span_ticks * TICK_NS,
+            iterations=delay_shot.iterations,
+            iteration_blank_ns=profile.iteration_blank_ns[0],
+            shown_port=shown[0],
+            waves={str(p): (wave,) for p in emit_ports},
+            windows={
+                str(m.port_id): (Window(window.start_ns, window.length_ns),)
+                for m in monitors.values()
+            },
+            shown_ports=shown,
+        )
+        mode = SetCaptureMode(mode=CaptureMode.AVERAGED_WAVEFORM)
+        monitor_aliases = {m.definition.alias for m in monitors.values()}
+        directives = {
+            alias: [mode, timeline] if alias in monitor_aliases else [timeline]
+            for alias, timeline in build_directives(plan, infos, check=True).items()
+        }
+        failure, results = await _judge_run(
+            session, drivers, unit_aliases, ids, plan, directives
+        )
+        if failure is None:
+            failure = _judge_monitors(
+                judge, plan, monitors, results, measures_delay=True
+            )
+        if failure is not None:
+            return failure
+    return None
 
 
 def _classify(e: Exception) -> tuple[str, str]:
@@ -653,6 +713,22 @@ async def run_soak_test(  # noqa: PLR0913
             capture_aliases = {infos[p].definition.alias for p in capture_ports}
 
             await _per_unit([*emit_ports, *monitor_ports], _set_up)
+            if check_monitor:
+                failure = await _measure_delays(
+                    session,
+                    drivers,
+                    unit_aliases,
+                    ids,
+                    infos,
+                    emit_ports,
+                    monitors,
+                    judge,
+                    profile,
+                )
+                if failure is not None:
+                    report.failures.append(failure)
+                    logger.error("could not measure the delays: %s", failure.detail)
+                    return report
 
             run = start_run
             while (runs is None or report.runs < runs) and (

@@ -22,7 +22,7 @@ from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.unit import UnitLabel
 from quelware_core.entities.waveform.sampled import IqWaveform
 
-from quelware_tools.diagnostics.correctness import Judge
+from quelware_tools.diagnostics.correctness import Judge, Record, delay_shot
 from quelware_tools.diagnostics.soak_test import (
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
@@ -282,11 +282,33 @@ def _monitor_results(plan: RunPlan, gain: complex) -> dict:
     return {_MONITOR_INFO.id: ResultContainer(iq_waveform_result=waves)}
 
 
+def _judge_measured(plan: RunPlan, gain: complex) -> Judge:
+    """A judge that has measured the delay of the shown port's path, of no delay."""
+    (shown,) = plan.shown_ports
+    shot = delay_shot(shown)
+    (pulse,) = shot.pulses
+    (window,) = shot.windows
+    period_ns = _MONITOR_INFO.config.sampling_period_fs * 1e-6
+    capture = np.zeros(round(window.length_ns / period_ns), dtype=complex)
+    at = round(pulse.start_ns / period_ns)
+    capture[at : at + round(pulse.shape.length_ns / period_ns)] = gain * pulse.gain
+    judge = Judge()
+    assert (
+        judge.check(
+            Record(str(_MONITOR_INFO.id), period_ns, shot, {window.name: capture})
+        )
+        == []
+    )
+    return judge
+
+
 def test_a_monitor_capture_of_what_the_shown_port_sent_passes():
     plan = _checked_plan(5)
     monitors = {UnitLabel("u"): _MONITOR_INFO}
 
-    failure = _judge_monitors(Judge(), plan, monitors, _monitor_results(plan, 0.3j))
+    judge = _judge_measured(plan, 0.3j)
+
+    failure = _judge_monitors(judge, plan, monitors, _monitor_results(plan, 0.3j))
 
     assert failure is None
 
@@ -298,7 +320,9 @@ def test_a_monitor_capture_that_comes_back_weaker_is_a_wrong_run():
     for waves in results[_MONITOR_INFO.id].iq_waveform_result.values():
         waves[0].iq_array[len(waves[0].iq_array) // 2 :] *= 0.5
 
-    failure = _judge_monitors(Judge(), plan, {UnitLabel("u"): _MONITOR_INFO}, results)
+    failure = _judge_monitors(
+        _judge_measured(plan, 0.3j), plan, {UnitLabel("u"): _MONITOR_INFO}, results
+    )
 
     assert failure is not None
     assert failure.kind == "wrong"
@@ -334,8 +358,21 @@ def test_an_iteration_of_a_raw_run_that_came_back_empty_is_a_wrong_run():
     for waves in results[_MONITOR_INFO.id].iq_waveform_result.values():
         waves[2].iq_array[:] = 0
 
-    failure = _judge_monitors(Judge(), plan, {UnitLabel("u"): _MONITOR_INFO}, results)
+    failure = _judge_monitors(
+        _judge_measured(plan, 0.3j), plan, {UnitLabel("u"): _MONITOR_INFO}, results
+    )
 
     assert failure is not None
     assert failure.kind == "wrong"
     assert "in 1 of 4 iterations (2)" in failure.detail
+
+
+def test_a_monitor_capture_from_a_port_whose_delay_was_not_measured_is_a_wrong_run():
+    plan = _checked_plan(5)
+
+    failure = _judge_monitors(
+        Judge(), plan, {UnitLabel("u"): _MONITOR_INFO}, _monitor_results(plan, 0.3j)
+    )
+
+    assert failure is not None
+    assert "no delay was measured" in failure.detail

@@ -1,19 +1,21 @@
 """Whether what came back is what was sent, judged from the shots alone.
 
 Each port a shot sends from reaches the capture along a path whose delay and gain are
-not known, so each path's are estimated from all of its pulses at once, and every pulse
-is then held to what was sent for it: its gain, its phase, its position. Between the
-pulses a capture holds nothing but noise. Shots captured on one instrument share its
-paths, so they share their delays and gains, and the same shot fired again returns the
-same capture.
+not known. A path's delay does not change, so it is measured once, by a shot that
+measures it (`delay_shot`), and every later shot along the path is held to it. A
+shot's gain along each path is estimated from all of its pulses at once, and every
+pulse is then held to what was sent for it: its gain, its phase, its position. Between
+the pulses a capture holds nothing but noise. Shots along one path share its gain, and
+the same shot fired again returns the same capture.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TypeAlias
 
 import numpy as np
 
-from .shots import Pulse, Shot, to_samples
+from .shots import PULSE_NS, Pulse, Shot, Window, to_samples
 
 # the part of a pulse its gain and phase are measured on, leaving out its edges
 EDGE_NS = 20.0
@@ -71,14 +73,28 @@ class Judge:
         self._keep = keep_captures
         self._count = 0
         self._paths: dict[tuple[str, str], tuple[int, _Fit]] = {}
+        self._delays: dict[tuple[str, str], int] = {}
         self._shots: dict[tuple[str, Shot], tuple[int, Record]] = {}
+
+    @property
+    def tolerance(self) -> Tolerance:
+        return self._tol
 
     def check(self, rec: Record) -> list[str]:
         """Every way the shot departs from what was sent, one line each."""
         i = self._count
         self._count += 1
         title = f"shot {i}" + (f" ({rec.shot.label})" if rec.shot.label else "")
-        problems, fits = _judge_one(rec, self._tol)
+        delays = {
+            s: d for (inst, s), d in self._delays.items() if inst == rec.instrument
+        }
+        problems, fits = _judge_one(rec, self._tol, delays)
+        if rec.shot.measures_delay:
+            for source in _sources(rec.shot):
+                if source in fits:
+                    self._delays[(rec.instrument, source)] = fits[source].delay
+                else:
+                    problems.append(f"the delay{_from(source)} could not be measured")
         found = [f"{title}: {p}" for p in problems]
         for source, fit in fits.items():
             j, first = self._paths.setdefault((rec.instrument, source), (i, fit))
@@ -92,6 +108,21 @@ class Judge:
                     f"by {diff:.3g} of it"
                 )
         return found
+
+
+def delay_shot(source: str = "", tolerance: Tolerance = DEFAULT_TOLERANCE) -> Shot:
+    """A shot that measures the delay of the path from ``source``: one pulse alone,
+    and a window that sees it whole however late it comes."""
+    start_ns = 100.0
+    return Shot(
+        # at half scale, where the paths to a monitor do not yet compress a pulse
+        pulses=(Pulse(start_ns, gain=0.5, source=source),),
+        windows=(
+            Window("delay", 0.0, start_ns + PULSE_NS + tolerance.delay_max_ns + 200.0),
+        ),
+        label=f"delay{_from(source)}",
+        measures_delay=True,
+    )
 
 
 def judge(records: list[Record], tolerance: Tolerance = DEFAULT_TOLERANCE) -> list[str]:
@@ -168,7 +199,11 @@ def _sent(shot: Shot, p: Pulse, period_ns: float) -> np.ndarray:
     return p.gain * np.exp(1j * np.radians(phase)) * p.shape.samples(period_ns)
 
 
-def _judge_one(rec: Record, tol: Tolerance) -> tuple[list[str], dict[str, _Fit]]:
+def _judge_one(
+    rec: Record, tol: Tolerance, delays: Mapping[str, int]
+) -> tuple[list[str], dict[str, _Fit]]:
+    """The shot's problems and its fit along each path: a shot that measures delays
+    finds them, any other is held to the ``delays`` measured before, by source."""
     windows, problems = _windows(rec)
     fits: dict[str, _Fit] = {}
     if not windows:
@@ -177,7 +212,13 @@ def _judge_one(rec: Record, tol: Tolerance) -> tuple[list[str], dict[str, _Fit]]
     end = max(a + len(c) for _, a, c in windows) + max_delay
     for source in _sources(rec.shot):
         expected = _expected(rec.shot, source, rec.period_ns, end)
-        fit = _fit(expected, windows, max_delay)
+        if rec.shot.measures_delay:
+            fit = _fit(expected, windows, max_delay)
+        elif source in delays:
+            fit = _gain_at(expected, windows, delays[source])
+        else:
+            problems.append(f"no delay was measured{_from(source)} to hold it to")
+            continue
         if fit is None:
             continue
         seen = _find_pulses(rec, source, windows, fit.delay, tol)
@@ -398,17 +439,27 @@ def _fit(expected: np.ndarray, windows: list[_Window], max_delay: int) -> _Fit |
     return _Fit(delay=delay, gain=complex(num[delay] / den[delay]))
 
 
+def _gain_at(expected: np.ndarray, windows: list[_Window], delay: int) -> _Fit | None:
+    """The gain that best maps the sent signal, ``delay`` samples late, onto every
+    window at once."""
+    padded = np.concatenate([np.zeros(delay, dtype=complex), expected])
+    num = 0j
+    den = 0.0
+    for _, a, c in windows:
+        segment = padded[a : a + len(c)]
+        num += np.vdot(segment, c)
+        den += float(np.vdot(segment, segment).real)
+    if den == 0.0:
+        return None
+    return _Fit(delay=delay, gain=complex(num / den))
+
+
 def _judge_path(
     i: int, j: int, here: _Fit, there: _Fit, *, source: str, tol: Tolerance
 ) -> list[str]:
     """Shot i against shot j, which came along the same path first."""
     path = f"along the same path{_from(source)}"
     problems = []
-    if abs(here.delay - there.delay) > tol.position_samples:
-        problems.append(
-            f"shot {i} came back {here.delay - there.delay} samples later "
-            f"than shot {j} {path}"
-        )
     ratio = here.gain / there.gain
     if abs(abs(ratio) - 1.0) > tol.gain_rel:
         problems.append(
@@ -440,5 +491,6 @@ __all__ = [
     "Judge",
     "Record",
     "Tolerance",
+    "delay_shot",
     "judge",
 ]

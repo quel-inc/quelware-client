@@ -3,7 +3,13 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from quelware_tools.diagnostics.correctness import Judge, Record, Tolerance, judge
+from quelware_tools.diagnostics.correctness import (
+    Judge,
+    Record,
+    Tolerance,
+    delay_shot,
+    judge,
+)
 from quelware_tools.diagnostics.shots import Pulse, Shape, Shot, Window, to_samples
 
 _PERIOD_NS = 0.8
@@ -57,14 +63,31 @@ def _record(shot: Shot = _SHOT, **kwargs) -> Record:
     return Record("u:loopback", _PERIOD_NS, shot, _loopback(shot, **kwargs))
 
 
+def _delay(**kwargs) -> Record:
+    """The shot that measures the loopback's delay, along the path ``kwargs`` set."""
+    return _record(delay_shot(), **kwargs)
+
+
 def _one_line(found: list[str]) -> str:
     assert len(found) == 1, found
     return found[0]
 
 
 def test_a_faithful_loopback_passes_whatever_its_delay_and_gain():
-    assert judge([_record(delay_ns=0.0, gain=1.0)], _TOLERANCE) == []
-    assert judge([_record(delay_ns=640.0, gain=0.01j)], _TOLERANCE) == []
+    assert (
+        judge(
+            [_delay(delay_ns=0.0, gain=1.0), _record(delay_ns=0.0, gain=1.0)],
+            _TOLERANCE,
+        )
+        == []
+    )
+    assert (
+        judge(
+            [_delay(delay_ns=640.0, gain=0.01j), _record(delay_ns=640.0, gain=0.01j)],
+            _TOLERANCE,
+        )
+        == []
+    )
 
 
 def test_a_pulse_that_comes_back_weaker_is_named():
@@ -72,7 +95,7 @@ def test_a_pulse_that_comes_back_weaker_is_named():
     rec.captures["b"] *= 0.9
 
     assert "pulse 2 at 4000 ns in window b came back at 0.9 of the gain sent" in (
-        _one_line(judge([rec], _TOLERANCE))
+        _one_line(judge([_delay(), rec], _TOLERANCE))
     )
 
 
@@ -81,7 +104,7 @@ def test_a_pulse_that_comes_back_turned_is_named():
     rec.captures["b"] *= np.exp(1j * np.radians(10.0))
 
     assert "pulse 2 at 4000 ns in window b came back turned 10.0 deg" in _one_line(
-        judge([rec], _TOLERANCE)
+        judge([_delay(), rec], _TOLERANCE)
     )
 
 
@@ -90,7 +113,7 @@ def test_a_pulse_that_comes_back_elsewhere_is_named():
     rec.captures["b"] = np.roll(rec.captures["b"], 5)
 
     assert "pulse 2 at 4000 ns in window b came back 5 samples off" in "\n".join(
-        judge([rec], _TOLERANCE)
+        judge([_delay(), rec], _TOLERANCE)
     )
 
 
@@ -99,7 +122,7 @@ def test_a_pulse_that_does_not_come_back_is_named():
     rec.captures["b"][:] = 0.0
 
     assert "pulse 2 at 4000 ns in window b came back at 0 of the gain sent" in (
-        "\n".join(judge([rec], _TOLERANCE))
+        "\n".join(judge([_delay(), rec], _TOLERANCE))
     )
 
 
@@ -108,7 +131,7 @@ def test_what_an_earlier_output_left_where_nothing_was_sent_is_found():
     rec.captures["a"][100:300] += 0.2
 
     assert "window a holds 0.286 of full scale at 80 ns into it" in _one_line(
-        judge([rec], _TOLERANCE)
+        judge([_delay(), rec], _TOLERANCE)
     )
 
 
@@ -123,7 +146,7 @@ def test_noise_where_nothing_was_sent_is_allowed_as_one_iteration_leaves_it(
     rec = _record(shot, gain=1.0)
     rec.captures["a"][2800] += 0.08
 
-    assert (judge([rec], tolerance) == []) is allowed
+    assert (judge([_delay(gain=1.0), rec], tolerance) == []) is allowed
 
 
 def test_a_window_of_another_length_than_declared_is_named():
@@ -131,28 +154,56 @@ def test_a_window_of_another_length_than_declared_is_named():
     rec.captures["a"] = rec.captures["a"][:-8]
 
     assert "window a returned 2992 samples, not 3000" in "\n".join(
-        judge([rec], _TOLERANCE)
+        judge([_delay(), rec], _TOLERANCE)
     )
 
 
-def test_shots_on_one_loopback_share_its_delay():
+def test_a_shot_is_held_to_the_delay_measured_before():
     later = replace(
         _SHOT,
         pulses=tuple(replace(p, start_ns=p.start_ns + 64.0) for p in _SHOT.pulses),
     )
 
-    assert judge([_record(), _record(later)], _TOLERANCE) == []
-    assert "shot 1 came back 8 samples later than shot 0" in _one_line(
-        judge([_record(), _record(later, delay_ns=320.0 + 6.4)], _TOLERANCE)
+    assert judge([_delay(), _record(), _record(later)], _TOLERANCE) == []
+    assert "pulse 0 at 164 ns in window a came back 8 samples off" in "\n".join(
+        judge([_delay(), _record(), _record(later, delay_ns=320.0 + 6.4)], _TOLERANCE)
     )
+
+
+def test_a_shot_along_a_path_whose_delay_was_not_measured_is_named():
+    assert "no delay was measured to hold it to" in _one_line(
+        judge([_record()], _TOLERANCE)
+    )
+
+
+def test_a_delay_shot_whose_pulse_does_not_come_back_is_named():
+    silent = _delay()
+    silent.captures["delay"][:] = 0.0
+
+    found = "\n".join(judge([silent], _TOLERANCE))
+
+    assert "nothing came back" in found
+    assert "the delay could not be measured" in found
+
+
+def test_a_window_inside_a_pulse_is_judged_at_the_delay_measured_before():
+    # the window sees the flat middle of the pulse, which would fit any delay alike
+    inside = Shot(
+        pulses=(Pulse(0.0, shape=Shape("rect", 2000.0)),),
+        windows=(Window("a", 800.0, 160.0),),
+    )
+
+    assert judge([_delay(), _record(inside), _record()], _TOLERANCE) == []
 
 
 def test_a_phase_offset_that_is_not_applied_turns_the_loopback_between_shots():
     turned = replace(_SHOT, phase_offset_deg=90.0)
 
-    assert judge([_record(), _record(turned)], _TOLERANCE) == []
-    assert "shot 1 came back turned -90.0 deg from shot 0" in _one_line(
-        judge([_record(), _record(turned, apply_phase_offset=False)], _TOLERANCE)
+    assert judge([_delay(), _record(), _record(turned)], _TOLERANCE) == []
+    assert "shot 2 came back turned -90.0 deg from shot 0" in _one_line(
+        judge(
+            [_delay(), _record(), _record(turned, apply_phase_offset=False)], _TOLERANCE
+        )
     )
 
 
@@ -160,9 +211,9 @@ def test_the_same_shot_fired_again_returns_the_same_capture():
     again = _record()
     again.captures["a"] = again.captures["a"] * (1 + 1e-3)
 
-    assert judge([_record(), _record()], _TOLERANCE) == []
-    assert "shot 1 differs from shot 0, the same shot, by 0.000" in "\n".join(
-        judge([_record(), again], _TOLERANCE)
+    assert judge([_delay(), _record(), _record()], _TOLERANCE) == []
+    assert "shot 2 differs from shot 1, the same shot, by 0.000" in "\n".join(
+        judge([_delay(), _record(), again], _TOLERANCE)
     )
 
 
@@ -171,6 +222,7 @@ def test_a_judge_of_many_shots_need_not_keep_their_captures():
     again.captures["a"] = again.captures["a"] * (1 + 1e-3)
     judge_ = Judge(_TOLERANCE, keep_captures=False)
 
+    assert judge_.check(_delay()) == []
     assert judge_.check(_record()) == []
     assert judge_.check(again) == []
 
@@ -180,9 +232,12 @@ def test_every_iteration_of_a_raw_capture_is_returned():
     captures = {n: np.stack([c] * 3) for n, c in _loopback(raw).items()}
     short = {n: c[:2] for n, c in captures.items()}
 
-    assert judge([Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE) == []
+    assert (
+        judge([_delay(), Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
+        == []
+    )
     assert "window a returned 2 iterations, not 3" in "\n".join(
-        judge([Record("u:loopback", _PERIOD_NS, raw, short)], _TOLERANCE)
+        judge([_delay(), Record("u:loopback", _PERIOD_NS, raw, short)], _TOLERANCE)
     )
 
 
@@ -196,7 +251,7 @@ def test_an_iteration_of_a_raw_capture_that_came_back_empty_is_named():
     captures["a"][3] = 0
 
     found = "\n".join(
-        judge([Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
+        judge([_delay(), Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
     )
 
     assert (
@@ -218,7 +273,7 @@ def test_an_iteration_of_a_raw_capture_that_holds_another_shot_is_named():
     captures["b"][1] = _loopback(other)["b"]
 
     found = "\n".join(
-        judge([Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
+        judge([_delay(), Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
     )
 
     assert "window b came back turned as far as 30.0 deg from its usual phase" in found
@@ -232,10 +287,12 @@ def test_noise_in_one_iteration_of_a_raw_capture_is_judged_as_one_iterations():
     captures["a"][2, 2000] += 0.7 * 0.08
 
     record = Record("u:loopback", _PERIOD_NS, raw, captures)
-    assert judge([record], loose) == []
+    assert judge([_delay(), record], loose) == []
 
     captures["a"][2, 2000] += 0.7 * 0.1
-    found = "\n".join(judge([Record("u:loopback", _PERIOD_NS, raw, captures)], loose))
+    found = "\n".join(
+        judge([_delay(), Record("u:loopback", _PERIOD_NS, raw, captures)], loose)
+    )
     assert (
         "window a holds as much as 0.18 of full scale where nothing was sent" in found
     )
@@ -245,7 +302,7 @@ def test_noise_in_one_iteration_of_a_raw_capture_is_judged_as_one_iterations():
 def test_a_pulse_sent_after_the_last_window_is_left_out():
     late = replace(_SHOT, pulses=(*_SHOT.pulses, Pulse(9000.0)))
 
-    assert judge([_record(late)], _TOLERANCE) == []
+    assert judge([_delay(), _record(late)], _TOLERANCE) == []
 
 
 def test_a_pulse_too_short_to_measure_is_not_judged_by_itself():
@@ -257,7 +314,7 @@ def test_a_pulse_too_short_to_measure_is_not_judged_by_itself():
     at = to_samples(1500.0 + 320.0, _PERIOD_NS)
     rec.captures["a"][at : at + 16] *= 0.5
 
-    assert judge([rec], _TOLERANCE) == []
+    assert judge([_delay(), rec], _TOLERANCE) == []
 
 
 def test_a_pulse_with_no_silence_around_it_is_judged_on_all_but_its_position():
@@ -275,7 +332,7 @@ def test_a_pulse_with_no_silence_around_it_is_judged_on_all_but_its_position():
     middle = to_samples(300.0 + 320.0, _PERIOD_NS)
     rec.captures["a"][middle : middle + 250] *= np.exp(1j * np.radians(10.0))
 
-    found = "\n".join(judge([rec], _TOLERANCE))
+    found = "\n".join(judge([_delay(), rec], _TOLERANCE))
     assert "pulse 1 at 300 ns in window a came back turned 10.0 deg" in found
     assert "samples off" not in found
 
@@ -302,10 +359,17 @@ def _monitor_capture(shot: Shot) -> dict[str, np.ndarray]:
     return total
 
 
+def _monitor_delays() -> list[Record]:
+    return [
+        Record("u:monitor", _PERIOD_NS, shot, _monitor_capture(shot))
+        for shot in (delay_shot(source) for source in _PATHS)
+    ]
+
+
 def test_each_port_is_judged_along_its_own_path():
     rec = Record("u:monitor", _PERIOD_NS, _FROM_TWO, _monitor_capture(_FROM_TWO))
 
-    assert judge([rec], _TOLERANCE) == []
+    assert judge([*_monitor_delays(), rec], _TOLERANCE) == []
 
 
 def test_a_pulse_from_one_port_that_comes_back_weaker_is_named_with_its_port():
@@ -314,9 +378,9 @@ def test_a_pulse_from_one_port_that_comes_back_weaker_is_named_with_its_port():
     rec = Record("u:monitor", _PERIOD_NS, _FROM_TWO, captures)
 
     assert "pulse 3 from trx_p00p01 at 3400 ns in window b came back at" in (
-        "\n".join(judge([rec], _TOLERANCE))
+        "\n".join(judge([*_monitor_delays(), rec], _TOLERANCE))
     )
-    assert "tx_p02" not in "\n".join(judge([rec], _TOLERANCE))
+    assert "tx_p02" not in "\n".join(judge([*_monitor_delays(), rec], _TOLERANCE))
 
 
 @pytest.mark.parametrize("kind", ["rect", "gauss", "ramp"])
