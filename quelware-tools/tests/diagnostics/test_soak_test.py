@@ -211,7 +211,7 @@ async def test_a_run_initializes_first_only_when_asked(
     initialize: bool, first: str
 ) -> None:
     plan = draw_plan(np.random.default_rng([7, 3]), 3, _PORTS)
-    directives = build_directives(plan, _EMIT_INFOS)
+    directives = {a: [d] for a, d in build_directives(plan, _EMIT_INFOS).items()}
     recorder = _Recorder()
     aliases = [info.definition.alias for info in _EMIT_INFOS.values()]
     ids = [info.id for info in _EMIT_INFOS.values()]
@@ -277,7 +277,8 @@ def _monitor_results(plan: RunPlan, gain: complex) -> dict:
             if lo < hi:
                 turn = np.exp(1j * np.radians(wave.phase_deg))
                 capture[lo:hi] = gain * wave.gain * turn
-        waves[f"cap{i}"] = [IqWaveform(400_000, capture)]
+        count = plan.iterations if plan.raw else 1
+        waves[f"cap{i}"] = [IqWaveform(400_000, capture.copy()) for _ in range(count)]
     return {_MONITOR_INFO.id: ResultContainer(iq_waveform_result=waves)}
 
 
@@ -301,3 +302,40 @@ def test_a_monitor_capture_that_comes_back_weaker_is_a_wrong_run():
 
     assert failure is not None
     assert failure.kind == "wrong"
+
+
+def test_a_share_of_runs_return_every_iteration_within_their_own_limit():
+    profile = SoakProfile(raw_share=0.5, max_raw_capture_ns=20_000.0)
+    plans = [
+        draw_plan(np.random.default_rng([3, run]), run, _PORTS, profile, [_MONITOR])
+        for run in range(40)
+    ]
+
+    raw = [p for p in plans if p.raw]
+    assert 0 < len(raw) < len(plans)
+    for plan in raw:
+        assert plan.iterations in profile.raw_iterations
+        total_ns = sum(w.length_ns for w in plan.windows[_MONITOR])
+        assert plan.iterations * total_ns <= profile.max_raw_capture_ns
+
+
+def test_no_run_is_raw_when_none_is_asked_for():
+    profile = SoakProfile(raw_share=0.0)
+
+    assert not any(
+        draw_plan(np.random.default_rng([3, run]), run, _PORTS, profile).raw
+        for run in range(40)
+    )
+
+
+def test_an_iteration_of_a_raw_run_that_came_back_empty_is_a_wrong_run():
+    plan = replace(_checked_plan(9), raw=True, iterations=4)
+    results = _monitor_results(plan, 0.3j)
+    for waves in results[_MONITOR_INFO.id].iq_waveform_result.values():
+        waves[2].iq_array[:] = 0
+
+    failure = _judge_monitors(Judge(), plan, {UnitLabel("u"): _MONITOR_INFO}, results)
+
+    assert failure is not None
+    assert failure.kind == "wrong"
+    assert "in 1 of 4 iterations (2)" in failure.detail

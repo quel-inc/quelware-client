@@ -36,7 +36,7 @@ import logging
 import math
 import time
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -53,6 +53,7 @@ from quelware_client.core.instrument_driver import (
 )
 from quelware_core.entities.directives import (
     CaptureMode,
+    FixedTimelineDirective,
     SetCaptureMode,
     SetFixedTimeline,
     SetFrequency,
@@ -106,6 +107,13 @@ class SoakProfile:
     max_window_ticks: int = 2000
     # a port's windows summed over the iterations, well within its capture pool
     max_total_capture_ns: float = 10e6
+    # the share of runs that return every iteration rather than their mean, and
+    # the iterations they repeat, few enough to leave their windows some length
+    raw_share: float = 0.25
+    raw_iterations: tuple[int, ...] = (1, 10, 100)
+    # a raw run's windows summed over the iterations; returning much more holds up
+    # the unit's other calls while it is sent
+    max_raw_capture_ns: float = 40_000.0
 
 
 DEFAULT_PROFILE = SoakProfile()
@@ -136,6 +144,8 @@ class RunPlan:
     windows: dict[str, tuple[Window, ...]] = field(default_factory=dict)
     # in a monitor check, the one port of each unit whose waves are measured
     shown_ports: tuple[str, ...] = ()
+    # whether the windows return every iteration rather than their mean
+    raw: bool = False
 
 
 @dataclass(frozen=True)
@@ -222,11 +232,16 @@ def draw_plan(
     length_ns = profile.span_ticks * TICK_NS
     iteration_blank_ns = float(rng.choice(profile.iteration_blank_ns))
     iterations = int(rng.choice(profile.iterations))
+    shown_port = str(rng.choice(list(port_ids)))
+    raw = profile.raw_share > 0 and rng.random() < profile.raw_share
+    if raw:
+        iterations = int(rng.choice(profile.raw_iterations))
+    max_capture_ns = profile.max_raw_capture_ns if raw else profile.max_total_capture_ns
     for port, train in windows.items():
         kept: list[Window] = []
         for window in train:
             total_ns = sum(w.length_ns for w in kept) + window.length_ns
-            if iterations * total_ns > profile.max_total_capture_ns:
+            if iterations * total_ns > max_capture_ns:
                 break
             kept.append(window)
         windows[port] = tuple(kept)
@@ -235,9 +250,10 @@ def draw_plan(
         length_ns=length_ns,
         iterations=iterations,
         iteration_blank_ns=iteration_blank_ns,
-        shown_port=str(rng.choice(list(port_ids))),
+        shown_port=shown_port,
         waves=waves,
         windows=windows,
+        raw=raw,
     )
 
 
@@ -331,6 +347,7 @@ def monitor_shot(plan: RunPlan, shown_port: str, monitor: str) -> shots.Shot:
             for i, w in enumerate(plan.windows.get(monitor, ()))
         ),
         iterations=plan.iterations,
+        raw=plan.raw,
         label=f"run {plan.run}, {_monitor.port_name(ResourceId(shown_port))} shown",
     )
 
@@ -418,7 +435,7 @@ async def _judge_run(
     unit_aliases: dict[UnitLabel, list[str]],
     ids: list[ResourceId],
     plan: RunPlan,
-    directives: dict[str, SetFixedTimeline],
+    directives: Mapping[str, Sequence[FixedTimelineDirective]],
     initialize: bool = False,
 ) -> tuple[RunFailure | None, dict[ResourceId, ResultContainer]]:
     """Run one plan on every unit at once, configuring the units in parallel; no
@@ -453,11 +470,12 @@ async def _judge_run(
         return RunFailure(plan.run, *_classify(e)), {}
     finally:
         logger.info(
-            "run %d took %s (%d waves, iterations %d)",
+            "run %d took %s (%d waves, iterations %d%s)",
             plan.run,
             ", ".join(f"{step} {sec:.3f} s" for step, sec in laps.items()),
             sum(len(t) for t in plan.waves.values()),
             plan.iterations,
+            ", raw" if plan.raw else "",
         )
     return None, results
 
@@ -478,7 +496,14 @@ def _judge_monitors(
                 str(monitor.id),
                 monitor.config.sampling_period_fs * 1e-6,
                 monitor_shot(plan, shown, str(monitor.port_id)),
-                {name: np.asarray(waves[name][0].iq_array) for name in waves},
+                {
+                    name: (
+                        np.stack([w.iq_array for w in waves[name]])
+                        if plan.raw
+                        else np.asarray(waves[name][0].iq_array)
+                    )
+                    for name in waves
+                },
             )
         )
     if not problems:
@@ -622,12 +647,10 @@ async def run_soak_test(  # noqa: PLR0913
             }
 
             async def _set_up(port: ResourceId) -> None:
-                directives = [SetFrequency(hz=tx_hz)]
-                if str(port) in capture_ports:
-                    directives.append(
-                        SetCaptureMode(mode=CaptureMode.AVERAGED_WAVEFORM)
-                    )
-                await drivers[infos[str(port)].definition.alias].apply(directives)
+                alias = infos[str(port)].definition.alias
+                await drivers[alias].apply([SetFrequency(hz=tx_hz)])
+
+            capture_aliases = {infos[p].definition.alias for p in capture_ports}
 
             await _per_unit([*emit_ports, *monitor_ports], _set_up)
 
@@ -647,7 +670,17 @@ async def run_soak_test(  # noqa: PLR0913
                     plan = dataclasses.replace(
                         plan, shown_ports=_draw_shown(rng, emit_ports)
                     )
-                directives = build_directives(plan, infos, check=check_monitor)
+                mode = SetCaptureMode(
+                    mode=CaptureMode.RAW_WAVEFORMS
+                    if plan.raw
+                    else CaptureMode.AVERAGED_WAVEFORM
+                )
+                directives = {
+                    alias: [mode, timeline] if alias in capture_aliases else [timeline]
+                    for alias, timeline in build_directives(
+                        plan, infos, check=check_monitor
+                    ).items()
+                }
                 failure, results = await _judge_run(
                     session,
                     drivers,
