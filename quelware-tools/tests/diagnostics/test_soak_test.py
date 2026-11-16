@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import cast
 
 import numpy as np
@@ -17,14 +18,20 @@ from quelware_core.entities.instrument import (
     InstrumentRole,
 )
 from quelware_core.entities.resource import ResourceId
+from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.unit import UnitLabel
+from quelware_core.entities.waveform.sampled import IqWaveform
 
+from quelware_tools.diagnostics.correctness import Judge
 from quelware_tools.diagnostics.soak_test import (
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
     TICK_NS,
+    RunPlan,
     SoakProfile,
     _classify,
+    _draw_shown,
+    _judge_monitors,
     _judge_run,
     build_directives,
     draw_plan,
@@ -209,7 +216,7 @@ async def test_a_run_initializes_first_only_when_asked(
     aliases = [info.definition.alias for info in _EMIT_INFOS.values()]
     ids = [info.id for info in _EMIT_INFOS.values()]
 
-    failure = await _judge_run(
+    failure, _ = await _judge_run(
         cast(Session, recorder),
         dict.fromkeys(aliases, cast(FixedTimelineInstrumentDriver, recorder)),
         {UnitLabel("u"): aliases},
@@ -223,3 +230,74 @@ async def test_a_run_initializes_first_only_when_asked(
     assert recorder.calls[0] == first
     assert recorder.calls.count("initialize") == int(initialize)
     assert recorder.calls[-2:] == ["trigger", "wait"]
+
+
+_MONITOR = "u:mon"
+_MONITOR_INFO = _info(_MONITOR, "soak_mon", InstrumentRole.RECEIVER, 400_000)
+
+
+def _checked_plan(seed: int) -> RunPlan:
+    rng = np.random.default_rng([seed, 0])
+    plan = draw_plan(rng, 0, _PORTS, capture_port_ids=[_MONITOR])
+    ports = [ResourceId(p) for p in _PORTS]
+    return replace(plan, shown_ports=_draw_shown(rng, ports))
+
+
+def test_in_a_monitor_check_the_shown_port_sends_at_full_scale_the_rest_nothing():
+    plan = _checked_plan(4)
+    infos = {**_EMIT_INFOS, _MONITOR: _MONITOR_INFO}
+    directives = build_directives(plan, infos, check=True)
+
+    for port, info in _EMIT_INFOS.items():
+        level = 1.0 if port in plan.shown_ports else 0.0
+        for waveform in directives[info.definition.alias].waveform_library:
+            assert np.all(np.asarray(waveform.iq_array) == level)
+    assert len(directives["soak_mon"].capture_windows) == len(plan.windows[_MONITOR])
+
+
+def test_one_port_of_each_unit_is_shown():
+    ports = [ResourceId(p) for p in ("a:tx_p04", "a:trx_p00p01", "b:tx_p04")]
+    shown = _draw_shown(np.random.default_rng(0), ports)
+
+    assert sorted(p.split(":")[0] for p in shown) == ["a", "b"]
+
+
+def _monitor_results(plan: RunPlan, gain: complex) -> dict:
+    """What a monitor returns of the shown port's waves along a path of no delay."""
+    period_ns = _MONITOR_INFO.config.sampling_period_fs * 1e-6
+    (shown,) = plan.shown_ports
+    waves = {}
+    for i, w in enumerate(plan.windows[_MONITOR]):
+        start = round(w.start_ns / period_ns)
+        capture = np.zeros(round(w.length_ns / period_ns), dtype=complex)
+        for wave in plan.waves[shown]:
+            at = round(wave.start_ns / period_ns) - start
+            n = round(wave.length_ns / period_ns)
+            lo, hi = max(at, 0), min(at + n, len(capture))
+            if lo < hi:
+                turn = np.exp(1j * np.radians(wave.phase_deg))
+                capture[lo:hi] = gain * wave.gain * turn
+        waves[f"cap{i}"] = [IqWaveform(400_000, capture)]
+    return {_MONITOR_INFO.id: ResultContainer(iq_waveform_result=waves)}
+
+
+def test_a_monitor_capture_of_what_the_shown_port_sent_passes():
+    plan = _checked_plan(5)
+    monitors = {UnitLabel("u"): _MONITOR_INFO}
+
+    failure = _judge_monitors(Judge(), plan, monitors, _monitor_results(plan, 0.3j))
+
+    assert failure is None
+
+
+def test_a_monitor_capture_that_comes_back_weaker_is_a_wrong_run():
+    # three of the shown port's waves lie whole in a window, so they measure each other
+    plan = _checked_plan(9)
+    results = _monitor_results(plan, 0.3j)
+    for waves in results[_MONITOR_INFO.id].iq_waveform_result.values():
+        waves[0].iq_array[len(waves[0].iq_array) // 2 :] *= 0.5
+
+    failure = _judge_monitors(Judge(), plan, {UnitLabel("u"): _MONITOR_INFO}, results)
+
+    assert failure is not None
+    assert failure.kind == "wrong"

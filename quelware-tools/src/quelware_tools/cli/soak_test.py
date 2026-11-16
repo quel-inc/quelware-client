@@ -6,6 +6,11 @@ interrupted). Without ``--unit`` it runs on every unit the manager knows. A run
 refused before it starts counts as a pass; a run that fails, times out or breaks
 otherwise is a failure. Requires idle tx/trx ports. Exits non-zero if any run
 failed.
+
+With ``--check-monitor``, the units are put in monitor loopback (an admin PAT is
+needed, and every instrument on them is discarded) and back in open mode after, and
+what each unit's monitor captures of one port shown at a time is judged against what
+it sent; a run that comes back otherwise is a failure.
 """
 
 import asyncio
@@ -66,6 +71,13 @@ def _entry(  # noqa: PLR0913
         bool,
         typer.Option(help="initialize the instruments at the start of every run"),
     ] = False,
+    check_monitor: Annotated[
+        bool,
+        typer.Option(
+            help="judge on the monitor what one port at a time sends "
+            "(admin PAT; discards every instrument on the units)"
+        ),
+    ] = False,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Run the soak test on QuEL-3 units, all at once."""
@@ -92,6 +104,7 @@ def _entry(  # noqa: PLR0913
                 report_every=report_every,
                 discard_instruments=discard_instruments,
                 initialize_each_run=initialize_each_run,
+                check_monitor=check_monitor,
             )
         print(
             f"{report.runs} runs on {', '.join(report.unit_labels)}: "

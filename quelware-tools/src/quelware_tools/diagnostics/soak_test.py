@@ -16,6 +16,13 @@ long at full gain, and is ``HIDDEN_AMPLITUDE`` after it; the waves of every othe
 port are ``HIDDEN_AMPLITUDE`` throughout. A monitor in loopback would then see a
 spike per wave of the shown port.
 
+With ``check_monitor``, the units are put in monitor loopback and the windows are
+captured on each unit's monitor rather than on its trx ports. One port of each unit
+is shown in a run, at full scale throughout its waves, and every other port sends
+waves of nothing, so that its monitor receives that port's waves alone; what it
+captures is judged against them (``correctness.Judge``), and a run that comes back
+otherwise than it was sent is a failure.
+
 Every run draws from ``numpy.random.default_rng([seed, run])``, so a failed run
 is replayed by starting from it with the same seed. The instruments deployed are
 discarded before returning.
@@ -23,6 +30,7 @@ discarded before returning.
 
 import asyncio
 import contextlib
+import dataclasses
 import json
 import logging
 import math
@@ -61,9 +69,10 @@ from quelware_core.entities.resource import (
     ResourceId,
     extract_unit_label,
 )
+from quelware_core.entities.result import ResultContainer
 from quelware_core.entities.unit import UnitLabel
 
-from . import _monitor
+from . import _monitor, correctness, shots
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +134,8 @@ class RunPlan:
     shown_port: str
     waves: dict[str, tuple[Wave, ...]]
     windows: dict[str, tuple[Window, ...]] = field(default_factory=dict)
+    # in a monitor check, the one port of each unit whose waves are measured
+    shown_ports: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -132,7 +143,8 @@ class RunFailure:
     run: int
     # "refused" before it started; "run" when an instrument failed; "timeout";
     # "unavailable" when a unit could not be reached, the run aborted everywhere;
-    # "connection" when the call was lost on the way; "error" for anything else
+    # "connection" when the call was lost on the way; "wrong" when a monitor
+    # captured otherwise than was sent; "error" for anything else
     kind: str
     detail: str
 
@@ -229,7 +241,11 @@ def draw_plan(
     )
 
 
-def _wave_samples(length_samples: int, marker_samples: int, shown: bool) -> np.ndarray:
+def _wave_samples(
+    length_samples: int, marker_samples: int, shown: bool, check: bool = False
+) -> np.ndarray:
+    if check:
+        return np.full(length_samples, 1.0 if shown else 0.0, dtype=complex)
     samples = np.full(length_samples, HIDDEN_AMPLITUDE, dtype=complex)
     if shown:
         samples[:marker_samples] = 1.0
@@ -239,8 +255,12 @@ def _wave_samples(length_samples: int, marker_samples: int, shown: bool) -> np.n
 def build_directives(
     plan: RunPlan,
     emit_infos: dict[str, InstrumentInfo],
+    *,
+    check: bool = False,
 ) -> dict[str, SetFixedTimeline]:
-    """One timeline per instrument alias, all sharing the run's length."""
+    """One timeline per instrument alias, all sharing the run's length. With
+    ``check``, the ports in ``plan.shown_ports`` send their waves at full scale and
+    every other port sends waves of nothing."""
     first = next(iter(emit_infos.values()))
     seq = Sequencer(
         default_sampling_period_ns=first.config.sampling_period_fs / 1e6,
@@ -258,12 +278,13 @@ def build_directives(
         alias = info.definition.alias
         period_ns = info.config.sampling_period_fs / 1e6
         marker_samples = round(MARKER_TICKS * TICK_NS / period_ns)
+        shown = port in plan.shown_ports if check else port == plan.shown_port
         for wave in train:
             length_samples = round(wave.length_ns / period_ns)
             name = f"{alias}_{length_samples}"
             seq.register_waveform(
                 name,
-                _wave_samples(length_samples, marker_samples, port == plan.shown_port),
+                _wave_samples(length_samples, marker_samples, shown, check),
                 sampling_period_ns=period_ns,
             )
             seq.add_event(
@@ -290,6 +311,28 @@ def build_directives(
 
 def _is_capture_port(port: ResourceId | str) -> bool:
     return _monitor.port_name(ResourceId(str(port))).startswith("trx")
+
+
+def monitor_shot(plan: RunPlan, shown_port: str, monitor: str) -> shots.Shot:
+    """What the monitor of the shown port's unit was sent in a monitor check."""
+    return shots.Shot(
+        pulses=tuple(
+            shots.Pulse(
+                w.start_ns,
+                gain=w.gain,
+                phase_deg=w.phase_deg,
+                shape=shots.Shape("rect", w.length_ns),
+                source=shown_port,
+            )
+            for w in plan.waves[shown_port]
+        ),
+        windows=tuple(
+            shots.Window(f"cap{i}", w.start_ns, w.length_ns)
+            for i, w in enumerate(plan.windows.get(monitor, ()))
+        ),
+        iterations=plan.iterations,
+        label=f"run {plan.run}, {_monitor.port_name(ResourceId(shown_port))} shown",
+    )
 
 
 @contextlib.asynccontextmanager
@@ -325,8 +368,19 @@ async def _per_unit(
     await asyncio.gather(*(_on_unit(rids) for rids in by_unit.values()))
 
 
+def _role(port: ResourceId, check: bool) -> InstrumentRole:
+    if str(port).endswith(_monitor.MON_PORT_SUFFIX):
+        return InstrumentRole.RECEIVER
+    if _is_capture_port(port) and not check:
+        return InstrumentRole.TRANSCEIVER
+    return InstrumentRole.TRANSMITTER
+
+
 async def _deploy(
-    client: QuelwareClient, emit_ports: Sequence[ResourceId], tx_hz: float
+    client: QuelwareClient,
+    emit_ports: Sequence[ResourceId],
+    tx_hz: float,
+    check: bool = False,
 ) -> dict[str, InstrumentInfo]:
     deployed: dict[str, InstrumentInfo] = {}
     async with _leased_session(client, emit_ports) as (session, _):
@@ -335,11 +389,7 @@ async def _deploy(
             definition = InstrumentDefinition(
                 alias=f"soak_{_monitor.port_name(port)}",
                 mode=InstrumentMode.FIXED_TIMELINE,
-                role=(
-                    InstrumentRole.TRANSCEIVER
-                    if _is_capture_port(port)
-                    else InstrumentRole.TRANSMITTER
-                ),
+                role=_role(port, check),
                 profile=FixedTimelineProfile(
                     tx_hz - _PROFILE_HALF_HZ, tx_hz + _PROFILE_HALF_HZ
                 ),
@@ -370,10 +420,10 @@ async def _judge_run(
     plan: RunPlan,
     directives: dict[str, SetFixedTimeline],
     initialize: bool = False,
-) -> RunFailure | None:
-    """Run one plan on every unit at once, configuring the units in parallel;
-    None when it completed, a refusal or a failure otherwise. With
-    ``initialize``, the instruments are initialized first."""
+) -> tuple[RunFailure | None, dict[ResourceId, ResultContainer]]:
+    """Run one plan on every unit at once, configuring the units in parallel; no
+    failure and the results when it completed, a refusal or a failure otherwise.
+    With ``initialize``, the instruments are initialized first."""
     period_ns = plan.length_ns + plan.iteration_blank_ns
     timeout_sec = plan.iterations * period_ns * 1e-9 + _WAIT_MARGIN_SEC
     laps: dict[str, float] = {}
@@ -397,10 +447,10 @@ async def _judge_run(
         _lap("configure")
         await session.trigger(ids)
         _lap("trigger")
-        await session.wait_for_results(ids, timeout_sec=timeout_sec)
+        results = await session.wait_for_results(ids, timeout_sec=timeout_sec)
         _lap("wait")
     except Exception as e:
-        return RunFailure(plan.run, *_classify(e))
+        return RunFailure(plan.run, *_classify(e)), {}
     finally:
         logger.info(
             "run %d took %s (%d waves, iterations %d)",
@@ -409,7 +459,32 @@ async def _judge_run(
             sum(len(t) for t in plan.waves.values()),
             plan.iterations,
         )
-    return None
+    return None, results
+
+
+def _judge_monitors(
+    judge: correctness.Judge,
+    plan: RunPlan,
+    monitors: dict[UnitLabel, InstrumentInfo],
+    results: dict[ResourceId, ResultContainer],
+) -> RunFailure | None:
+    """A failure when a monitor captured otherwise than its unit's shown port sent."""
+    problems: list[str] = []
+    for shown in plan.shown_ports:
+        monitor = monitors[extract_unit_label(ResourceId(shown))]
+        waves = results[monitor.id].iq_waveform_result
+        problems += judge.check(
+            correctness.Record(
+                str(monitor.id),
+                monitor.config.sampling_period_fs * 1e-6,
+                monitor_shot(plan, shown, str(monitor.port_id)),
+                {name: np.asarray(waves[name][0].iq_array) for name in waves},
+            )
+        )
+    if not problems:
+        return None
+    more = f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""
+    return RunFailure(plan.run, "wrong", "; ".join(problems[:3]) + more)
 
 
 def _classify(e: Exception) -> tuple[str, str]:
@@ -478,6 +553,8 @@ async def run_soak_test(  # noqa: PLR0913
     report_every: int = 100,
     discard_instruments: bool = False,
     initialize_each_run: bool = False,
+    check_monitor: bool = False,
+    tolerance: correctness.Tolerance = correctness.DEFAULT_TOLERANCE,
 ) -> SoakReport:
     """Run the soak test on the units until ``runs`` or ``duration_sec`` is spent.
 
@@ -487,13 +564,24 @@ async def run_soak_test(  # noqa: PLR0913
     ports must be idle, unless ``discard_instruments`` is set. With
     ``initialize_each_run``, every run initializes the instruments before it
     configures them, as a client that starts each run afresh does.
+
+    With ``check_monitor``, every instrument on the units is discarded and the
+    units are put in monitor loopback, which needs an admin PAT, and put back in
+    open mode after; each run's monitor captures are judged within ``tolerance``.
     """
     units = list(unit_labels) if unit_labels else await _find_units(client)
     report = SoakReport([str(u) for u in units])
     emit_ports: list[ResourceId] = []
+    monitor_ports: list[ResourceId] = []
+    judge = correctness.Judge(tolerance, keep_captures=False)
     started_at = time.monotonic()
     try:
-        if discard_instruments:
+        if check_monitor:
+            for unit in units:
+                await _monitor.discard_unit_instruments(client, unit)
+                await _monitor.set_monitor_loopback(client, unit)
+                monitor_ports.append(await _monitor.monitor_port(client, unit))
+        elif discard_instruments:
             ports = [p for unit in units for p in await _monitor.port_ids(client, unit)]
             logger.info(
                 "discarding the instruments on %d ports of %d units",
@@ -503,8 +591,15 @@ async def run_soak_test(  # noqa: PLR0913
             await _discard(client, ports)
         for unit in units:
             emit_ports += sorted(await _monitor.emit_ports(client, unit), key=str)
-        emit_infos = await _deploy(client, emit_ports, tx_hz)
-        capture_ports = [p for p in emit_infos if _is_capture_port(p)]
+        emit_infos = await _deploy(client, emit_ports, tx_hz, check_monitor)
+        monitor_infos = await _deploy(client, monitor_ports, tx_hz, check_monitor)
+        monitors = {extract_unit_label(i.id): i for i in monitor_infos.values()}
+        infos = emit_infos | monitor_infos
+        capture_ports = (
+            list(monitor_infos)
+            if check_monitor
+            else [p for p in emit_infos if _is_capture_port(p)]
+        )
         logger.info(
             "soak test on %d units, %d emit ports, %d of them capturing",
             len(units),
@@ -512,9 +607,9 @@ async def run_soak_test(  # noqa: PLR0913
             len(capture_ports),
         )
 
-        ids = [info.id for info in emit_infos.values()]
+        ids = [info.id for info in infos.values()]
         unit_aliases: dict[UnitLabel, list[str]] = {}
-        for info in emit_infos.values():
+        for info in infos.values():
             unit_aliases.setdefault(extract_unit_label(info.id), []).append(
                 info.definition.alias
             )
@@ -523,7 +618,7 @@ async def run_soak_test(  # noqa: PLR0913
                 info.definition.alias: create_instrument_driver_fixed_timeline(
                     session, info
                 )
-                for info in emit_infos.values()
+                for info in infos.values()
             }
 
             async def _set_up(port: ResourceId) -> None:
@@ -532,9 +627,9 @@ async def run_soak_test(  # noqa: PLR0913
                     directives.append(
                         SetCaptureMode(mode=CaptureMode.AVERAGED_WAVEFORM)
                     )
-                await drivers[emit_infos[str(port)].definition.alias].apply(directives)
+                await drivers[infos[str(port)].definition.alias].apply(directives)
 
-            await _per_unit(emit_ports, _set_up)
+            await _per_unit([*emit_ports, *monitor_ports], _set_up)
 
             run = start_run
             while (runs is None or report.runs < runs) and (
@@ -546,15 +641,14 @@ async def run_soak_test(  # noqa: PLR0913
                     report.failures.append(failure)
                     logger.error("lease lost before run %d: %s", run, failure.detail)
                     break
-                plan = draw_plan(
-                    np.random.default_rng([seed, run]),
-                    run,
-                    list(emit_infos),
-                    profile,
-                    capture_ports,
-                )
-                directives = build_directives(plan, emit_infos)
-                failure = await _judge_run(
+                rng = np.random.default_rng([seed, run])
+                plan = draw_plan(rng, run, list(emit_infos), profile, capture_ports)
+                if check_monitor:
+                    plan = dataclasses.replace(
+                        plan, shown_ports=_draw_shown(rng, emit_ports)
+                    )
+                directives = build_directives(plan, infos, check=check_monitor)
+                failure, results = await _judge_run(
                     session,
                     drivers,
                     unit_aliases,
@@ -563,6 +657,8 @@ async def run_soak_test(  # noqa: PLR0913
                     directives,
                     initialize=initialize_each_run,
                 )
+                if failure is None and check_monitor:
+                    failure = _judge_monitors(judge, plan, monitors, results)
                 report.runs += 1
                 if failure is None:
                     report.completed += 1
@@ -586,11 +682,32 @@ async def run_soak_test(  # noqa: PLR0913
                 run += 1
         return report
     finally:
-        if emit_ports:
+        if check_monitor:
+            for unit in units:
+                deployed = [
+                    p
+                    for p in [*emit_ports, *monitor_ports]
+                    if extract_unit_label(p) == unit
+                ]
+                try:
+                    await _monitor.restore_monitor_open(client, unit, deployed)
+                except Exception:
+                    logger.exception("could not put %s back in open mode", unit)
+        elif emit_ports:
             try:
                 await _discard(client, emit_ports)
             except Exception:
                 logger.exception("could not discard the soak test's instruments")
+
+
+def _draw_shown(
+    rng: np.random.Generator, emit_ports: Sequence[ResourceId]
+) -> tuple[str, ...]:
+    """One port of each unit, whose waves its monitor is to receive."""
+    by_unit: dict[UnitLabel, list[str]] = {}
+    for port in emit_ports:
+        by_unit.setdefault(extract_unit_label(port), []).append(str(port))
+    return tuple(str(rng.choice(ports)) for ports in by_unit.values())
 
 
 __all__ = [
@@ -605,5 +722,6 @@ __all__ = [
     "Window",
     "build_directives",
     "draw_plan",
+    "monitor_shot",
     "run_soak_test",
 ]

@@ -27,6 +27,8 @@ start nothing themselves.
   others failed.
 - `quel-soak-test` — keep the units busy with random trains of waves on every
   port, for a number of runs or a duration, and tally the runs that fail.
+  `--check-monitor` also judges, on each unit's monitor in loopback, what one
+  port at a time sends (needs an admin PAT and idle units).
 - `quel-unit-config` — `show` / `set` a unit's configuration controls.
   `set` needs an admin PAT and an idle unit.
 - `quel-recover-past-counter` — bring a unit back to normal after a run that
