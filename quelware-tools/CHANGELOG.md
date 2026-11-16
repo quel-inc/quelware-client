@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `quelware_tools.diagnostics.correctness` (`Judge`, `judge`) judges whether what came back is what was sent, from the shots alone (`quelware_tools.diagnostics.shots`): each port's path delay and gain are estimated from all of its pulses, and every pulse is held to the gain, phase and position it was sent with; a window holds nothing else but the noise its iterations average down; shots along one path share its delay and gain, and the same shot fired again comes back the same. A pulse too short to measure is not judged by itself, and one with no silence around it is not held to its position.
+
 ## [0.1.8] - 2026-11-02
 
 ### Added
