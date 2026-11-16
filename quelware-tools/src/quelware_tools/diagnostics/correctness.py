@@ -108,6 +108,7 @@ class _Seen:
     """A pulse found in a window: where it should have come back, and at what gain."""
 
     where: str
+    window: str
     capture: np.ndarray
     at: int
     sent: np.ndarray
@@ -189,8 +190,12 @@ def _judge_one(rec: Record, tol: Tolerance) -> tuple[list[str], dict[str, _Fit]]
         fits[source] = fit
         for s in seen:
             problems += _judge_pulse(s, fit.gain, tol)
+            if rec.shot.raw:
+                problems += _judge_pulse_iterations(rec, s, tol)
     if fits:
         problems += _judge_quiet(rec, windows, fits, tol)
+        if rec.shot.raw:
+            problems += _judge_quiet_iterations(rec, windows, fits, tol)
     return problems, fits
 
 
@@ -231,7 +236,7 @@ def _find_pulses(
                 where = (
                     f"pulse {k}{_from(source)} at {p.start_ns:.0f} ns in window {name}"
                 )
-                seen.append(_Seen(where, c, at - a, sent, complex(gain), alone))
+                seen.append(_Seen(where, name, c, at - a, sent, complex(gain), alone))
                 break
     return seen
 
@@ -276,6 +281,59 @@ def _judge_pulse(s: _Seen, path_gain: complex, tol: Tolerance) -> list[str]:
     return problems
 
 
+def _iterations(off: np.ndarray) -> str:
+    """Which iterations are off, by their index from 0, the first few of them."""
+    index = np.flatnonzero(off)
+    first = ", ".join(str(i) for i in index[:5]) + (", ..." if len(index) > 5 else "")
+    return f"in {len(index)} of {len(off)} iterations ({first})"
+
+
+def _judge_pulse_iterations(rec: Record, s: _Seen, tol: Tolerance) -> list[str]:
+    """Each iteration of a raw shot's pulse, where the mean found it, against the
+    pulse's median iteration; the mean itself is judged against what was sent."""
+    edge = to_samples(EDGE_NS, rec.period_ns)
+    inner = s.sent[edge : len(s.sent) - edge]
+    got = rec.captures[s.window][:, s.at + edge : s.at + len(s.sent) - edge]
+    gains = got @ np.conj(inner) / np.vdot(inner, inner)
+    usual = _median(list(gains))
+    if usual == 0:
+        return []
+    ratio = gains / usual
+    problems = []
+    off = np.abs(np.abs(ratio) - 1.0) > tol.gain_rel
+    if off.any():
+        worst = abs(ratio[np.argmax(np.abs(np.abs(ratio) - 1.0))])
+        problems.append(
+            f"{s.where} came back at as far as {worst:.3g} of its usual gain "
+            f"{_iterations(off)}"
+        )
+    turn = np.degrees(np.angle(ratio))
+    off = np.abs(turn) > tol.phase_deg
+    if off.any():
+        worst = turn[np.argmax(np.abs(turn))]
+        problems.append(
+            f"{s.where} came back turned as far as {worst:.1f} deg from its usual "
+            f"phase {_iterations(off)}"
+        )
+    return problems
+
+
+def _quiet_mask(
+    rec: Record, start: int, length: int, fits: dict[str, _Fit]
+) -> np.ndarray:
+    """Where a window, ``start`` samples in, holds no pulse nor its edges."""
+    period = rec.period_ns
+    guard = to_samples(QUIET_GUARD_NS, period)
+    quiet = np.ones(length, dtype=bool)
+    for p in rec.shot.pulses:
+        if p.source not in fits:
+            continue
+        at = to_samples(p.start_ns, period) + fits[p.source].delay - start
+        n = to_samples(p.shape.length_ns, period)
+        quiet[max(at - guard, 0) : max(min(at + n + guard, length), 0)] = False
+    return quiet
+
+
 def _judge_quiet(
     rec: Record, windows: list[_Window], fits: dict[str, _Fit], tol: Tolerance
 ) -> list[str]:
@@ -283,24 +341,38 @@ def _judge_quiet(
     iterations average down. Full scale is what the strongest path returns of a pulse
     sent at full scale."""
     period = rec.period_ns
-    guard = to_samples(QUIET_GUARD_NS, period)
     full = max(abs(f.gain) for f in fits.values())
     allowed = tol.quiet_rel + tol.noise_rel / np.sqrt(rec.shot.iterations)
     problems = []
     for name, a, c in windows:
-        quiet = np.ones(len(c), dtype=bool)
-        for p in rec.shot.pulses:
-            if p.source not in fits:
-                continue
-            at = to_samples(p.start_ns, period) + fits[p.source].delay - a
-            n = to_samples(p.shape.length_ns, period)
-            quiet[max(at - guard, 0) : max(min(at + n + guard, len(c)), 0)] = False
-        left = np.abs(c) * quiet
+        left = np.abs(c) * _quiet_mask(rec, a, len(c), fits)
         if left.max() > allowed * full:
             at = int(np.argmax(left))
             problems.append(
                 f"window {name} holds {left.max() / full:.3g} of full scale "
                 f"at {at * period:.0f} ns into it, where nothing was sent"
+            )
+    return problems
+
+
+def _judge_quiet_iterations(
+    rec: Record, windows: list[_Window], fits: dict[str, _Fit], tol: Tolerance
+) -> list[str]:
+    """Each iteration of a raw shot holds nothing but one iteration's noise between
+    the pulses."""
+    full = max(abs(f.gain) for f in fits.values())
+    allowed = tol.quiet_rel + tol.noise_rel
+    problems = []
+    for name, a, c in windows:
+        quiet = _quiet_mask(rec, a, len(c), fits)
+        if not quiet.any():
+            continue
+        peaks = np.abs(rec.captures[name][:, quiet]).max(axis=1) / full
+        off = peaks > allowed
+        if off.any():
+            problems.append(
+                f"window {name} holds as much as {peaks.max():.3g} of full scale "
+                f"where nothing was sent {_iterations(off)}"
             )
     return problems
 

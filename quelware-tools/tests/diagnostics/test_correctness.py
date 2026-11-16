@@ -186,6 +186,62 @@ def test_every_iteration_of_a_raw_capture_is_returned():
     )
 
 
+def _raw(iterations: int = 5) -> tuple[Shot, dict[str, np.ndarray]]:
+    raw = replace(_SHOT, raw=True, iterations=iterations)
+    return raw, {n: np.stack([c] * iterations) for n, c in _loopback(raw).items()}
+
+
+def test_an_iteration_of_a_raw_capture_that_came_back_empty_is_named():
+    raw, captures = _raw()
+    captures["a"][3] = 0
+
+    found = "\n".join(
+        judge([Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
+    )
+
+    assert (
+        "pulse 0 at 100 ns in window a came back at as far as 0 of its usual " in found
+    )
+    assert "in 1 of 5 iterations (3)" in found
+    assert not [
+        line
+        for line in found.splitlines()
+        if "window b" in line and "iterations" in line
+    ]
+
+
+def test_an_iteration_of_a_raw_capture_that_holds_another_shot_is_named():
+    raw, captures = _raw()
+    other = replace(
+        raw, pulses=tuple(replace(p, phase_deg=p.phase_deg + 30.0) for p in raw.pulses)
+    )
+    captures["b"][1] = _loopback(other)["b"]
+
+    found = "\n".join(
+        judge([Record("u:loopback", _PERIOD_NS, raw, captures)], _TOLERANCE)
+    )
+
+    assert "window b came back turned as far as 30.0 deg from its usual phase" in found
+    assert "in 1 of 5 iterations (1)" in found
+
+
+def test_noise_in_one_iteration_of_a_raw_capture_is_judged_as_one_iterations():
+    raw, captures = _raw()
+    loose = replace(_TOLERANCE, noise_rel=0.1)
+    # above what the mean of five may hold, within what one iteration may
+    captures["a"][2, 2000] += 0.7 * 0.08
+
+    record = Record("u:loopback", _PERIOD_NS, raw, captures)
+    assert judge([record], loose) == []
+
+    captures["a"][2, 2000] += 0.7 * 0.1
+    found = "\n".join(judge([Record("u:loopback", _PERIOD_NS, raw, captures)], loose))
+    assert (
+        "window a holds as much as 0.18 of full scale where nothing was sent" in found
+    )
+    assert "in 1 of 5 iterations (2)" in found
+
+
 def test_a_pulse_sent_after_the_last_window_is_left_out():
     late = replace(_SHOT, pulses=(*_SHOT.pulses, Pulse(9000.0)))
 
