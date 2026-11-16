@@ -16,6 +16,7 @@ from quelware_core.pb_converter.directive import (
     directive_to_pb,
     iq_waveform_from_dense_pb,
     iq_waveform_to_dense_pb,
+    iq_waveform_to_pb,
 )
 
 
@@ -28,7 +29,8 @@ def test_set_frequency_roundtrip():
     assert recovered.hz == 5.2e9
 
 
-def test_set_fixed_timeline_roundtrip():
+@pytest.mark.parametrize("dense", [False, True])
+def test_set_fixed_timeline_roundtrip(dense):
     original = SetFixedTimeline(
         waveform_library=[
             IqWaveform(
@@ -50,8 +52,8 @@ def test_set_fixed_timeline_roundtrip():
         iterations=4,
     )
 
-    pb = directive_to_pb(original)
-    recovered = directive_from_pb(pb)
+    pb = directive_to_pb(original, use_dense_waveforms=dense)
+    recovered = directive_from_pb(pb_models.Directive.parse(bytes(pb)))
 
     assert isinstance(recovered, SetFixedTimeline)
     assert recovered.length == 200
@@ -115,3 +117,13 @@ def test_iq_waveform_dense_rejects_unknown_dtype():
 
     with pytest.raises(ValueError, match="dtype"):
         iq_waveform_from_dense_pb(pb)
+
+
+def test_dense_waveform_carries_samples_as_bytes():
+    wave = IqWaveform(sampling_period_fs=1000, iq_array=np.array([1.0 + 2.0j]))
+
+    pb = iq_waveform_to_pb(wave, use_dense=True)
+
+    assert pb.sampled is None
+    assert pb.dense is not None
+    assert pb.dense.data == struct.pack("<2d", 1.0, 2.0)

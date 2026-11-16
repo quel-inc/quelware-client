@@ -7,6 +7,7 @@ option go_package = "quelware-core-go/quelware/models/v1";
 message Waveform {
   oneof waveform {
     SampledWaveform sampled = 1;
+    DenseIqArray dense = 2;
   }
 }
 

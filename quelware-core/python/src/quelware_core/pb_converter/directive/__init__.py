@@ -41,7 +41,12 @@ def capture_mode_from_pb(pb: pb_models.CaptureMode) -> CaptureMode:
     return _CAPTURE_MODE_FROM_PB[pb]
 
 
-def iq_waveform_to_pb(entity: IqWaveform) -> pb_models.Waveform:
+def iq_waveform_to_pb(
+    entity: IqWaveform, *, use_dense: bool = False
+) -> pb_models.Waveform:
+    """Convert a waveform, as a DenseIqArray if ``use_dense``, which parses faster."""
+    if use_dense:
+        return pb_models.Waveform(dense=iq_waveform_to_dense_pb(entity))
     return pb_models.Waveform(
         sampled=pb_models.SampledWaveform(
             i_samples=iq_array_to_in_phase_list(entity.iq_array),
@@ -59,6 +64,8 @@ def iq_waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
                 sampling_period_fs=val.sampling_period_fs,
                 iq_array=iq_array_from_lists(val.i_samples, val.q_samples),
             )
+        case pb_models.DenseIqArray():
+            return iq_waveform_from_dense_pb(val)
         case _:
             raise ValueError(f"Unsupported waveform type: {type(val)}")
 
@@ -141,7 +148,10 @@ def _capture_window_from_pb(
     )
 
 
-def directive_to_pb(entity: Directive) -> pb_models.Directive:
+def directive_to_pb(
+    entity: Directive, *, use_dense_waveforms: bool = False
+) -> pb_models.Directive:
+    """Convert a directive; ``use_dense_waveforms`` sends waveforms as DenseIqArray."""
     match entity:
         case SetFrequency():
             ft_cmd = pb_models.FixedTimelineDirective(
@@ -160,7 +170,10 @@ def directive_to_pb(entity: Directive) -> pb_models.Directive:
                 )
             )
         case SetFixedTimeline():
-            library_pb = [iq_waveform_to_pb(w) for w in entity.waveform_library]
+            library_pb = [
+                iq_waveform_to_pb(w, use_dense=use_dense_waveforms)
+                for w in entity.waveform_library
+            ]
             events_pb = [_waveform_event_to_pb(e) for e in entity.events]
             capture_windows_pb = [
                 _capture_window_to_pb(e) for e in entity.capture_windows
