@@ -7,4 +7,6 @@ option go_package = "quelware-core-go/quelware/models/v1";
 message VersionInfo {
   string version = 1;
   string build_hash = 2;
+  // what this server accepts beyond the oldest form of each message, e.g. "dense_waveform"
+  repeated string features = 3;
 }
