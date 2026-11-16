@@ -5,7 +5,7 @@
 ### Added
 
 - `Waveform.dense`: a waveform as a `DenseIqArray`, which a server parses far faster than `SampledWaveform`. `iq_waveform_to_pb(use_dense=True)` and `directive_to_pb(use_dense_waveforms=True)` send it, and `iq_waveform_from_pb` reads both.
-- `VersionInfo.features`: what a server accepts beyond the oldest form of each message.
+- `VersionInfo.features`: what a server accepts beyond the oldest form of each message. `quelware_core.features.Feature` is the type of the names this package knows, and `known()` keeps those of a server's list. A server that reads `Waveform.dense` names `"dense_waveform"`.
 
 ### Changed
 
