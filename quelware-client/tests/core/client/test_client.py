@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from quelware_core.entities.resource import (
     ResourceCategory,
@@ -5,9 +7,11 @@ from quelware_core.entities.resource import (
     ResourceInfo,
 )
 from quelware_core.entities.unit import UnitLabel, UnitStatus
+from quelware_core.features import known
 
 from quelware_client.core import AgentContainer, QuelwareClient
 from quelware_client.core._session import Session
+from quelware_client.core.interfaces.worker_agent import UnitVersion
 from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.testing.instrument_agent_mock import InstrumentAgentMock
 from quelware_client.testing.resource_agent_mock import ResourceAgentMock
@@ -15,6 +19,8 @@ from quelware_client.testing.system_configuration_agent_mock import (
     SystemConfigurationAgentMock,
 )
 from quelware_client.testing.worker_agent_mock import WorkerAgentMock
+
+DENSE = known(["dense_waveform"])
 
 
 @pytest.mark.asyncio
@@ -173,3 +179,79 @@ async def test_get_unit_configuration():
 
     assert result == config
     assert result.values() == {"x.y": "a"}
+
+
+@pytest.mark.asyncio
+async def test_initialize_reads_each_units_version_and_takes_a_silent_one_as_old():
+    agent = AgentContainer()
+    agent.system_configuration = SystemConfigurationAgentMock(
+        unit_to_status={
+            UnitLabel("unit-a"): UnitStatus.ACTIVE,
+            UnitLabel("unit-b"): UnitStatus.ACTIVE,
+        }
+    )
+    new = UnitVersion(version="1.0", features=DENSE)
+    workers = {
+        UnitLabel("unit-a"): WorkerAgentMock(version=new),
+        UnitLabel("unit-b"): WorkerAgentMock(version=None),
+    }
+    client = QuelwareClient(agent=agent, worker_agent_factory=workers.__getitem__)
+
+    await client.initialize()
+
+    assert client.agent.unit_version(UnitLabel("unit-a")) == new
+    assert client.agent.unit_version(UnitLabel("unit-b")) is None
+
+
+@pytest.mark.asyncio
+async def test_the_versions_of_many_units_are_read_at_once():
+    units = [UnitLabel(f"unit-{i}") for i in range(200)]
+    agent = AgentContainer()
+    agent.system_configuration = SystemConfigurationAgentMock(
+        unit_to_status=dict.fromkeys(units, UnitStatus.ACTIVE)
+    )
+    asking: set[UnitLabel] = set()
+    everyone = asyncio.Event()
+
+    class _AnswersOnceAllAsk(WorkerAgentMock):
+        def __init__(self, ul: UnitLabel):
+            super().__init__(version=UnitVersion(version="1.0"))
+            self._ul = ul
+
+        async def get_version(self) -> UnitVersion | None:
+            asking.add(self._ul)
+            if len(asking) == len(units):
+                everyone.set()
+            # read one after another, the first unit would wait here alone
+            await asyncio.wait_for(everyone.wait(), timeout=1.0)
+            return await super().get_version()
+
+    client = QuelwareClient(agent=agent, worker_agent_factory=_AnswersOnceAllAsk)
+
+    await client.initialize()
+
+    assert all(agent.unit_version(ul) is not None for ul in units)
+
+
+@pytest.mark.asyncio
+async def test_an_instrument_agent_is_built_once_its_units_version_is_read():
+    agent = AgentContainer()
+    agent.system_configuration = SystemConfigurationAgentMock(
+        unit_to_status={UnitLabel("unit-a"): UnitStatus.ACTIVE}
+    )
+    new = UnitVersion(version="1.0", features=DENSE)
+    seen: list[UnitVersion | None] = []
+
+    def instrument_agent_factory(ul: UnitLabel) -> InstrumentAgentMock:
+        seen.append(agent.unit_version(ul))
+        return InstrumentAgentMock()
+
+    client = QuelwareClient(
+        agent=agent,
+        instrument_agent_factory=instrument_agent_factory,
+        worker_agent_factory=lambda _: WorkerAgentMock(version=new),
+    )
+
+    await client.initialize()
+
+    assert seen == [new]

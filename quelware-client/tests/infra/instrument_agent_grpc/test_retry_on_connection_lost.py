@@ -35,6 +35,7 @@ def _agent() -> tuple[InstrumentAgentGrpc, _LosesTheFirstCall]:
     agent = InstrumentAgentGrpc.__new__(InstrumentAgentGrpc)
     service = _LosesTheFirstCall()
     agent._service = service  # type: ignore[assignment]
+    agent._use_dense_waveforms = False
     return agent, service
 
 

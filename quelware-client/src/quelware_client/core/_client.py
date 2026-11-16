@@ -114,8 +114,10 @@ class QuelwareClient:
 
         Lists every unit in the system and, if a health-agent factory was
         provided, runs a health check on each and keeps only the healthy ones.
-        Resource, instrument, diagnostics, and worker agents are then created
-        for each retained unit, and `list_unit_labels()` reflects the result.
+        Worker agents are then created for each retained unit, and with them each
+        unit's version is read once; a unit that does not answer is taken as old.
+        Resource, instrument and diagnostics agents follow, so a factory can build
+        them for the version read. `list_unit_labels()` reflects the result.
 
         Called automatically by `start()`; you rarely need to call it directly.
         """
@@ -137,6 +139,10 @@ class QuelwareClient:
         else:
             healthy_labels = list(all_labels)
 
+        if self._worker_agent_factory:
+            for ul in healthy_labels:
+                self._agent.update_worker_agent(ul, self._worker_agent_factory(ul))
+            await self._read_unit_versions(healthy_labels)
         for ul in healthy_labels:
             if self._rsrc_agent_factory:
                 self._agent.update_resource_agent(ul, self._rsrc_agent_factory(ul))
@@ -144,9 +150,17 @@ class QuelwareClient:
                 self._agent.update_instrument_agent(ul, self._inst_agent_factory(ul))
             if self._diag_agent_factory:
                 self._agent.update_diagnostics_agent(ul, self._diag_agent_factory(ul))
-            if self._worker_agent_factory:
-                self._agent.update_worker_agent(ul, self._worker_agent_factory(ul))
         self._unit_labels = healthy_labels
+
+    async def _read_unit_versions(self, unit_labels: list[UnitLabel]) -> None:
+        versions = await asyncio.gather(
+            *(self._agent.worker(ul).get_version() for ul in unit_labels)
+        )
+        for ul, version in zip(unit_labels, versions, strict=True):
+            if version is None:
+                logger.info("%s did not tell its version; taking it as old", ul)
+            else:
+                self._agent.update_unit_version(ul, version)
 
     def list_unit_labels(self) -> list[UnitLabel]:
         """Return the labels of the units retained after initialization."""

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Configuring a timeline sends its waveforms as bytes (`DenseIqArray`) to a unit whose version names `dense_waveform`, and as samples to any other unit. A unit parses the bytes far faster, so it keeps answering other calls while it takes a long timeline. The client reads each unit's version once, when it starts; a unit that does not answer is taken as old.
+- `WorkerAgent.get_version` returns the unit's `UnitVersion` (its version and the features it names that the client knows), or None when the unit does not answer. `UnitVersion.supports("dense_waveform")` says whether the unit named a feature, and raises `ValueError` for a name the client does not know. `AgentContainer.unit_version` holds what the client read at start.
+- `InstrumentAgentGrpc(..., use_dense_waveforms=True)` sends waveforms as bytes. The default agents are built so for a unit whose version names `dense_waveform`: the client now reads the versions before it builds the instrument agents. `InstrumentAgent` itself is unchanged.
+
 ## [0.7.4] - 2026-11-02
 
 ### Added

@@ -11,7 +11,7 @@ from quelware_client.core.interfaces.system_configuration_agent import (
     SystemConfigurationAgent,
 )
 from quelware_client.core.interfaces.trigger_agent import TriggerAgent
-from quelware_client.core.interfaces.worker_agent import WorkerAgent
+from quelware_client.core.interfaces.worker_agent import UnitVersion, WorkerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class AgentContainer:
         self._inst: dict[UnitLabel, InstrumentAgent] = {}
         self._diag: dict[UnitLabel, DiagnosticsAgent] = {}
         self._worker: dict[UnitLabel, WorkerAgent] = {}
+        self._version: dict[UnitLabel, UnitVersion] = {}
 
     def update_health_agent(self, unit_label: UnitLabel, agent: HealthAgent | None):
         if agent is None:
@@ -79,6 +80,13 @@ class AgentContainer:
                 logger.warning(f"WorkerAgent for '{unit_label}' not found. Continue.")
         else:
             self._worker[unit_label] = agent
+
+    def update_unit_version(self, unit_label: UnitLabel, version: UnitVersion):
+        self._version[unit_label] = version
+
+    def unit_version(self, unit_label: UnitLabel) -> UnitVersion | None:
+        """The unit's version as read at start, or None when it did not answer."""
+        return self._version.get(unit_label)
 
     @property
     def session(self) -> SessionAgent:

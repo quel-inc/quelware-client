@@ -6,7 +6,10 @@ from quelware_core.entities.unit import UnitLabel, UnitStatus
 from quelware_client.core import AgentContainer, QuelwareClient
 from quelware_client.core.interfaces.pat_provider import PatProvider
 from quelware_client.infra.diagnostics_agent_grpc import DiagnosticsAgentGrpc
-from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
+from quelware_client.infra.instrument_agent_grpc import (
+    InstrumentAgentGrpc,
+    reads_dense_waveforms,
+)
 from quelware_client.infra.pat_provider_file import pat_provider_from_config
 from quelware_client.infra.resource_agent_grpc import ResourceAgentGrpc
 from quelware_client.infra.trigger_agent_grpc import TriggerAgentGrpc
@@ -67,9 +70,13 @@ def create_standalone_client(
             channel, metadata={"x-unit-label": str(ul), "x-pat": _pat}
         )
 
+    agent_container = AgentContainer()
+
     def instrument_agent_factory(ul: UnitLabel):
         return InstrumentAgentGrpc(
-            channel, metadata={"x-unit-label": str(ul), "x-pat": _pat}
+            channel,
+            metadata={"x-unit-label": str(ul), "x-pat": _pat},
+            use_dense_waveforms=reads_dense_waveforms(agent_container.unit_version(ul)),
         )
 
     def diagnostics_agent_factory(ul: UnitLabel):
@@ -80,7 +87,6 @@ def create_standalone_client(
     def worker_agent_factory(ul: UnitLabel):
         return WorkerAgentGrpc(channel, metadata={"x-unit-label": str(ul)})
 
-    agent_container = AgentContainer()
     agent_container.session = session_agent
     agent_container.system_configuration = conf_agent
     agent_container.trigger = TriggerAgentGrpc(channel)

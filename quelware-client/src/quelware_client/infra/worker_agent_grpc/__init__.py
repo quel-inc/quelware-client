@@ -1,12 +1,16 @@
+import logging
 from collections.abc import Mapping
 
 import quelware_core.pb.quelware.worker.v1 as pb_worker
+from grpclib import GRPCError
 from grpclib.client import Channel
+from grpclib.exceptions import StreamTerminatedError
 from quelware_core.entities.clock import CurrentCount, ReferenceCount
 from quelware_core.entities.session import SessionToken
+from quelware_core.features import known
 from typing_extensions import override
 
-from quelware_client.core.interfaces.worker_agent import WorkerAgent
+from quelware_client.core.interfaces.worker_agent import UnitVersion, WorkerAgent
 from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.infra._grpc_retry import call_with_retry
 from quelware_client.infra._timeouts import (
@@ -14,12 +18,30 @@ from quelware_client.infra._timeouts import (
     CONFIGURE_UNIT_TIMEOUT_SEC,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class WorkerAgentGrpc(WorkerAgent):
     def __init__(self, grpc_channel: Channel, metadata=None):
         self._channel = grpc_channel
         self._service = pb_worker.WorkerServiceStub(
             self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
+        )
+
+    @override
+    async def get_version(self) -> UnitVersion | None:
+        req = pb_worker.GetVersionRequest()
+        try:
+            resp = await call_with_retry(
+                lambda: self._service.get_version(req), idempotent=True
+            )
+        except (GRPCError, StreamTerminatedError, TimeoutError, OSError) as e:
+            logger.info("The unit did not tell its version: %r", e)
+            return None
+        if resp.info is None:
+            return UnitVersion(version="")
+        return UnitVersion(
+            version=resp.info.version, features=known(resp.info.features)
         )
 
     @override

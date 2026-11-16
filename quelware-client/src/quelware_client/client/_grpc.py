@@ -16,7 +16,10 @@ from quelware_client.core.interfaces.system_configuration_agent import (
 from quelware_client.core.interfaces.worker_agent import WorkerAgent
 from quelware_client.infra.diagnostics_agent_grpc import DiagnosticsAgentGrpc
 from quelware_client.infra.health_agent_grpc import HealthAgentGrpc
-from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
+from quelware_client.infra.instrument_agent_grpc import (
+    InstrumentAgentGrpc,
+    reads_dense_waveforms,
+)
 from quelware_client.infra.pat_provider_file import pat_provider_from_config
 from quelware_client.infra.resource_agent_grpc import (
     ResourceAgentGrpc,
@@ -49,10 +52,12 @@ def _create_default_resource_agent_factory(channel, pat: str):
     return _default_resource_agent_factory
 
 
-def _create_default_instrument_agent_factory(channel, pat: str):
+def _create_default_instrument_agent_factory(channel, pat: str, agents: AgentContainer):
     def _default_command_agent_factory(ul: UnitLabel):
         return InstrumentAgentGrpc(
-            channel, metadata={"x-unit-label": str(ul), "x-pat": pat}
+            channel,
+            metadata={"x-unit-label": str(ul), "x-pat": pat},
+            use_dense_waveforms=reads_dense_waveforms(agents.unit_version(ul)),
         )
 
     return _default_command_agent_factory
@@ -132,6 +137,8 @@ def create_quelware_client(  # noqa: PLR0913
     else:
         raise ValueError(f"Unknown type for pat: {pat}")
 
+    agent_container = AgentContainer()
+
     if health_agent_factory is None:
         health_agent_factory = _create_default_health_agent_factory(channel, _pat)
 
@@ -140,7 +147,7 @@ def create_quelware_client(  # noqa: PLR0913
 
     if instrument_agent_factory is None:
         instrument_agent_factory = _create_default_instrument_agent_factory(
-            channel, _pat
+            channel, _pat, agent_container
         )
 
     if diagnostics_agent_factory is None:
@@ -153,7 +160,6 @@ def create_quelware_client(  # noqa: PLR0913
 
     central_server_metadata = _CENTRAL_SERVER_METADATA_BASE | {"x-pat": _pat}
 
-    agent_container = AgentContainer()
     if session_agent is None:
         agent_container.session = SessionAgentGrpc(
             channel, metadata=central_server_metadata

@@ -18,16 +18,26 @@ from quelware_client.core.interfaces.instrument_agent import (
     InstrumentAgent,
     ResultContainer,
 )
+from quelware_client.core.interfaces.worker_agent import UnitVersion
 from quelware_client.infra._grpc_retry import call_with_retry
 from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC, FETCH_TIMEOUT_SEC
 
 
+def reads_dense_waveforms(version: UnitVersion | None) -> bool:
+    """Whether a unit of this version takes waveforms as bytes; None is an old one."""
+    return version is not None and version.supports("dense_waveform")
+
+
 class InstrumentAgentGrpc(InstrumentAgent):
-    def __init__(self, grpc_channel: Channel, metadata=None):
+    def __init__(
+        self, grpc_channel: Channel, metadata=None, *, use_dense_waveforms: bool = False
+    ):
+        """`use_dense_waveforms` sends waveforms as bytes, to a unit that reads them."""
         self._channel = grpc_channel
         self._service = pb_inst.InstrumentServiceStub(
             self._channel, metadata=metadata, timeout=CALL_TIMEOUT_SEC
         )
+        self._use_dense_waveforms = use_dense_waveforms
 
     @override
     async def get_status(
@@ -67,7 +77,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
     ) -> bool:
         req = pb_inst.ConfigureRequest(
             resource_id=resource_id,
-            directives=[directive_to_pb(d) for d in directives],
+            directives=[
+                directive_to_pb(d, use_dense_waveforms=self._use_dense_waveforms)
+                for d in directives
+            ],
         )
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
@@ -178,4 +191,4 @@ class InstrumentAgentGrpc(InstrumentAgent):
         return await asyncio.wait_for(_loop(), timeout=timeout_sec)
 
 
-__all__ = ["InstrumentAgentGrpc"]
+__all__ = ["InstrumentAgentGrpc", "reads_dense_waveforms"]
