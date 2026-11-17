@@ -1,5 +1,4 @@
 import betterproto2
-import numpy as np
 from typing_extensions import assert_never
 
 import quelware_core.pb.quelware.models.v1 as pb_models
@@ -21,6 +20,7 @@ from quelware_core.entities.waveform.sampled import (
     iq_array_to_in_phase_list,
     iq_array_to_quadrature_phase_list,
 )
+from quelware_core.pb_converter import _dense as dense
 
 _CAPTURE_MODE_TO_PB = {
     CaptureMode.UNSPECIFIED: pb_models.CaptureMode.UNSPECIFIED,
@@ -70,39 +70,20 @@ def iq_waveform_from_pb(pb: pb_models.Waveform) -> IqWaveform:
             raise ValueError(f"Unsupported waveform type: {type(val)}")
 
 
-_COMPLEX128_LE = np.dtype("<c16")
-
-
 def iq_waveform_to_dense_pb(entity: IqWaveform) -> pb_models.DenseIqArray:
-    arr = np.ascontiguousarray(entity.iq_array, dtype=_COMPLEX128_LE)
+    dtype, count, data = dense.pack(entity.iq_array)
     return pb_models.DenseIqArray(
-        dtype=pb_models.DenseIqArrayDtype.COMPLEX128_LE_INTERLEAVED,
-        sample_count=arr.size,
+        dtype=dtype,
+        sample_count=count,
         sampling_period_fs=entity.sampling_period_fs,
-        data=arr.tobytes(),
+        data=data,
     )
 
 
-def _complex128_le_interleaved_from_bytes(data: bytes, sample_count: int):
-    expected_len = sample_count * _COMPLEX128_LE.itemsize
-    if len(data) != expected_len:
-        raise ValueError(
-            f"DenseIqArray data length {len(data)} does not match "
-            f"sample_count {sample_count} (expected {expected_len} bytes)"
-        )
-    # copy: frombuffer alone would return a read-only view of the pb bytes
-    return np.frombuffer(data, dtype=_COMPLEX128_LE).copy()
-
-
 def iq_waveform_from_dense_pb(pb: pb_models.DenseIqArray) -> IqWaveform:
-    match pb.dtype:
-        case pb_models.DenseIqArrayDtype.COMPLEX128_LE_INTERLEAVED:
-            iq_array = _complex128_le_interleaved_from_bytes(pb.data, pb.sample_count)
-        case _:
-            raise ValueError(f"unsupported DenseIqArray dtype: {pb.dtype!r}")
     return IqWaveform(
         sampling_period_fs=pb.sampling_period_fs,
-        iq_array=iq_array,
+        iq_array=dense.unpack(pb.dtype, pb.sample_count, pb.data),
     )
 
 
