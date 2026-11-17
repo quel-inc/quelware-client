@@ -134,3 +134,25 @@ def test_dense_and_legacy_decode_bit_exact():
     from_dense = result_container_from_pb(dense).iq_waveform_result["ch"][0]
 
     assert from_dense.iq_array.tobytes() == from_legacy.iq_array.tobytes()
+
+
+def test_result_container_serializes_points_as_dense():
+    original = ResultContainer(iq_point_result={"ch": [1.0 + 2.0j, -0.5 + 0.25j]})
+
+    pb = result_container_to_pb(original)
+
+    assert pb.iq_result["ch"].dense_iq_points is not None
+    assert pb.iq_result["ch"].iq_points is None
+
+
+def test_result_container_parses_legacy_point_list():
+    legacy = pb_models.ResultContainer()
+    legacy.iq_result["ch"] = pb_models.IqResult(
+        iq_points=pb_models.IqPointList(
+            iq_points=[pb_models.IqPoint(i=1.0, q=2.0), pb_models.IqPoint(i=-3.0)]
+        )
+    )
+
+    recovered = result_container_from_pb(legacy)
+
+    assert recovered.iq_point_result["ch"] == [1.0 + 2.0j, -3.0 + 0.0j]

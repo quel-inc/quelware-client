@@ -2,15 +2,12 @@ import betterproto2
 
 import quelware_core.pb.quelware.models.v1 as pb_models
 from quelware_core.entities.result import ResultContainer
+from quelware_core.pb_converter import _dense as dense
 from quelware_core.pb_converter.directive import (
     iq_waveform_from_dense_pb,
     iq_waveform_from_pb,
     iq_waveform_to_dense_pb,
 )
-
-
-def _complex_to_pb_point(val: complex) -> pb_models.IqPoint:
-    return pb_models.IqPoint(i=val.real, q=val.imag)
 
 
 def _pb_point_to_complex(pb: pb_models.IqPoint) -> complex:
@@ -28,10 +25,9 @@ def result_container_to_pb(entity: ResultContainer) -> pb_models.ResultContainer
         )
 
     for name, points in entity.iq_point_result.items():
+        dtype, count, data = dense.pack(points)
         pb.iq_result[name] = pb_models.IqResult(
-            iq_points=pb_models.IqPointList(
-                iq_points=[_complex_to_pb_point(p) for p in points]
-            )
+            dense_iq_points=pb_models.DenseIqPoints(dtype=dtype, count=count, data=data)
         )
 
     for name, int_data in entity.integer_result.items():
@@ -55,6 +51,10 @@ def result_container_from_pb(pb: pb_models.ResultContainer) -> ResultContainer:
                     iq_waveform_from_pb(pb_models.Waveform(sampled=wf))
                     for wf in val.waveforms
                 ]
+            case pb_models.DenseIqPoints():
+                entity.iq_point_result[name] = dense.unpack(
+                    val.dtype, val.count, val.data
+                ).tolist()
             case pb_models.IqPointList():
                 entity.iq_point_result[name] = [
                     _pb_point_to_complex(pt) for pt in val.iq_points

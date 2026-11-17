@@ -10,6 +10,13 @@ message IqPointList {
   repeated quelware.models.v1.IqPoint iq_points = 1;
 }
 
+// The values of a capture, one per iteration or one in all, as packed (i, q) pairs.
+message DenseIqPoints {
+  quelware.models.v1.DenseIqArray.Dtype dtype = 1;
+  uint32 count = 2;
+  bytes data = 3;
+}
+
 message WaveformList {
   repeated quelware.models.v1.SampledWaveform waveforms = 1;
 }
@@ -23,6 +30,7 @@ message IqResult {
     WaveformList waveforms = 1;
     IqPointList iq_points = 2;
     DenseWaveformList dense_waveforms = 3;
+    DenseIqPoints dense_iq_points = 4;
   }
 }
 

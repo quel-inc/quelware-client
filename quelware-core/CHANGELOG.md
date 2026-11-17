@@ -6,8 +6,11 @@
 
 - `Waveform.dense`: a waveform as a `DenseIqArray`, which a server parses far faster than `SampledWaveform`. `iq_waveform_to_pb(use_dense=True)` and `directive_to_pb(use_dense_waveforms=True)` send it, and `iq_waveform_from_pb` reads both.
 - `VersionInfo.features`: what a server accepts beyond the oldest form of each message. `quelware_core.features.Feature` is the type of the names this package knows, and `known()` keeps those of a server's list. A server that reads `Waveform.dense` names `"dense_waveform"`.
+- `DenseIqPoints` / `IqResult.dense_iq_points`: the values of a capture (one per iteration, or one in all) as packed bytes, which are built and parsed far faster than `IqPointList`.
 
 ### Changed
+
+- `result_container_to_pb` puts the values in `IqResult.dense_iq_points`. `result_container_from_pb` reads them from there, or from `IqPointList` as before. A client older than this one cannot read the values a server built with it returns, so update clients before servers.
 
 - `InstrumentService` documents the session's execution: within a session, each unit has at most one, and other sessions on the unit have their own. `Apply` arms it, replacing the previous one, `Initialize` clears it, and `FetchResult` works only for an instrument in it after it is triggered.
 
