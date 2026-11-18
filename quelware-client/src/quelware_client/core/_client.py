@@ -171,6 +171,7 @@ class QuelwareClient:
         resource_ids: Collection[_ResourceId],
         ttl_ms: int = 4000,
         tentative_ttl_ms: int = 1000,
+        retry_window_ms: int = 20_000,
     ) -> Session:
         """Create a session that leases the given resources.
 
@@ -182,6 +183,10 @@ class QuelwareClient:
             ttl_ms: Time-to-live, in milliseconds, of the committed lease.
             tentative_ttl_ms: Time-to-live, in milliseconds, of the tentative
                 lease held while the session is being opened.
+            retry_window_ms: How long, in milliseconds, the server may keep
+                starting new attempts to open the session while they fail
+                because a resource is in use or a unit answered too late. Must
+                be more than 0. See `Session`.
 
         Returns:
             An unopened `Session` for the requested resources.
@@ -191,6 +196,7 @@ class QuelwareClient:
             agent=self._agent,
             ttl_ms=ttl_ms,
             tentative_ttl_ms=tentative_ttl_ms,
+            retry_window_ms=retry_window_ms,
             skip_lock_check=self._skip_lock_check,
         )
 

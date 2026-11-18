@@ -152,3 +152,27 @@ async def test_discard_instruments():
     await session.discard_instruments(port_id)
 
     assert rsrc_agent.discarded_ports == [port_id]
+
+
+@pytest.mark.asyncio
+async def test_open_passes_the_retry_window_to_the_server():
+    resource_ids = [ResourceId("unit-c:i1")]
+    agents = AgentContainer()
+    session_agent = SessionAgentMock()
+    open_session = AsyncMock(return_value=(SessionToken("t"), resource_ids))
+    session_agent.open_session = open_session  # type: ignore[method-assign]
+    agents.session = session_agent
+    session = Session(resource_ids, agents, retry_window_ms=7000, skip_lock_check=True)
+
+    await session.open()
+
+    kwargs = open_session.call_args.kwargs
+    assert kwargs["retry_window_ms"] == 7000
+
+
+@pytest.mark.parametrize("retry_window_ms", [0, -1])
+def test_a_retry_window_that_is_not_more_than_0_is_refused(retry_window_ms: int):
+    with pytest.raises(ValueError, match="retry_window_ms"):
+        Session(
+            [ResourceId("unit-c:i1")], AgentContainer(), retry_window_ms=retry_window_ms
+        )

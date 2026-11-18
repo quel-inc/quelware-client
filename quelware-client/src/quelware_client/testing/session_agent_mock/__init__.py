@@ -19,6 +19,7 @@ class SessionAgentMock(SessionAgent):
         resource_ids: Collection[ResourceId],
         tentative_ttl_ms: int,
         committed_ttl_ms: int,
+        retry_window_ms: int = 0,
     ) -> tuple[SessionToken, list[ResourceId]]:
         if self.open_session_result is not None:
             return self.open_session_result

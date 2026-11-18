@@ -71,6 +71,7 @@ class Session:
         token: SessionToken | None = None,
         trigger_count_proposer: TriggerCountProposer | None = None,
         skip_lock_check: bool = False,
+        retry_window_ms: int = 20_000,
     ):
         """Build a session over a set of resources.
 
@@ -89,10 +90,25 @@ class Session:
                 proposer aligned to a 32-count grid.
             skip_lock_check: When True, skip verifying that the requested
                 resources are locked after opening.
+            retry_window_ms: How long, in milliseconds, the server may keep
+                starting new attempts to open the session while they fail
+                because a resource is in use or a unit answered too late. The
+                first attempt is always made, and an attempt once started is
+                waited for until the call's timeout, the window plus 30 s, which
+                is how long opening can take. Must be more than 0; a short
+                window, such as 1, makes one attempt.
+
+        Raises:
+            ValueError: If retry_window_ms is not more than 0.
         """
+        if retry_window_ms <= 0:
+            raise ValueError(
+                f"retry_window_ms must be more than 0, not {retry_window_ms}"
+            )
         self._rsrc_ids = set(resource_ids)
         self._ttl_ms = ttl_ms
         self._tentative_ttl_ms = tentative_ttl_ms
+        self._retry_window_ms = retry_window_ms
         self._agent = agent
         self._token = token
         if trigger_count_proposer is None:
@@ -123,6 +139,7 @@ class Session:
             self._rsrc_ids,
             tentative_ttl_ms=self._tentative_ttl_ms,
             committed_ttl_ms=self._ttl_ms,
+            retry_window_ms=self._retry_window_ms,
         )
         self._token = token
         if self._check_lock:

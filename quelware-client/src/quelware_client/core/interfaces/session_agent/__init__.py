@@ -12,6 +12,7 @@ class SessionAgent(ABC):
         resource_ids: Collection[ResourceId],
         tentative_ttl_ms: int,
         committed_ttl_ms: int,
+        retry_window_ms: int = 0,
     ) -> tuple[SessionToken, list[ResourceId]]: ...
 
     @abstractmethod

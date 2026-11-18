@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 from quelware_core.entities.resource import (
@@ -6,6 +7,7 @@ from quelware_core.entities.resource import (
     ResourceId,
     ResourceInfo,
 )
+from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel, UnitStatus
 from quelware_core.features import known
 
@@ -15,6 +17,7 @@ from quelware_client.core.interfaces.worker_agent import UnitVersion
 from quelware_client.core.unit_control import UnitConfiguration, UnitControlSpec
 from quelware_client.testing.instrument_agent_mock import InstrumentAgentMock
 from quelware_client.testing.resource_agent_mock import ResourceAgentMock
+from quelware_client.testing.session_agent_mock import SessionAgentMock
 from quelware_client.testing.system_configuration_agent_mock import (
     SystemConfigurationAgentMock,
 )
@@ -127,6 +130,20 @@ async def test_open_session():
     ttl_ms = 3000
     session = client.create_session(target_rsrc_ids, ttl_ms)
     assert isinstance(session, Session)
+
+
+@pytest.mark.asyncio
+async def test_a_session_is_created_with_a_retry_window_of_20_s_by_default():
+    resource_ids = [ResourceId("unit-c:i1")]
+    agent = AgentContainer()
+    open_session = AsyncMock(return_value=(SessionToken("t"), resource_ids))
+    agent.session = SessionAgentMock()
+    agent.session.open_session = open_session  # type: ignore[method-assign]
+    client = QuelwareClient(agent=agent, skip_lock_check=True)
+
+    await client.create_session(resource_ids).open()
+
+    assert open_session.call_args.kwargs["retry_window_ms"] == 20_000
 
 
 @pytest.mark.asyncio

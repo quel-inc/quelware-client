@@ -38,15 +38,20 @@ class SessionAgentGrpc(SessionAgent):
         resource_ids: Collection[ResourceId],
         tentative_ttl_ms: int,
         committed_ttl_ms: int,
+        retry_window_ms: int = 0,
     ) -> tuple[SessionToken, list[ResourceId]]:
         req = pb_session.OpenSessionRequest(
             resource_ids=list(resource_ids),
             tentative_ttl_ms=tentative_ttl_ms,
             committed_ttl_ms=committed_ttl_ms,
+            retry_window_ms=retry_window_ms,
         )
+        timeout = retry_window_ms / 1000 + CALL_TIMEOUT_SEC
 
         try:
-            response = await call_with_retry(lambda: self._service.open_session(req))
+            response = await call_with_retry(
+                lambda: self._service.open_session(req, timeout=timeout)
+            )
             return (
                 SessionToken(response.token),
                 [ResourceId(rid) for rid in response.resource_ids],
