@@ -76,6 +76,11 @@ class UnitNotFoundError(_ErrorWithUnitLabelsMixin, QuelwareClientError): ...
 class InvalidUnitStatusError(_ErrorWithUnitLabelsMixin, QuelwareClientError): ...
 
 
+class UnitUnreachableError(_ErrorWithUnitLabelsMixin, QuelwareClientError):
+    """Raised when opening a session fails because the server could not reach a
+    unit, or the unit answered too late. ``unit_labels`` names the unit."""
+
+
 class ServiceUnavailableError(QuelwareClientError):
     DEFAULT_MESSAGE = "The requested service is not available on the server."
 

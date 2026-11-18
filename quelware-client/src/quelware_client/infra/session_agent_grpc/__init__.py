@@ -18,6 +18,7 @@ from quelware_client.core.exceptions import (
     QuelwareClientError,
     ResourceNotFoundError,
     UnitNotFoundError,
+    UnitUnreachableError,
 )
 from quelware_client.core.interfaces.session_agent import (
     SessionAgent,
@@ -81,6 +82,8 @@ class SessionAgentGrpc(SessionAgent):
             raise LockConflictError(e.message).with_resource_ids(resource_ids) from e
         elif e.status is Status.UNAUTHENTICATED:
             raise InvalidTokenError(e.message) from e
+        elif e.status is Status.UNAVAILABLE and unit_labels:
+            raise UnitUnreachableError(e.message).with_unit_labels(unit_labels) from e
         raise QuelwareClientError(e.message) from e
 
     async def close_session(self, token: SessionToken) -> bool:

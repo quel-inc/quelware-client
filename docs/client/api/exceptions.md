@@ -50,3 +50,7 @@ from `wait_for_results()`. See [Triggering](../../concepts/triggering.md).
 ::: quelware_client.core.exceptions.InvalidUnitStatusError
     options:
       heading_level: 3
+
+::: quelware_client.core.exceptions.UnitUnreachableError
+    options:
+      heading_level: 3
