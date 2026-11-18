@@ -12,6 +12,11 @@ message OpenSessionRequest {
   repeated string resource_ids = 1;
   int64 tentative_ttl_ms = 2;
   int64 committed_ttl_ms = 3;
+  // How long the server may keep starting new attempts to take the locks when
+  // an attempt fails for a passing reason (a resource in use, a unit that
+  // answered too late). The first attempt is always made. 0 makes one attempt.
+  // At most 60000; a server refuses more as INVALID_ARGUMENT.
+  uint64 retry_window_ms = 4;
 }
 
 message OpenSessionResponse {

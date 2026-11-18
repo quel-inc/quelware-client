@@ -4,6 +4,7 @@
 
 ### Added
 
+- `OpenSessionRequest.retry_window_ms`: how long the server may keep starting new attempts to open the session when an attempt fails for a passing reason, such as a resource in use or a unit that answered too late. 0, what an older client sends, makes one attempt.
 - `Waveform.dense`: a waveform as a `DenseIqArray`, which a server parses far faster than `SampledWaveform`. `iq_waveform_to_pb(use_dense=True)` and `directive_to_pb(use_dense_waveforms=True)` send it, and `iq_waveform_from_pb` reads both.
 - `VersionInfo.features`: what a server accepts beyond the oldest form of each message. `quelware_core.features.Feature` is the type of the names this package knows, and `known()` keeps those of a server's list. A server that reads `Waveform.dense` names `"dense_waveform"`.
 - `DenseIqPoints` / `IqResult.dense_iq_points`: the values of a capture (one per iteration, or one in all) as packed bytes, which are built and parsed far faster than `IqPointList`.
