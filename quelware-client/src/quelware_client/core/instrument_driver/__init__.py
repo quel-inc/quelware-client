@@ -1,8 +1,13 @@
 import logging
+import time
 from collections.abc import Sequence
 from typing import Generic, TypeAlias, TypeVar, overload
 
-from quelware_core.entities.directives import Directive, FixedTimelineDirective
+from quelware_core.entities.directives import (
+    Directive,
+    FixedTimelineDirective,
+    SetFixedTimeline,
+)
 from quelware_core.entities.instrument import (
     ConfigVariant,
     FixedTimelineConfig,
@@ -22,6 +27,18 @@ from quelware_client.core import Session
 from quelware_client.core.interfaces.instrument_agent import InstrumentAgent
 
 logger = logging.getLogger(__name__)
+
+
+def _timeline_size(sent: Sequence[Directive]) -> tuple[int, int] | None:
+    """How many waveform events the timelines among ``sent`` place and how many samples
+    their waveform libraries hold; None without a timeline."""
+    timelines = [d for d in sent if isinstance(d, SetFixedTimeline)]
+    if not timelines:
+        return None
+    events = sum(len(t.events) for t in timelines)
+    samples = sum(len(w.iq_array) for t in timelines for w in t.waveform_library)
+    return events, samples
+
 
 D = TypeVar("D", bound="Directive")
 C = TypeVar("C", bound="ConfigVariant")
@@ -68,10 +85,20 @@ class InstrumentDriver(Generic[D, C, P]):
         the instrument. Applying after a run means the run's result can no
         longer be fetched. Returns True once the unit has taken them.
         """
-        if isinstance(directive, Sequence):
-            return await self._agent.configure(self._token, self._id, directive)
-        else:
-            return await self._agent.configure(self._token, self._id, [directive])
+        sent = directive if isinstance(directive, Sequence) else [directive]
+        started = time.monotonic()
+        taken = await self._agent.configure(self._token, self._id, sent)
+        size = _timeline_size(sent)
+        if size is not None:
+            logger.info(
+                "applied a timeline of %d events and %d waveform samples to %s (%s) "
+                "in %.2f s",
+                *size,
+                self._port_id,
+                self._definition.alias,
+                time.monotonic() - started,
+            )
+        return taken
 
     async def initialize(self):
         """Initialize the instrument. See `Session.initialize`."""

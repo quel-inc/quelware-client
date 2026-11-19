@@ -1,3 +1,6 @@
+import logging
+
+import numpy as np
 import pytest
 from quelware_core.entities import directives
 from quelware_core.entities.instrument import (
@@ -11,6 +14,7 @@ from quelware_core.entities.instrument import (
 from quelware_core.entities.resource import ResourceId
 from quelware_core.entities.session import SessionToken
 from quelware_core.entities.unit import UnitLabel
+from quelware_core.entities.waveform.sampled import IqWaveform
 
 from quelware_client.core import Session
 from quelware_client.core._agent_container import AgentContainer
@@ -61,6 +65,58 @@ async def test_apply():
     ds = [directives.SetFrequency(60_000_000), directives.SetPhaseOffset(120)]
     for d in ds:
         await inst_driver.apply(d)
+
+
+_LOGGER = "quelware_client.core.instrument_driver"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("with_frequency", [False, True])
+async def test_an_applied_timeline_is_logged_with_its_size_and_the_instrument(
+    caplog, with_frequency
+):
+    inst_driver = _create_inst_driver()
+    timeline = directives.SetFixedTimeline(
+        waveform_library=[
+            IqWaveform(sampling_period_fs=400_000, iq_array=np.ones(8, complex)),
+            IqWaveform(sampling_period_fs=400_000, iq_array=np.ones(4, complex)),
+        ],
+        events=[
+            directives.WaveformEvent(
+                waveform_index=i % 2,
+                start_offset_samples=16 * i,
+                gain=1.0,
+                phase_offset_deg=0.0,
+            )
+            for i in range(3)
+        ],
+        capture_windows=[],
+        length=256,
+        iterations=1,
+    )
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        if with_frequency:
+            await inst_driver.apply([directives.SetFrequency(5_050_000_000), timeline])
+        else:
+            await inst_driver.apply(timeline)
+
+    (record,) = caplog.records
+    assert record.levelno == logging.INFO
+    assert record.getMessage().startswith(
+        "applied a timeline of 3 events and 12 waveform samples "
+        "to unit-a:p1 (alias) in "
+    )
+
+
+@pytest.mark.asyncio
+async def test_applying_no_timeline_is_not_logged(caplog):
+    inst_driver = _create_inst_driver()
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        await inst_driver.apply(directives.SetFrequency(5_050_000_000))
+
+    assert caplog.records == []
 
 
 def test_create_instrument_driver_fixed_timeline():

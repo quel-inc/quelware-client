@@ -4,6 +4,7 @@
 
 ### Added
 
+- `InstrumentDriver.apply` logs at INFO, for a fixed timeline it applies, how many waveform events it places, how many samples its waveform library holds, the instrument's port and alias, and how long applying took, such as `applied a timeline of 61481 events and 96 waveform samples to quel3-01-a28:tx_p02 (quel3-01-a28:soak_tx_p02) in 11.21 s`. Applying a timeline takes the longer the more events and samples it holds, as the client encodes them and the unit takes them, and the unit answers other calls later meanwhile, so this shows where a slow or unsteady run comes from.
 - `create_session(..., retry_window_ms=20_000)` and `Session(..., retry_window_ms=20_000)`: how long a server that knows the window may keep starting new attempts to open the session while they fail because a resource is in use or a unit answered too late. The first attempt is always made, and an attempt once started is waited for until the call's timeout, the window plus the usual 30 s; opening can take that long. The window must be more than 0 (`ValueError` otherwise); a short one, such as 1, makes one attempt. A server that does not know the window makes one attempt, as before.
 - `UnitUnreachableError`: opening a session raises it when the server could not reach a unit or a unit answered too late, with `unit_labels` naming the unit. It is a `QuelwareClientError`, which was raised before. An `UNAVAILABLE` that names no unit, such as when the server itself cannot be reached, is still a plain `QuelwareClientError`.
 
