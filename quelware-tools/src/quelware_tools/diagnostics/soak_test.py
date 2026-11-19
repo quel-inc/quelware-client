@@ -136,37 +136,43 @@ class SoakProfile:
 
 DEFAULT_PROFILE = SoakProfile()
 
+# qubex's limit of what a readout port captures in one trigger, 15 million samples
+_QUBEX_CAPTURE_NS = 12e6
+# qubex's default capture window, its 384 ns readout and the 128 ns margin after it
+_QUBEX_READOUT_TICKS = 160
+
 # 30 randomized benchmarking sequences of about 2000 gates packed into one trigger,
-# a shot interval apart, each ending in a readout as far as the capture budget goes
-# (22 of them at 1024 iterations): a small waveform library but tens of thousands of
-# events per port.
+# a shot interval apart, each ending in a readout: a small waveform library but tens
+# of thousands of events per port. qubex splits 1024 shots of it into two triggers of
+# 512, which its capture limit takes.
 PACKED_RB_PROFILE = SoakProfile(
     span_ticks=16400,
     wave_ticks=(4, 8),
     max_gap_ticks=(4,),
     zero_gap_probability=0.5,
-    iterations=(1024,),
+    iterations=(512,),
     iteration_blank_ns=(153_600.0,),
     raw_share=0.0,
-    max_total_capture_ns=12e6,
+    max_total_capture_ns=_QUBEX_CAPTURE_NS,
     jobs=30,
     job_blank_ticks=48000,
-    readout_ticks=160,
+    readout_ticks=_QUBEX_READOUT_TICKS,
 )
 
 # 50 points of a calibration sweep packed into one trigger, a shot interval apart:
-# each a few short pulses and a readout, as far as the capture budget goes.
+# each a few short pulses and a readout. qubex splits 1024 shots of it into three
+# triggers of up to 342, which its capture limit takes.
 PACKED_SWEEP_PROFILE = SoakProfile(
     span_ticks=60,
     wave_ticks=(4, 8, 20),
     max_gap_ticks=(4, 16),
-    iterations=(1024,),
+    iterations=(342,),
     iteration_blank_ns=(153_600.0,),
     raw_share=0.0,
-    max_total_capture_ns=12e6,
+    max_total_capture_ns=_QUBEX_CAPTURE_NS,
     jobs=50,
     job_blank_ticks=48000,
-    readout_ticks=160,
+    readout_ticks=_QUBEX_READOUT_TICKS,
 )
 
 # Capture windows up to 8.3 us long repeated with a short blank, as a resonator or

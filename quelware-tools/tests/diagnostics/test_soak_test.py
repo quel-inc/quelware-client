@@ -188,10 +188,15 @@ def test_a_packed_rb_run_sends_tens_of_thousands_of_events_from_a_small_library(
         assert len(plan.waves[port]) > 50_000
         assert len(directive.events) == len(plan.waves[port])
         assert len(directive.waveform_library) <= len(profile.wave_ticks)
+
+
+@pytest.mark.parametrize("profile", [PACKED_RB_PROFILE, PACKED_SWEEP_PROFILE])
+def test_every_packed_job_is_read_out_within_the_capture_budget(profile):
+    plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, profile, [_READOUT])
     total_ns = sum(w.length_ns for w in plan.windows[_READOUT])
+
+    assert len(plan.windows[_READOUT]) == profile.jobs
     assert plan.iterations * total_ns <= profile.max_total_capture_ns
-    # a readout each, as far as the capture budget goes
-    assert len(plan.windows[_READOUT]) == 22
 
 
 @pytest.mark.parametrize("profile", [PACKED_RB_PROFILE, PACKED_SWEEP_PROFILE])
