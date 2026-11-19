@@ -190,6 +190,8 @@ def test_a_packed_rb_run_sends_tens_of_thousands_of_events_from_a_small_library(
         assert len(directive.waveform_library) <= len(profile.wave_ticks)
     total_ns = sum(w.length_ns for w in plan.windows[_READOUT])
     assert plan.iterations * total_ns <= profile.max_total_capture_ns
+    # a readout each, as far as the capture budget goes
+    assert len(plan.windows[_READOUT]) == 22
 
 
 @pytest.mark.parametrize("profile", [PACKED_RB_PROFILE, PACKED_SWEEP_PROFILE])
@@ -275,7 +277,7 @@ def test_every_kind_of_the_default_round_draws_a_run() -> None:
         assert all(plan.waves.values()), entry.kind
 
 
-def test_a_run_drawn_from_one_profile_is_drawn_as_before() -> None:
+def test_a_run_drawn_from_one_profile_is_drawn_by_draw_plan_without_a_kind() -> None:
     drawn = draw_run(np.random.default_rng([5, 2]), 2, _PORTS, SoakProfile())
     planned = draw_plan(np.random.default_rng([5, 2]), 2, _PORTS, SoakProfile())
 

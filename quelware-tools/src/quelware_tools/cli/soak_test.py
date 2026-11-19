@@ -7,7 +7,15 @@ kinds a few times, spread out: ``sparse``, waves of many lengths with gaps betwe
 them; ``spectroscopy``, long capture windows repeated with a short blank;
 ``dense-cr``, a few flat pulses of 1 and 4 us; ``packed-sweep``, 50 calibration
 points in one trigger; and ``packed-rb-1024`` and ``packed-rb-2048``, 30 randomized
-benchmarking sequences of that many gates in one trigger.
+benchmarking sequences of that many gates in one trigger. Without ``--unit`` it runs
+on every unit the manager knows. A run refused before it starts counts as a pass; a
+run that fails, times out or breaks otherwise is a failure. Requires idle tx/trx
+ports. Exits non-zero if any run failed.
+
+With ``--check-monitor``, the units are put in monitor loopback (an admin PAT is
+needed, and every instrument on them is discarded) and back in open mode after, and
+what each unit's monitor captures of one port shown at a time is judged against what
+it sent; a run that comes back otherwise is a failure.
 """
 
 import asyncio

@@ -29,10 +29,10 @@ start nothing themselves.
   port, for a number of runs or a duration, and tally the runs that fail. Each
   run is one of a round of kinds, such as sparse waves, randomized
   benchmarking sequences packed into one trigger, or spectroscopy.
-- `quel-soak-compare` — compare how long each step of the runs took in two
-  `quel-soak-test --timings` files, run by run when both drew the same runs.
   `--check-monitor` also judges, on each unit's monitor in loopback, what one
   port at a time sends (needs an admin PAT and idle units).
+- `quel-soak-compare` — compare how long each step of the runs took in two
+  `quel-soak-test --timings` files, run by run when both drew the same runs.
 - `quel-unit-config` — `show` / `set` a unit's configuration controls.
   `set` needs an admin PAT and an idle unit.
 - `quel-recover-past-counter` — bring a unit back to normal after a run that

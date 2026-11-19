@@ -126,7 +126,9 @@ class SoakProfile:
     max_raw_capture_ns: float = 40_000.0
     # a run of several jobs, as a client packs points or sequences into one trigger:
     # each job's waves over the span, then its readout window when ``readout_ticks``
-    # is set (instead of drawn windows), then the blank before the next job
+    # is set (instead of drawn windows), then the blank before the next job; the
+    # readouts beyond the capture budget are left out, and without ``readout_ticks``
+    # the windows are drawn over the first job only
     jobs: int = 1
     job_blank_ticks: int = 0
     readout_ticks: int = 0
@@ -135,8 +137,9 @@ class SoakProfile:
 DEFAULT_PROFILE = SoakProfile()
 
 # 30 randomized benchmarking sequences of about 2000 gates packed into one trigger,
-# a shot interval apart, each ending in a readout: a small waveform library but tens
-# of thousands of events per port.
+# a shot interval apart, each ending in a readout as far as the capture budget goes
+# (22 of them at 1024 iterations): a small waveform library but tens of thousands of
+# events per port.
 PACKED_RB_PROFILE = SoakProfile(
     span_ticks=16400,
     wave_ticks=(4, 8),
@@ -152,7 +155,7 @@ PACKED_RB_PROFILE = SoakProfile(
 )
 
 # 50 points of a calibration sweep packed into one trigger, a shot interval apart:
-# each a few short pulses and a readout.
+# each a few short pulses and a readout, as far as the capture budget goes.
 PACKED_SWEEP_PROFILE = SoakProfile(
     span_ticks=60,
     wave_ticks=(4, 8, 20),
