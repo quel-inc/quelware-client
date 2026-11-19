@@ -33,7 +33,7 @@ class _Instrument:
     def __init__(self) -> None:
         self.requests: list[pb_inst.ConfigureRequest] = []
 
-    async def configure(self, req, metadata=None):
+    async def configure(self, req, metadata=None, timeout=None):
         self.requests.append(pb_inst.ConfigureRequest.parse(bytes(req)))
         return pb_inst.ConfigureResponse()
 

@@ -5,6 +5,11 @@ from quelware_core.entities.directives import SetFrequency
 from quelware_core.entities.resource import ResourceId
 from quelware_core.entities.session import SessionToken
 
+from quelware_client.infra._timeouts import (
+    ARM_TIMEOUT_SEC,
+    CALL_TIMEOUT_SEC,
+    INSTRUMENT_CONFIGURE_TIMEOUT_SEC,
+)
 from quelware_client.infra.instrument_agent_grpc import InstrumentAgentGrpc
 
 TOKEN = SessionToken("t")
@@ -18,10 +23,12 @@ class _LosesTheFirstCall:
 
     def __init__(self) -> None:
         self.calls: dict[str, int] = {}
+        self.timeouts: dict[str, float | None] = {}
 
     def __getattr__(self, name: str):
-        async def call(req, metadata=None):
+        async def call(req, metadata=None, timeout=None):
             self.calls[name] = self.calls.get(name, 0) + 1
+            self.timeouts[name] = timeout
             if self.calls[name] == 1:
                 raise StreamTerminatedError("Connection lost")
             if name == "trigger_now":
@@ -68,3 +75,26 @@ async def test_a_scheduled_trigger_is_not_retried_on_a_lost_connection() -> None
         await agent.schedule_trigger(TOKEN, 1000)
 
     assert service.calls == {"schedule_trigger": 1}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "call", "timeout"),
+    [
+        (
+            "configure",
+            lambda a: a.configure(TOKEN, RID, [SetFrequency(hz=5e9)]),
+            INSTRUMENT_CONFIGURE_TIMEOUT_SEC,
+        ),
+        ("apply", lambda a: a.arm(TOKEN, [RID]), ARM_TIMEOUT_SEC),
+    ],
+)
+async def test_configuring_and_arming_wait_longer_than_other_calls(
+    method, call, timeout
+) -> None:
+    agent, service = _agent()
+
+    await call(agent)
+
+    assert service.timeouts[method] == timeout
+    assert timeout > CALL_TIMEOUT_SEC

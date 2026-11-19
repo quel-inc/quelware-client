@@ -10,6 +10,7 @@
 
 ### Changed
 
+- Configuring an instrument and arming instruments wait up to 120 s for the unit, rather than the 30 s most calls wait. A unit takes the longer the more events a timeline holds: on a QuEL-3, about 0.17 ms an event to take a timeline and, for all of a unit's instruments together, about 0.05 ms an event to arm them, so a unit with many long sequences went past 30 s. The deadline goes to the unit with the call, which stops working on it at the same time.
 - With a server that knows the retry window, `create_session` lets it retry opening the session for 20 s by default. Opening a resource another session keeps fails after that window, where it failed after about a second before; pass `retry_window_ms=1` to fail at once. With a server that does not know the window, opening fails as before, but may take up to 50 s instead of 30 s before it times out.
 - `create_session` and `Session` default to `ttl_ms=5000` and `tentative_ttl_ms=5000`, up from 4000 and 1000. Opening a session that spans several units fails less often when a unit answers slowly, because the tentative locks held while opening last long enough to be committed. A session left without `extend` now lasts 5 s instead of 4 s.
 - Breaking for a `SessionAgent` implemented outside the client: `open_session` takes `retry_window_ms`, which `Session` passes, so such an implementation needs to accept it.

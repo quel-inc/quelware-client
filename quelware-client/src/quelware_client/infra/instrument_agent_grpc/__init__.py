@@ -20,7 +20,12 @@ from quelware_client.core.interfaces.instrument_agent import (
 )
 from quelware_client.core.interfaces.worker_agent import UnitVersion
 from quelware_client.infra._grpc_retry import call_with_retry
-from quelware_client.infra._timeouts import CALL_TIMEOUT_SEC, FETCH_TIMEOUT_SEC
+from quelware_client.infra._timeouts import (
+    ARM_TIMEOUT_SEC,
+    CALL_TIMEOUT_SEC,
+    FETCH_TIMEOUT_SEC,
+    INSTRUMENT_CONFIGURE_TIMEOUT_SEC,
+)
 
 
 def reads_dense_waveforms(version: UnitVersion | None) -> bool:
@@ -86,7 +91,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         metadata["x-session-token"] = str(token)
         # the same directives again leave the instrument as they did the first time
         await call_with_retry(
-            lambda: self._service.configure(req, metadata=metadata), idempotent=True
+            lambda: self._service.configure(
+                req, metadata=metadata, timeout=INSTRUMENT_CONFIGURE_TIMEOUT_SEC
+            ),
+            idempotent=True,
         )
         return True
 
@@ -101,7 +109,10 @@ class InstrumentAgentGrpc(InstrumentAgent):
         metadata = dict(self._service.metadata or {})
         metadata["x-session-token"] = str(token)
         await call_with_retry(
-            lambda: self._service.apply(req, metadata=metadata), idempotent=True
+            lambda: self._service.apply(
+                req, metadata=metadata, timeout=ARM_TIMEOUT_SEC
+            ),
+            idempotent=True,
         )
         return True
 
