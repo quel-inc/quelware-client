@@ -449,10 +449,6 @@ def draw_run(
     return dataclasses.replace(plan, kind=entry.kind)
 
 
-def _first_profile(profile: SoakProfile | Sequence[RoundEntry]) -> SoakProfile:
-    return profile if isinstance(profile, SoakProfile) else profile[0].profile
-
-
 def _settings_of(profile: SoakProfile | Sequence[RoundEntry]) -> object:
     if isinstance(profile, SoakProfile):
         return asdict(profile)
@@ -732,7 +728,6 @@ async def _measure_delays(  # noqa: PLR0913
     emit_ports: Sequence[ResourceId],
     monitors: dict[UnitLabel, InstrumentInfo],
     judge: correctness.Judge,
-    profile: SoakProfile | Sequence[RoundEntry],
 ) -> RunFailure | None:
     """Measure the delay from every emit port to its unit's monitor, one port of each
     unit at a time, as `correctness.delay_shot` does; a failure when one cannot be."""
@@ -748,9 +743,9 @@ async def _measure_delays(  # noqa: PLR0913
         wave = Wave(pulse.start_ns, pulse.shape.length_ns, pulse.gain, pulse.phase_deg)
         plan = RunPlan(
             run=-1 - k,
-            length_ns=_first_profile(profile).span_ticks * TICK_NS,
+            length_ns=DEFAULT_PROFILE.span_ticks * TICK_NS,
             iterations=delay_shot.iterations,
-            iteration_blank_ns=_first_profile(profile).iteration_blank_ns[0],
+            iteration_blank_ns=DEFAULT_PROFILE.iteration_blank_ns[0],
             shown_port=shown[0],
             waves={str(p): (wave,) for p in emit_ports},
             windows={
@@ -969,7 +964,6 @@ async def run_soak_test(  # noqa: PLR0913
                     emit_ports,
                     monitors,
                     judge,
-                    profile,
                 )
                 if failure is not None:
                     report.failures.append(failure)
