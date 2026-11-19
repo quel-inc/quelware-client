@@ -43,6 +43,8 @@ class SoakComparison:
     old_duration_sec: float
     new_duration_sec: float
     steps: list[StepComparison]
+    # the same over the runs of each kind drawn in both; empty when runs are of one
+    by_kind: dict[str, list[StepComparison]]
 
 
 def load_timings(path: Path) -> dict[str, Any]:
@@ -56,7 +58,7 @@ def load_timings(path: Path) -> dict[str, Any]:
 
 
 def _plan(run: Mapping[str, Any]) -> tuple[Any, ...]:
-    return run["waves"], run["iterations"], run["raw"]
+    return run.get("kind", ""), run["waves"], run["iterations"], run["raw"]
 
 
 def _same_runs(old: Mapping[str, Any], new: Mapping[str, Any]) -> bool:
@@ -72,15 +74,15 @@ def _seconds(run: Mapping[str, Any], step: str) -> float | None:
     return sum(steps.values()) if step == TOTAL else steps.get(step)
 
 
-def compare_soak_timings(
-    old: Mapping[str, Any], new: Mapping[str, Any]
-) -> SoakComparison:
-    """How long each step of ``new``'s runs took against ``old``'s."""
-    paired = _same_runs(old, new)
-    old_done = {r["run"]: r for r in old["runs"] if r["failure"] is None}
-    new_done = {r["run"]: r for r in new["runs"] if r["failure"] is None}
+def _compare_steps(
+    old_runs: list[Mapping[str, Any]],
+    new_runs: list[Mapping[str, Any]],
+    paired: bool,
+) -> list[StepComparison]:
+    old_done = {r["run"]: r for r in old_runs if r["failure"] is None}
+    new_done = {r["run"]: r for r in new_runs if r["failure"] is None}
     both = sorted(old_done.keys() & new_done.keys())
-    present = [s for s in _STEPS if any(s in r["steps"] for r in old["runs"])]
+    present = [s for s in _STEPS if any(s in r["steps"] for r in old_runs)]
     steps = []
     for step in [*present, TOTAL]:
         o = [x for r in old_done.values() if (x := _seconds(r, step)) is not None]
@@ -107,6 +109,25 @@ def compare_soak_timings(
                 ),
             )
         )
+    return steps
+
+
+def _by_kind(runs: list[Mapping[str, Any]]) -> dict[str, list[Mapping[str, Any]]]:
+    kinds: dict[str, list[Mapping[str, Any]]] = {}
+    for r in runs:
+        kinds.setdefault(r.get("kind", ""), []).append(r)
+    return kinds
+
+
+def compare_soak_timings(
+    old: Mapping[str, Any], new: Mapping[str, Any]
+) -> SoakComparison:
+    """How long each step of ``new``'s runs took against ``old``'s, over all runs and
+    over the runs of each kind."""
+    paired = _same_runs(old, new)
+    old_kinds = _by_kind(old["runs"])
+    new_kinds = _by_kind(new["runs"])
+    kinds = [k for k in old_kinds if k in new_kinds]
     return SoakComparison(
         paired=paired,
         old_runs=len(old["runs"]),
@@ -115,7 +136,12 @@ def compare_soak_timings(
         new_failed=sum(r["failure"] is not None for r in new["runs"]),
         old_duration_sec=old["finished_at"] - old["started_at"],
         new_duration_sec=new["finished_at"] - new["started_at"],
-        steps=steps,
+        steps=_compare_steps(old["runs"], new["runs"], paired),
+        by_kind=(
+            {k: _compare_steps(old_kinds[k], new_kinds[k], paired) for k in kinds}
+            if len(old_kinds) > 1 or len(new_kinds) > 1
+            else {}
+        ),
     )
 
 

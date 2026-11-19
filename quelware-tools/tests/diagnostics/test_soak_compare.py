@@ -12,9 +12,16 @@ from quelware_tools.diagnostics.soak_compare import (
 from quelware_tools.diagnostics.soak_test import TIMINGS_FORMAT
 
 
-def _run(run: int, configure: float, wait: float, failure: str | None = None) -> dict:
+def _run(
+    run: int,
+    configure: float,
+    wait: float,
+    failure: str | None = None,
+    kind: str = "sparse",
+) -> dict:
     return {
         "run": run,
+        "kind": kind,
         "started_at": float(run),
         "steps": {"configure": configure, "trigger": 0.3, "wait": wait},
         "waves": 10 + run,
@@ -94,3 +101,32 @@ def test_the_table_has_a_difference_column_only_when_runs_are_paired() -> None:
     assert paired.splitlines()[-1].endswith("|")
     assert "new - old" in paired
     assert "new - old" not in unpaired
+
+
+def test_runs_of_several_kinds_are_also_compared_kind_by_kind() -> None:
+    old = _timings([_run(0, 2.0, 0.1), _run(1, 4.0, 0.1, kind="pulse-train")])
+    new = _timings([_run(0, 0.2, 0.1), _run(1, 1.0, 0.1, kind="pulse-train")])
+
+    c = compare_soak_timings(old, new)
+
+    assert set(c.by_kind) == {"sparse", "pulse-train"}
+    pulse_train = next(s for s in c.by_kind["pulse-train"] if s.step == "configure")
+    assert pulse_train.paired_median_diff == pytest.approx(-3.0)
+    assert "pulse-train:" in format_comparison(c)
+
+
+def test_runs_of_one_kind_are_not_broken_down() -> None:
+    old = _timings([_run(0, 2.0, 0.1)])
+    new = _timings([_run(0, 1.0, 0.1)])
+
+    assert compare_soak_timings(old, new).by_kind == {}
+
+
+def test_a_kind_no_run_of_which_completed_is_named_without_a_table() -> None:
+    old = _timings([_run(0, 2.0, 0.1), _run(1, 4.0, 0.1, "error", "packed-rb")])
+    new = _timings([_run(0, 0.2, 0.1), _run(1, 1.0, 0.1, "error", "packed-rb")])
+
+    text = format_comparison(compare_soak_timings(old, new))
+
+    assert "packed-rb: no run of it completed in both" in text
+    assert "packed-rb:\n" not in text

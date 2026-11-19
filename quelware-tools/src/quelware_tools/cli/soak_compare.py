@@ -14,6 +14,7 @@ import typer
 
 from quelware_tools.diagnostics.soak_compare import (
     SoakComparison,
+    StepComparison,
     compare_soak_timings,
     load_timings,
 )
@@ -23,20 +24,13 @@ def _ms(sec: float) -> str:
     return f"{sec * 1e3:.0f}"
 
 
-def format_comparison(c: SoakComparison) -> str:
-    """The comparison as a few lines and a Markdown table, in milliseconds."""
+def _table(steps: list[StepComparison], paired: bool) -> list[str]:
     lines = [
-        f"old: {c.old_runs} runs, {c.old_failed} failed, {c.old_duration_sec:.0f} s",
-        f"new: {c.new_runs} runs, {c.new_failed} failed, {c.new_duration_sec:.0f} s",
-        "runs compared one by one"
-        if c.paired
-        else "runs drawn differently: only the spread is compared",
-        "",
         "| step (ms) | old median | new median | old p95 | new p95 | old max | new max"
-        + (" | median of new - old |" if c.paired else " |"),
-        "|---" * (7 + c.paired) + "|",
+        + (" | median of new - old |" if paired else " |"),
+        "|---" * (7 + paired) + "|",
     ]
-    for s in c.steps:
+    for s in steps:
         row = [
             s.step,
             *(
@@ -51,10 +45,30 @@ def format_comparison(c: SoakComparison) -> str:
                 )
             ),
         ]
-        if c.paired:
+        if paired:
             diff = s.paired_median_diff
             row.append("" if diff is None else f"{diff * 1e3:+.0f}")
         lines.append("| " + " | ".join(row) + " |")
+    return lines
+
+
+def format_comparison(c: SoakComparison) -> str:
+    """The comparison as a few lines and Markdown tables, in milliseconds: one over
+    every run, and one for each kind of run when there are several."""
+    lines = [
+        f"old: {c.old_runs} runs, {c.old_failed} failed, {c.old_duration_sec:.0f} s",
+        f"new: {c.new_runs} runs, {c.new_failed} failed, {c.new_duration_sec:.0f} s",
+        "runs compared one by one"
+        if c.paired
+        else "runs drawn differently: only the spread is compared",
+        "",
+        *_table(c.steps, c.paired),
+    ]
+    for kind, steps in c.by_kind.items():
+        if steps:
+            lines += ["", f"{kind}:", "", *_table(steps, c.paired)]
+        else:
+            lines += ["", f"{kind}: no run of it completed in both"]
     return "\n".join(lines)
 
 
