@@ -1,13 +1,13 @@
 """quel-soak-test: keep QuEL-3 units busy with random trains of waves on every port.
 
 Runs random trains of waves on every tx/trx port of the units at once, every run
-under one trigger, until the given number of runs or duration is spent, 200 runs by
-default (or until interrupted). Each run is drawn as one of the kinds, each as
-likely: ``sparse``, waves of many lengths with gaps between them;
-``packed-rb``, 30 randomized benchmarking sequences in one trigger, tens of
-thousands of short pulses per port; ``packed-sweep``, 50 calibration points in one
-trigger; ``spectroscopy``, long capture windows repeated with a short blank; and
-``dense-cr``, a few flat pulses of 1 and 4 us.
+under one trigger, a round of kinds by default, or the given number of rounds, runs
+or seconds (or until interrupted). A round runs light kinds many times and heavy
+kinds a few times, spread out: ``sparse``, waves of many lengths with gaps between
+them; ``spectroscopy``, long capture windows repeated with a short blank;
+``dense-cr``, a few flat pulses of 1 and 4 us; ``packed-sweep``, 50 calibration
+points in one trigger; and ``packed-rb-1024`` and ``packed-rb-2048``, 30 randomized
+benchmarking sequences of that many gates in one trigger.
 """
 
 import asyncio
@@ -22,11 +22,11 @@ from quelware_client.client import create_quelware_client
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_tools.diagnostics import run_soak_test
-from quelware_tools.diagnostics.soak_test import DEFAULT_KINDS
+from quelware_tools.diagnostics.soak_test import DEFAULT_ROUND, round_order
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_RUNS = 200
+_KINDS = [e.kind for e in DEFAULT_ROUND]
 
 
 def _entry(  # noqa: PLR0913
@@ -40,11 +40,14 @@ def _entry(  # noqa: PLR0913
         str | None,
         typer.Option(help="PAT; defaults to the configured PAT"),
     ] = None,
+    rounds: Annotated[
+        int, typer.Option(help="number of rounds of the kinds to run")
+    ] = 1,
     runs: Annotated[
         int | None,
         typer.Option(
-            help=f"number of runs, 0 for no limit "
-            f"(default: {_DEFAULT_RUNS}, or no limit with --duration-sec)"
+            help="number of runs instead of rounds, 0 for no limit "
+            "(no limit either with --duration-sec)"
         ),
     ] = None,
     duration_sec: Annotated[
@@ -66,8 +69,8 @@ def _entry(  # noqa: PLR0913
         list[str] | None,
         typer.Option(
             "--kind",
-            help=f"kind of run to draw, repeatable: {', '.join(DEFAULT_KINDS)} "
-            "(default: every kind, each as likely)",
+            help=f"kind of run to keep in the round, repeatable: {', '.join(_KINDS)} "
+            "(default: every kind)",
         ),
     ] = None,
     span_ticks: Annotated[
@@ -112,22 +115,22 @@ def _entry(  # noqa: PLR0913
         level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    unknown = set(chosen_kinds or ()) - set(DEFAULT_KINDS)
+    unknown = set(chosen_kinds or ()) - set(_KINDS)
     if unknown:
         raise typer.BadParameter(
-            f"{', '.join(sorted(unknown))}: not one of {', '.join(DEFAULT_KINDS)}",
+            f"{', '.join(sorted(unknown))}: not one of {', '.join(_KINDS)}",
             param_hint="--kind",
         )
-    profiles = {
-        k: p for k, p in DEFAULT_KINDS.items() if not chosen_kinds or k in chosen_kinds
-    }
+    entries = [e for e in DEFAULT_ROUND if not chosen_kinds or e.kind in chosen_kinds]
     if span_ticks is not None:
-        profiles = {
-            k: dataclasses.replace(p, span_ticks=span_ticks)
-            for k, p in profiles.items()
-        }
+        entries = [
+            dataclasses.replace(
+                e, profile=dataclasses.replace(e.profile, span_ticks=span_ticks)
+            )
+            for e in entries
+        ]
     if runs is None and duration_sec is None:
-        runs = _DEFAULT_RUNS
+        runs = rounds * len(round_order(entries))
     elif runs == 0:
         runs = None
 
@@ -141,7 +144,7 @@ def _entry(  # noqa: PLR0913
                 duration_sec=duration_sec,
                 seed=seed,
                 start_run=start_run,
-                profile=profiles,
+                profile=entries,
                 tx_hz=tx_hz,
                 detune_hz=detune_hz,
                 save_dir=save_dir,

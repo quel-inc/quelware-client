@@ -25,7 +25,7 @@ from quelware_core.entities.waveform.sampled import IqWaveform
 
 from quelware_tools.diagnostics.correctness import Judge, Record, delay_shot
 from quelware_tools.diagnostics.soak_test import (
-    DEFAULT_KINDS,
+    DEFAULT_ROUND,
     DENSE_CR_PROFILE,
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
@@ -34,6 +34,7 @@ from quelware_tools.diagnostics.soak_test import (
     SPECTROSCOPY_PROFILE,
     TICK_NS,
     TIMINGS_FORMAT,
+    RoundEntry,
     RunPlan,
     RunTiming,
     SoakProfile,
@@ -46,6 +47,7 @@ from quelware_tools.diagnostics.soak_test import (
     build_directives,
     draw_plan,
     draw_run,
+    round_order,
 )
 
 _CONTROL = "u:tx_p04"
@@ -240,22 +242,37 @@ def test_a_spectroscopy_run_captures_long_windows_with_a_short_blank() -> None:
     assert all(p.iteration_blank_ns == 1024.0 for p in plans)
 
 
-def test_each_kind_is_drawn_about_as_often_and_again_from_its_seed() -> None:
-    kinds = {"long": SoakProfile(), "short": SoakProfile(span_ticks=400)}
+def test_a_round_runs_each_kind_as_many_times_as_it_says_and_again_from_its_seed():
+    entries = (
+        RoundEntry("long", SoakProfile(), 3),
+        RoundEntry("short", SoakProfile(span_ticks=400), 1),
+    )
     plans = [
-        draw_run(np.random.default_rng([0, run]), run, _PORTS, kinds)
-        for run in range(400)
+        draw_run(np.random.default_rng([0, run]), run, _PORTS, entries)
+        for run in range(8)
     ]
-    again = draw_run(np.random.default_rng([0, 7]), 7, _PORTS, kinds)
+    again = draw_run(np.random.default_rng([0, 5]), 5, _PORTS, entries)
 
-    assert 140 < sum(p.kind == "long" for p in plans) < 260
-    assert again == plans[7]
+    assert [p.kind for p in plans[:4]].count("long") == 3
+    assert [p.kind for p in plans[4:]] == [p.kind for p in plans[:4]]
+    assert again == plans[5]
 
 
-def test_every_default_kind_draws_a_run() -> None:
-    for kind, profile in DEFAULT_KINDS.items():
-        plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, profile)
-        assert all(plan.waves.values()), kind
+def test_the_heavy_runs_of_the_default_round_fall_apart_among_the_light():
+    order = [e.kind for e in round_order(DEFAULT_ROUND)]
+    heavy = [i for i, kind in enumerate(order) if kind.startswith("packed")]
+
+    assert len(order) == sum(e.runs for e in DEFAULT_ROUND)
+    assert {e.kind: order.count(e.kind) for e in DEFAULT_ROUND} == {
+        e.kind: e.runs for e in DEFAULT_ROUND
+    }
+    assert all(b - a > 1 for a, b in zip(heavy, heavy[1:], strict=False))
+
+
+def test_every_kind_of_the_default_round_draws_a_run() -> None:
+    for entry in DEFAULT_ROUND:
+        plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, entry.profile)
+        assert all(plan.waves.values()), entry.kind
 
 
 def test_a_run_drawn_from_one_profile_is_drawn_as_before() -> None:

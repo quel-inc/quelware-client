@@ -191,14 +191,39 @@ DENSE_CR_PROFILE = SoakProfile(
     raw_share=0.0,
 )
 
-# the kinds of run drawn from by default, each as likely as the others
-DEFAULT_KINDS: Mapping[str, SoakProfile] = {
-    "sparse": DEFAULT_PROFILE,
-    "packed-rb": PACKED_RB_PROFILE,
-    "packed-sweep": PACKED_SWEEP_PROFILE,
-    "spectroscopy": SPECTROSCOPY_PROFILE,
-    "dense-cr": DENSE_CR_PROFILE,
-}
+
+@dataclass(frozen=True)
+class RoundEntry:
+    """A kind of run, and how many runs of it a round holds."""
+
+    kind: str
+    profile: SoakProfile
+    runs: int
+
+
+# A round of the default kinds: the light ones many times, the heavy ones a few times
+# at their heaviest, randomized benchmarking at its two longest lengths.
+DEFAULT_ROUND: tuple[RoundEntry, ...] = (
+    RoundEntry("sparse", DEFAULT_PROFILE, 20),
+    RoundEntry("spectroscopy", SPECTROSCOPY_PROFILE, 20),
+    RoundEntry("dense-cr", DENSE_CR_PROFILE, 20),
+    RoundEntry("packed-sweep", PACKED_SWEEP_PROFILE, 4),
+    RoundEntry(
+        "packed-rb-1024", dataclasses.replace(PACKED_RB_PROFILE, span_ticks=8200), 2
+    ),
+    RoundEntry("packed-rb-2048", PACKED_RB_PROFILE, 2),
+)
+
+
+def round_order(entries: Sequence[RoundEntry]) -> list[RoundEntry]:
+    """The runs of a round in order, each entry's spread evenly over it and the
+    entries' starts staggered, so that the heavy runs fall apart among the light."""
+    slots = sorted(
+        ((i + (n + 1) / (len(entries) + 1)) / e.runs, n, i)
+        for n, e in enumerate(entries)
+        for i in range(e.runs)
+    )
+    return [entries[n] for _, n, _ in slots]
 
 
 @dataclass(frozen=True)
@@ -408,28 +433,29 @@ def draw_run(
     rng: np.random.Generator,
     run: int,
     port_ids: Sequence[str],
-    profile: SoakProfile | Mapping[str, SoakProfile] = DEFAULT_KINDS,
+    profile: SoakProfile | Sequence[RoundEntry] = DEFAULT_ROUND,
     capture_port_ids: Sequence[str] = (),
 ) -> RunPlan:
-    """Draw one run as ``draw_plan`` does, from a kind drawn first, each as likely,
-    when ``profile`` names several."""
+    """Draw one run as ``draw_plan`` does; given a round, from the kind whose place
+    in the round ``run`` is."""
     if isinstance(profile, SoakProfile):
         return draw_plan(rng, run, port_ids, profile, capture_port_ids)
-    kind = str(rng.choice(list(profile)))
-    plan = draw_plan(rng, run, port_ids, profile[kind], capture_port_ids)
-    return dataclasses.replace(plan, kind=kind)
+    order = round_order(profile)
+    entry = order[run % len(order)]
+    plan = draw_plan(rng, run, port_ids, entry.profile, capture_port_ids)
+    return dataclasses.replace(plan, kind=entry.kind)
 
 
-def _first_profile(profile: SoakProfile | Mapping[str, SoakProfile]) -> SoakProfile:
-    return profile if isinstance(profile, SoakProfile) else next(iter(profile.values()))
+def _first_profile(profile: SoakProfile | Sequence[RoundEntry]) -> SoakProfile:
+    return profile if isinstance(profile, SoakProfile) else profile[0].profile
 
 
-def _settings_of(
-    profile: SoakProfile | Mapping[str, SoakProfile],
-) -> dict[str, object]:
+def _settings_of(profile: SoakProfile | Sequence[RoundEntry]) -> object:
     if isinstance(profile, SoakProfile):
         return asdict(profile)
-    return {kind: asdict(p) for kind, p in profile.items()}
+    return [
+        {"kind": e.kind, "runs": e.runs, "profile": asdict(e.profile)} for e in profile
+    ]
 
 
 def _wave_samples(
@@ -703,7 +729,7 @@ async def _measure_delays(  # noqa: PLR0913
     emit_ports: Sequence[ResourceId],
     monitors: dict[UnitLabel, InstrumentInfo],
     judge: correctness.Judge,
-    profile: SoakProfile | Mapping[str, SoakProfile],
+    profile: SoakProfile | Sequence[RoundEntry],
 ) -> RunFailure | None:
     """Measure the delay from every emit port to its unit's monitor, one port of each
     unit at a time, as `correctness.delay_shot` does; a failure when one cannot be."""
@@ -834,7 +860,7 @@ async def run_soak_test(  # noqa: PLR0913
     duration_sec: float | None = None,
     seed: int = 0,
     start_run: int = 0,
-    profile: SoakProfile | Mapping[str, SoakProfile] = DEFAULT_KINDS,
+    profile: SoakProfile | Sequence[RoundEntry] = DEFAULT_ROUND,
     tx_hz: float = 5.1e9,
     detune_hz: float = 0.0,
     save_dir: Path | None = None,
@@ -854,8 +880,8 @@ async def run_soak_test(  # noqa: PLR0913
     ports must be idle, unless ``discard_instruments`` is set. With
     ``initialize_each_run``, every run initializes the instruments before it
     configures them, as a client that starts each run afresh does. Each run is
-    drawn from ``profile``, or, when it names several kinds, from one of them drawn
-    for the run, each as likely.
+    drawn from ``profile``, or, given a round of kinds, from the kind whose place in
+    the round it is.
 
     With ``check_monitor``, every instrument on the units is discarded and the
     units are put in monitor loopback, which needs an admin PAT, and put back in
@@ -1066,7 +1092,7 @@ def _draw_shown(
 
 
 __all__ = [
-    "DEFAULT_KINDS",
+    "DEFAULT_ROUND",
     "DENSE_CR_PROFILE",
     "HIDDEN_AMPLITUDE",
     "MARKER_TICKS",
@@ -1075,6 +1101,7 @@ __all__ = [
     "SPECTROSCOPY_PROFILE",
     "TICK_NS",
     "TIMINGS_FORMAT",
+    "RoundEntry",
     "RunFailure",
     "RunPlan",
     "RunTiming",
@@ -1086,5 +1113,6 @@ __all__ = [
     "draw_plan",
     "draw_run",
     "monitor_shot",
+    "round_order",
     "run_soak_test",
 ]
