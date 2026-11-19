@@ -133,7 +133,7 @@ async def test_open_session():
 
 
 @pytest.mark.asyncio
-async def test_a_session_is_created_with_a_retry_window_of_20_s_by_default():
+async def test_a_session_is_created_with_a_retry_window_of_30_s_by_default():
     resource_ids = [ResourceId("unit-c:i1")]
     agent = AgentContainer()
     open_session = AsyncMock(return_value=(SessionToken("t"), resource_ids))
@@ -143,7 +143,7 @@ async def test_a_session_is_created_with_a_retry_window_of_20_s_by_default():
 
     await client.create_session(resource_ids).open()
 
-    assert open_session.call_args.kwargs["retry_window_ms"] == 20_000
+    assert open_session.call_args.kwargs["retry_window_ms"] == 30_000
 
 
 @pytest.mark.asyncio

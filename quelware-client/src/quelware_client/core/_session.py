@@ -66,12 +66,12 @@ class Session:
         self,
         resource_ids: Collection[ResourceId],
         agent: AgentContainer,
-        ttl_ms: int = 5000,
-        tentative_ttl_ms: int = 5000,
+        ttl_ms: int = 10_000,
+        tentative_ttl_ms: int = 10_000,
         token: SessionToken | None = None,
         trigger_count_proposer: TriggerCountProposer | None = None,
         skip_lock_check: bool = False,
-        retry_window_ms: int = 20_000,
+        retry_window_ms: int = 30_000,
     ):
         """Build a session over a set of resources.
 
