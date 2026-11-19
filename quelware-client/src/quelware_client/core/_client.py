@@ -169,8 +169,8 @@ class QuelwareClient:
     def create_session(
         self,
         resource_ids: Collection[_ResourceId],
-        ttl_ms: int = 4000,
-        tentative_ttl_ms: int = 1000,
+        ttl_ms: int = 5000,
+        tentative_ttl_ms: int = 5000,
         retry_window_ms: int = 20_000,
     ) -> Session:
         """Create a session that leases the given resources.
