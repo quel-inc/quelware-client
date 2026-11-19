@@ -2,7 +2,10 @@
 
 Runs random trains of waves on every tx/trx port of the units at once, every run
 under one trigger, until the given number of runs or duration is spent, 200 runs by
-default (or until interrupted). Without ``--unit`` it runs on every unit the manager
+default (or until interrupted). Each run is drawn as one of the kinds, each as
+likely: ``sparse``, long waves of many lengths with gaps between them, or
+``pulse-train``, thousands of gate-length pulses per port packed as a randomized
+benchmarking sequence. Without ``--unit`` it runs on every unit the manager
 knows. A run refused before it starts counts as a pass; a run that fails, times out
 or breaks otherwise is a failure. Requires idle tx/trx ports. Exits non-zero if any
 run failed.
@@ -14,6 +17,7 @@ it sent; a run that comes back otherwise is a failure.
 """
 
 import asyncio
+import dataclasses
 import logging
 from collections import Counter
 from pathlib import Path
@@ -23,7 +27,8 @@ import typer
 from quelware_client.client import create_quelware_client
 from quelware_core.entities.unit import UnitLabel
 
-from quelware_tools.diagnostics import SoakProfile, run_soak_test
+from quelware_tools.diagnostics import run_soak_test
+from quelware_tools.diagnostics.soak_test import DEFAULT_KINDS
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +61,21 @@ def _entry(  # noqa: PLR0913
         int, typer.Option(help="index of the first run, to replay one")
     ] = 0,
     tx_hz: Annotated[float, typer.Option(help="transmit frequency in Hz")] = 5.1e9,
+    chosen_kinds: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--kind",
+            help=f"kind of run to draw, repeatable: {', '.join(DEFAULT_KINDS)} "
+            "(default: every kind, each as likely)",
+        ),
+    ] = None,
     span_ticks: Annotated[
-        int,
-        typer.Option(help="span every port's waves lie in, in 3.2 ns ticks"),
-    ] = SoakProfile.span_ticks,
+        int | None,
+        typer.Option(
+            help="span every port's waves lie in, in 3.2 ns ticks "
+            "(default: each kind's own)"
+        ),
+    ] = None,
     save_dir: Annotated[
         Path | None, typer.Option(help="save each failed run's plan here as JSON")
     ] = None,
@@ -95,7 +111,20 @@ def _entry(  # noqa: PLR0913
         level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    profile = SoakProfile(span_ticks=span_ticks)
+    unknown = set(chosen_kinds or ()) - set(DEFAULT_KINDS)
+    if unknown:
+        raise typer.BadParameter(
+            f"{', '.join(sorted(unknown))}: not one of {', '.join(DEFAULT_KINDS)}",
+            param_hint="--kind",
+        )
+    profiles = {
+        k: p for k, p in DEFAULT_KINDS.items() if not chosen_kinds or k in chosen_kinds
+    }
+    if span_ticks is not None:
+        profiles = {
+            k: dataclasses.replace(p, span_ticks=span_ticks)
+            for k, p in profiles.items()
+        }
     if runs is None and duration_sec is None:
         runs = _DEFAULT_RUNS
     elif runs == 0:
@@ -111,7 +140,7 @@ def _entry(  # noqa: PLR0913
                 duration_sec=duration_sec,
                 seed=seed,
                 start_run=start_run,
-                profile=profile,
+                profile=profiles,
                 tx_hz=tx_hz,
                 save_dir=save_dir,
                 stop_on_failure=stop_on_failure,

@@ -25,8 +25,10 @@ from quelware_core.entities.waveform.sampled import IqWaveform
 
 from quelware_tools.diagnostics.correctness import Judge, Record, delay_shot
 from quelware_tools.diagnostics.soak_test import (
+    DEFAULT_KINDS,
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
+    PULSE_TRAIN_PROFILE,
     TICK_NS,
     TIMINGS_FORMAT,
     RunPlan,
@@ -40,6 +42,7 @@ from quelware_tools.diagnostics.soak_test import (
     _write_timings,
     build_directives,
     draw_plan,
+    draw_run,
 )
 
 _CONTROL = "u:tx_p04"
@@ -170,6 +173,48 @@ def test_every_instrument_shares_the_run_s_length() -> None:
     assert all(d.iterations == plan.iterations for d in directives.values())
 
 
+def test_a_pulse_train_packs_thousands_of_gate_length_pulses_on_each_port() -> None:
+    profile = PULSE_TRAIN_PROFILE
+    plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, profile, [_READOUT])
+    directives = build_directives(plan, _EMIT_INFOS)
+
+    for port, info in _EMIT_INFOS.items():
+        directive = directives[info.definition.alias]
+        assert len(plan.waves[port]) > 2000
+        assert len(directive.events) == len(plan.waves[port])
+        assert len(directive.waveform_library) <= len(profile.wave_ticks)
+    total_ns = sum(w.length_ns for w in plan.windows[_READOUT])
+    assert plan.iterations * total_ns <= profile.max_total_capture_ns
+    assert plan.iteration_blank_ns >= 300 * TICK_NS
+    assert not plan.raw
+
+
+def test_each_kind_is_drawn_about_as_often_and_again_from_its_seed() -> None:
+    kinds = {"long": SoakProfile(), "short": SoakProfile(span_ticks=400)}
+    plans = [
+        draw_run(np.random.default_rng([0, run]), run, _PORTS, kinds)
+        for run in range(400)
+    ]
+    again = draw_run(np.random.default_rng([0, 7]), 7, _PORTS, kinds)
+
+    assert 140 < sum(p.kind == "long" for p in plans) < 260
+    assert again == plans[7]
+
+
+def test_every_default_kind_draws_a_run() -> None:
+    for kind, profile in DEFAULT_KINDS.items():
+        plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, profile)
+        assert all(plan.waves.values()), kind
+
+
+def test_a_run_drawn_from_one_profile_is_drawn_as_before() -> None:
+    drawn = draw_run(np.random.default_rng([5, 2]), 2, _PORTS, SoakProfile())
+    planned = draw_plan(np.random.default_rng([5, 2]), 2, _PORTS, SoakProfile())
+
+    assert drawn == planned
+    assert drawn.kind == ""
+
+
 @pytest.mark.parametrize(
     ("error", "kind"),
     [
@@ -269,6 +314,7 @@ def test_the_timings_name_the_units_ports_versions_and_every_run(tmp_path) -> No
     report.timings += [
         RunTiming(
             0,
+            "sparse",
             1.0,
             {"configure": 0.4, "trigger": 0.7, "wait": 0.4},
             12,
@@ -276,7 +322,16 @@ def test_the_timings_name_the_units_ports_versions_and_every_run(tmp_path) -> No
             False,
             None,
         ),
-        RunTiming(1, 3.0, {"configure": 0.5, "trigger": 0.8}, 9, 10, True, "timeout"),
+        RunTiming(
+            1,
+            "pulse-train",
+            3.0,
+            {"configure": 0.5, "trigger": 0.8},
+            9,
+            10,
+            True,
+            "timeout",
+        ),
     ]
     path = tmp_path / "out" / "timings.json"
 

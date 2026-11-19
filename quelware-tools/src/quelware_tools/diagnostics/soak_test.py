@@ -128,6 +128,26 @@ class SoakProfile:
 
 DEFAULT_PROFILE = SoakProfile()
 
+# Long trains of gate-length pulses packed back to back, as a randomized benchmarking
+# sequence of a few thousand gates: a small waveform library but thousands of events
+# per port, repeated as many shots at a typical shot interval.
+PULSE_TRAIN_PROFILE = SoakProfile(
+    span_ticks=20500,
+    wave_ticks=(4, 8),
+    max_gap_ticks=(4,),
+    zero_gap_probability=0.5,
+    iterations=(1024,),
+    iteration_blank_ns=(153_600.0,),
+    max_window_ticks=160,
+    raw_share=0.0,
+)
+
+# the kinds of run drawn from by default, each as likely as the others
+DEFAULT_KINDS: Mapping[str, SoakProfile] = {
+    "sparse": DEFAULT_PROFILE,
+    "pulse-train": PULSE_TRAIN_PROFILE,
+}
+
 
 @dataclass(frozen=True)
 class Wave:
@@ -156,6 +176,8 @@ class RunPlan:
     shown_ports: tuple[str, ...] = ()
     # whether the windows return every iteration rather than their mean
     raw: bool = False
+    # the name of the kind of run it was drawn as; empty when drawn from one profile
+    kind: str = ""
 
 
 @dataclass(frozen=True)
@@ -173,6 +195,7 @@ class RunFailure:
 @dataclass(frozen=True)
 class RunTiming:
     run: int
+    kind: str
     # Unix time the run began at
     started_at: float
     # seconds each step took, in order; the step a run failed in is the last
@@ -281,6 +304,34 @@ def draw_plan(
         windows=windows,
         raw=raw,
     )
+
+
+def draw_run(
+    rng: np.random.Generator,
+    run: int,
+    port_ids: Sequence[str],
+    profile: SoakProfile | Mapping[str, SoakProfile] = DEFAULT_KINDS,
+    capture_port_ids: Sequence[str] = (),
+) -> RunPlan:
+    """Draw one run as ``draw_plan`` does, from a kind drawn first, each as likely,
+    when ``profile`` names several."""
+    if isinstance(profile, SoakProfile):
+        return draw_plan(rng, run, port_ids, profile, capture_port_ids)
+    kind = str(rng.choice(list(profile)))
+    plan = draw_plan(rng, run, port_ids, profile[kind], capture_port_ids)
+    return dataclasses.replace(plan, kind=kind)
+
+
+def _first_profile(profile: SoakProfile | Mapping[str, SoakProfile]) -> SoakProfile:
+    return profile if isinstance(profile, SoakProfile) else next(iter(profile.values()))
+
+
+def _settings_of(
+    profile: SoakProfile | Mapping[str, SoakProfile],
+) -> dict[str, object]:
+    if isinstance(profile, SoakProfile):
+        return asdict(profile)
+    return {kind: asdict(p) for kind, p in profile.items()}
 
 
 def _wave_samples(
@@ -554,7 +605,7 @@ async def _measure_delays(  # noqa: PLR0913
     emit_ports: Sequence[ResourceId],
     monitors: dict[UnitLabel, InstrumentInfo],
     judge: correctness.Judge,
-    profile: SoakProfile,
+    profile: SoakProfile | Mapping[str, SoakProfile],
 ) -> RunFailure | None:
     """Measure the delay from every emit port to its unit's monitor, one port of each
     unit at a time, as `correctness.delay_shot` does; a failure when one cannot be."""
@@ -570,9 +621,9 @@ async def _measure_delays(  # noqa: PLR0913
         wave = Wave(pulse.start_ns, pulse.shape.length_ns, pulse.gain, pulse.phase_deg)
         plan = RunPlan(
             run=-1 - k,
-            length_ns=profile.span_ticks * TICK_NS,
+            length_ns=_first_profile(profile).span_ticks * TICK_NS,
             iterations=delay_shot.iterations,
-            iteration_blank_ns=profile.iteration_blank_ns[0],
+            iteration_blank_ns=_first_profile(profile).iteration_blank_ns[0],
             shown_port=shown[0],
             waves={str(p): (wave,) for p in emit_ports},
             windows={
@@ -685,7 +736,7 @@ async def run_soak_test(  # noqa: PLR0913
     duration_sec: float | None = None,
     seed: int = 0,
     start_run: int = 0,
-    profile: SoakProfile = DEFAULT_PROFILE,
+    profile: SoakProfile | Mapping[str, SoakProfile] = DEFAULT_KINDS,
     tx_hz: float = 5.1e9,
     save_dir: Path | None = None,
     stop_on_failure: bool = False,
@@ -703,7 +754,9 @@ async def run_soak_test(  # noqa: PLR0913
     ``runs`` nor ``duration_sec`` it runs until interrupted. The units' tx/trx
     ports must be idle, unless ``discard_instruments`` is set. With
     ``initialize_each_run``, every run initializes the instruments before it
-    configures them, as a client that starts each run afresh does.
+    configures them, as a client that starts each run afresh does. Each run is
+    drawn from ``profile``, or, when it names several kinds, from one of them drawn
+    for the run, each as likely.
 
     With ``check_monitor``, every instrument on the units is discarded and the
     units are put in monitor loopback, which needs an admin PAT, and put back in
@@ -802,7 +855,7 @@ async def run_soak_test(  # noqa: PLR0913
                     logger.error("lease lost before run %d: %s", run, failure.detail)
                     break
                 rng = np.random.default_rng([seed, run])
-                plan = draw_plan(rng, run, list(emit_infos), profile, capture_ports)
+                plan = draw_run(rng, run, list(emit_infos), profile, capture_ports)
                 if check_monitor:
                     plan = dataclasses.replace(
                         plan, shown_ports=_draw_shown(rng, emit_ports)
@@ -833,6 +886,7 @@ async def run_soak_test(  # noqa: PLR0913
                 report.timings.append(
                     RunTiming(
                         run=run,
+                        kind=plan.kind,
                         started_at=run_started_at,
                         steps=laps,
                         waves=sum(len(t) for t in plan.waves.values()),
@@ -872,7 +926,7 @@ async def run_soak_test(  # noqa: PLR0913
                 {
                     "seed": seed,
                     "start_run": start_run,
-                    "profile": asdict(profile),
+                    "profile": _settings_of(profile),
                     "tx_hz": tx_hz,
                     "check_monitor": check_monitor,
                     "initialize_each_run": initialize_each_run,
@@ -908,8 +962,10 @@ def _draw_shown(
 
 
 __all__ = [
+    "DEFAULT_KINDS",
     "HIDDEN_AMPLITUDE",
     "MARKER_TICKS",
+    "PULSE_TRAIN_PROFILE",
     "TICK_NS",
     "TIMINGS_FORMAT",
     "RunFailure",
@@ -921,6 +977,7 @@ __all__ = [
     "Window",
     "build_directives",
     "draw_plan",
+    "draw_run",
     "monitor_shot",
     "run_soak_test",
 ]
