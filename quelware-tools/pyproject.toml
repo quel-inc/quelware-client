@@ -26,6 +26,7 @@ quel-trigger-wait-test = "quelware_tools.cli.trigger_wait_test:cli"
 quel-measure-delay = "quelware_tools.cli.measure_delay:cli"
 quel-pulse-test = "quelware_tools.cli.pulse_test:cli"
 quel-soak-test = "quelware_tools.cli.soak_test:cli"
+quel-soak-compare = "quelware_tools.cli.soak_compare:cli"
 quel-unit-config = "quelware_tools.cli.unit_config:cli"
 quel-recover-past-counter = "quelware_tools.cli.recover_past_counter:cli"
 
