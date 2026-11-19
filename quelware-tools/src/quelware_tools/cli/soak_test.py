@@ -1,11 +1,11 @@
 """quel-soak-test: keep QuEL-3 units busy with random trains of waves on every port.
 
 Runs random trains of waves on every tx/trx port of the units at once, every run
-under one trigger, until the given number of runs or duration is spent (or until
-interrupted). Without ``--unit`` it runs on every unit the manager knows. A run
-refused before it starts counts as a pass; a run that fails, times out or breaks
-otherwise is a failure. Requires idle tx/trx ports. Exits non-zero if any run
-failed.
+under one trigger, until the given number of runs or duration is spent, 200 runs by
+default (or until interrupted). Without ``--unit`` it runs on every unit the manager
+knows. A run refused before it starts counts as a pass; a run that fails, times out
+or breaks otherwise is a failure. Requires idle tx/trx ports. Exits non-zero if any
+run failed.
 
 With ``--check-monitor``, the units are put in monitor loopback (an admin PAT is
 needed, and every instrument on them is discarded) and back in open mode after, and
@@ -27,6 +27,8 @@ from quelware_tools.diagnostics import SoakProfile, run_soak_test
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_RUNS = 200
+
 
 def _entry(  # noqa: PLR0913
     host: Annotated[str, typer.Argument(help="manager host")],
@@ -40,7 +42,11 @@ def _entry(  # noqa: PLR0913
         typer.Option(help="PAT; defaults to the configured PAT"),
     ] = None,
     runs: Annotated[
-        int | None, typer.Option(help="number of runs (default: no limit)")
+        int | None,
+        typer.Option(
+            help=f"number of runs, 0 for no limit "
+            f"(default: {_DEFAULT_RUNS}, or no limit with --duration-sec)"
+        ),
     ] = None,
     duration_sec: Annotated[
         float | None, typer.Option(help="stop after this many seconds")
@@ -90,6 +96,10 @@ def _entry(  # noqa: PLR0913
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     profile = SoakProfile(span_ticks=span_ticks)
+    if runs is None and duration_sec is None:
+        runs = _DEFAULT_RUNS
+    elif runs == 0:
+        runs = None
 
     async def _main() -> None:
         qc = create_quelware_client(host, port, pat=pat)

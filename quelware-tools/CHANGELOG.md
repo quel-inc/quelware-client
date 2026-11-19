@@ -9,6 +9,10 @@
 - `quel-soak-test` returns every iteration, rather than their mean, in a share of its runs (`SoakProfile.raw_share`, a quarter by default), repeated fewer times (`SoakProfile.raw_iterations`), with the windows of such a run summed over its iterations within `SoakProfile.max_raw_capture_ns` (40 µs by default), so that returning them keeps the units answering. With `--check-monitor`, each iteration of such a run is judged.
 - `quel-soak-test --timings PATH` (`run_soak_test(timings_path=...)`) writes to `PATH`, as JSON, the version of its layout (`format`), the units and ports it ran on, its settings, the versions of quelware-tools and quelware-client, and each run's timing: when it began, the seconds each step took (initialize, configure, trigger, wait; a failed run up to the step it failed in), its waves, iterations, whether it was raw, and the kind of its failure. It is written at the end, also when interrupted. `SoakReport.timings` holds the same timings (`RunTiming`).
 
+### Changed
+
+- `quel-soak-test` stops after 200 runs by default, rather than running until interrupted; with `--duration-sec` alone it still runs for that long, and `--runs 0` runs until interrupted.
+
 ## [0.1.8] - 2026-11-02
 
 ### Added
