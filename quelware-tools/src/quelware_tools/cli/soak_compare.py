@@ -1,10 +1,11 @@
 """quel-soak-compare: compare the timings of two quel-soak-test runs.
 
-Reads two files written by ``quel-soak-test --timings`` and prints, as a Markdown
-table, how long each step took in the new against the old: the median, the 95th
-percentile and the longest, over the runs that completed. When both drew the same
-runs (the same seed, settings and ports), it also prints the median of each run's
-difference, which cancels out how heavy each run is.
+Reads two files written by ``quel-soak-test --timings``, A and B, and prints, as
+Markdown tables, how long each step took in each: the median, the 95th percentile
+and the longest, over the runs that completed. When both drew the same runs (the
+same seed, settings and ports), it also prints the median of each run's difference,
+B minus A, which cancels out how heavy each run is. A and B are named after their
+files unless labelled.
 """
 
 from pathlib import Path
@@ -26,8 +27,8 @@ def _ms(sec: float) -> str:
 
 def _table(steps: list[StepComparison], paired: bool) -> list[str]:
     lines = [
-        "| step (ms) | old median | new median | old p95 | new p95 | old max | new max"
-        + (" | median of new - old |" if paired else " |"),
+        "| step (ms) | A median | B median | A p95 | B p95 | A max | B max"
+        + (" | median of B - A |" if paired else " |"),
         "|---" * (7 + paired) + "|",
     ]
     for s in steps:
@@ -36,12 +37,12 @@ def _table(steps: list[StepComparison], paired: bool) -> list[str]:
             *(
                 _ms(x)
                 for x in (
-                    s.old_median,
-                    s.new_median,
-                    s.old_p95,
-                    s.new_p95,
-                    s.old_max,
-                    s.new_max,
+                    s.a_median,
+                    s.b_median,
+                    s.a_p95,
+                    s.b_p95,
+                    s.a_max,
+                    s.b_max,
                 )
             ),
         ]
@@ -52,12 +53,15 @@ def _table(steps: list[StepComparison], paired: bool) -> list[str]:
     return lines
 
 
-def format_comparison(c: SoakComparison) -> str:
-    """The comparison as a few lines and Markdown tables, in milliseconds: one over
-    every run, and one for each kind of run when there are several."""
+def format_comparison(c: SoakComparison, label_a: str = "", label_b: str = "") -> str:
+    """The comparison as a line for each of A and B and Markdown tables, in
+    milliseconds: one over every run, and one for each kind of run when there are
+    several."""
     lines = [
-        f"old: {c.old_runs} runs, {c.old_failed} failed, {c.old_duration_sec:.0f} s",
-        f"new: {c.new_runs} runs, {c.new_failed} failed, {c.new_duration_sec:.0f} s",
+        f"A: {label_a + ' - ' if label_a else ''}{c.a_runs} runs, "
+        f"{c.a_failed} failed, {c.a_duration_sec:.0f} s",
+        f"B: {label_b + ' - ' if label_b else ''}{c.b_runs} runs, "
+        f"{c.b_failed} failed, {c.b_duration_sec:.0f} s",
         "runs compared one by one"
         if c.paired
         else "runs drawn differently: only the spread is compared",
@@ -73,16 +77,22 @@ def format_comparison(c: SoakComparison) -> str:
 
 
 def _entry(
-    old: Annotated[Path, typer.Argument(help="timings file to compare against")],
-    new: Annotated[Path, typer.Argument(help="timings file to compare")],
+    a: Annotated[Path, typer.Argument(help="timings file A")],
+    b: Annotated[Path, typer.Argument(help="timings file B, compared against A")],
+    label_a: Annotated[
+        str | None, typer.Option(help="name for A (default: its file name)")
+    ] = None,
+    label_b: Annotated[
+        str | None, typer.Option(help="name for B (default: its file name)")
+    ] = None,
 ) -> None:
     """Compare the timings of two quel-soak-test runs."""
     try:
-        comparison = compare_soak_timings(load_timings(old), load_timings(new))
+        comparison = compare_soak_timings(load_timings(a), load_timings(b))
     except (OSError, ValueError, KeyError) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    typer.echo(format_comparison(comparison))
+    typer.echo(format_comparison(comparison, label_a or a.name, label_b or b.name))
 
 
 def cli() -> None:

@@ -22,13 +22,13 @@ TOTAL = "total"
 class StepComparison:
     step: str
     # over the runs that completed, in seconds
-    old_median: float
-    new_median: float
-    old_p95: float
-    new_p95: float
-    old_max: float
-    new_max: float
-    # the median over the runs completed in both of new minus old; None unless paired
+    a_median: float
+    b_median: float
+    a_p95: float
+    b_p95: float
+    a_max: float
+    b_max: float
+    # the median over the runs completed in both of B minus A; None unless paired
     paired_median_diff: float | None
 
 
@@ -36,12 +36,12 @@ class StepComparison:
 class SoakComparison:
     # whether both drew the same runs, so that each run is compared with itself
     paired: bool
-    old_runs: int
-    new_runs: int
-    old_failed: int
-    new_failed: int
-    old_duration_sec: float
-    new_duration_sec: float
+    a_runs: int
+    b_runs: int
+    a_failed: int
+    b_failed: int
+    a_duration_sec: float
+    b_duration_sec: float
     steps: list[StepComparison]
     # the same over the runs of each kind drawn in both; empty when runs are of one
     by_kind: dict[str, list[StepComparison]]
@@ -61,12 +61,12 @@ def _plan(run: Mapping[str, Any]) -> tuple[Any, ...]:
     return run.get("kind", ""), run["waves"], run["iterations"], run["raw"]
 
 
-def _same_runs(old: Mapping[str, Any], new: Mapping[str, Any]) -> bool:
-    if old["settings"] != new["settings"] or old["ports"] != new["ports"]:
+def _same_runs(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    if a["settings"] != b["settings"] or a["ports"] != b["ports"]:
         return False
-    old_runs = {r["run"]: r for r in old["runs"]}
-    common = [r for r in new["runs"] if r["run"] in old_runs]
-    return bool(common) and all(_plan(r) == _plan(old_runs[r["run"]]) for r in common)
+    a_runs = {r["run"]: r for r in a["runs"]}
+    common = [r for r in b["runs"] if r["run"] in a_runs]
+    return bool(common) and all(_plan(r) == _plan(a_runs[r["run"]]) for r in common)
 
 
 def _seconds(run: Mapping[str, Any], step: str) -> float | None:
@@ -75,35 +75,35 @@ def _seconds(run: Mapping[str, Any], step: str) -> float | None:
 
 
 def _compare_steps(
-    old_runs: list[Mapping[str, Any]],
-    new_runs: list[Mapping[str, Any]],
+    a_runs: list[Mapping[str, Any]],
+    b_runs: list[Mapping[str, Any]],
     paired: bool,
 ) -> list[StepComparison]:
-    old_done = {r["run"]: r for r in old_runs if r["failure"] is None}
-    new_done = {r["run"]: r for r in new_runs if r["failure"] is None}
-    both = sorted(old_done.keys() & new_done.keys())
-    present = [s for s in _STEPS if any(s in r["steps"] for r in old_runs)]
+    a_done = {r["run"]: r for r in a_runs if r["failure"] is None}
+    b_done = {r["run"]: r for r in b_runs if r["failure"] is None}
+    both = sorted(a_done.keys() & b_done.keys())
+    present = [s for s in _STEPS if any(s in r["steps"] for r in a_runs)]
     steps = []
     for step in [*present, TOTAL]:
-        o = [x for r in old_done.values() if (x := _seconds(r, step)) is not None]
-        n = [x for r in new_done.values() if (x := _seconds(r, step)) is not None]
+        o = [x for r in a_done.values() if (x := _seconds(r, step)) is not None]
+        n = [x for r in b_done.values() if (x := _seconds(r, step)) is not None]
         if not o or not n:
             continue
         diffs = [
             b - a
             for i in both
-            if (a := _seconds(old_done[i], step)) is not None
-            and (b := _seconds(new_done[i], step)) is not None
+            if (a := _seconds(a_done[i], step)) is not None
+            and (b := _seconds(b_done[i], step)) is not None
         ]
         steps.append(
             StepComparison(
                 step=step,
-                old_median=float(np.median(o)),
-                new_median=float(np.median(n)),
-                old_p95=float(np.percentile(o, 95)),
-                new_p95=float(np.percentile(n, 95)),
-                old_max=max(o),
-                new_max=max(n),
+                a_median=float(np.median(o)),
+                b_median=float(np.median(n)),
+                a_p95=float(np.percentile(o, 95)),
+                b_p95=float(np.percentile(n, 95)),
+                a_max=max(o),
+                b_max=max(n),
                 paired_median_diff=(
                     float(np.median(diffs)) if paired and diffs else None
                 ),
@@ -119,27 +119,25 @@ def _by_kind(runs: list[Mapping[str, Any]]) -> dict[str, list[Mapping[str, Any]]
     return kinds
 
 
-def compare_soak_timings(
-    old: Mapping[str, Any], new: Mapping[str, Any]
-) -> SoakComparison:
-    """How long each step of ``new``'s runs took against ``old``'s, over all runs and
-    over the runs of each kind."""
-    paired = _same_runs(old, new)
-    old_kinds = _by_kind(old["runs"])
-    new_kinds = _by_kind(new["runs"])
-    kinds = [k for k in old_kinds if k in new_kinds]
+def compare_soak_timings(a: Mapping[str, Any], b: Mapping[str, Any]) -> SoakComparison:
+    """How long each step of ``b``'s runs took against ``a``'s, over all runs and over
+    the runs of each kind."""
+    paired = _same_runs(a, b)
+    a_kinds = _by_kind(a["runs"])
+    b_kinds = _by_kind(b["runs"])
+    kinds = [k for k in a_kinds if k in b_kinds]
     return SoakComparison(
         paired=paired,
-        old_runs=len(old["runs"]),
-        new_runs=len(new["runs"]),
-        old_failed=sum(r["failure"] is not None for r in old["runs"]),
-        new_failed=sum(r["failure"] is not None for r in new["runs"]),
-        old_duration_sec=old["finished_at"] - old["started_at"],
-        new_duration_sec=new["finished_at"] - new["started_at"],
-        steps=_compare_steps(old["runs"], new["runs"], paired),
+        a_runs=len(a["runs"]),
+        b_runs=len(b["runs"]),
+        a_failed=sum(r["failure"] is not None for r in a["runs"]),
+        b_failed=sum(r["failure"] is not None for r in b["runs"]),
+        a_duration_sec=a["finished_at"] - a["started_at"],
+        b_duration_sec=b["finished_at"] - b["started_at"],
+        steps=_compare_steps(a["runs"], b["runs"], paired),
         by_kind=(
-            {k: _compare_steps(old_kinds[k], new_kinds[k], paired) for k in kinds}
-            if len(old_kinds) > 1 or len(new_kinds) > 1
+            {k: _compare_steps(a_kinds[k], b_kinds[k], paired) for k in kinds}
+            if len(a_kinds) > 1 or len(b_kinds) > 1
             else {}
         ),
     )
