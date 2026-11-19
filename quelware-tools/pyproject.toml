@@ -1,6 +1,6 @@
 [project]
 name = "quelware-tools"
-version = "0.1.8"
+version = "0.1.9"
 description = "Command-line tools and diagnostics for QuEL systems."
 readme = "README.md"
 authors = [
@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "quelware-client>=0.7.4",
+    "quelware-client>=0.8.0",
     "grpclib>=0.4.8",
     "numpy",
     "typer>=0.21.1",

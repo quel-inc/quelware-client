@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-20
+
 ### Added
 
 - `quelware_tools.diagnostics.correctness` (`Judge`, `judge`) judges whether what came back is what was sent, from the shots alone (`quelware_tools.diagnostics.shots`): each port's path delay is measured once, by a shot that measures it (`delay_shot`), and every later shot along the path is held to it; a shot's gain along each path is estimated from all of its pulses, and every pulse is held to the gain, phase and position it was sent with; a window holds nothing else but the noise its iterations average down; shots along one path share its gain, and the same shot fired again comes back the same. A shot along a path whose delay was not measured is a problem. A pulse too short to measure is not judged by itself, and one with no silence around it is not held to its position. A raw shot's mean is judged so, and each of its iterations as well: every pulse is held to the gain and phase of its median iteration, and the window between the pulses to one iteration's noise.
@@ -14,6 +16,7 @@
 ### Changed
 
 - `quel-soak-test` stops after one round by default (68 runs), rather than running until interrupted. `--rounds`, `--runs` and `--duration-sec` set how long it runs, and it stops at whichever of those given comes first; `--duration-sec` alone runs for that long, and `--runs 0` runs until interrupted. `run_soak_test` draws a round of kinds by default (`DEFAULT_ROUND`), rather than the runs of `DEFAULT_PROFILE`; pass `profile=DEFAULT_PROFILE` for those.
+- Requires `quelware-client>=0.8.0`, which reads the values a server built with `quelware-core>=0.10.0` returns.
 
 ## [0.1.8] - 2026-11-02
 
