@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-20
+
 ### Added
 
 - `InstrumentDriver.apply` logs at INFO, for a fixed timeline it applies, how many waveform events it places, how many samples its waveform library holds, the instrument's port and alias, and how long applying took, such as `applied a timeline of 61481 events and 96 waveform samples to quel3-01-a28:tx_p02 (quel3-01-a28:soak_tx_p02) in 11.21 s`. Applying a timeline takes the longer the more events and samples it holds, as the client encodes them and the unit takes them, and the unit answers other calls later meanwhile, so this shows where a slow or unsteady run comes from.
@@ -13,6 +15,7 @@
 - Configuring an instrument and arming instruments wait up to 120 s for the unit, rather than the 30 s most calls wait. A unit takes the longer the more events a timeline holds: on a QuEL-3, about 0.17 ms an event to take a timeline and, for all of a unit's instruments together, about 0.05 ms an event to arm them, so a unit with many long sequences went past 30 s. The deadline goes to the unit with the call, which stops working on it at the same time.
 - With a server that knows the retry window, `create_session` lets it retry opening the session for 30 s by default. Opening a resource another session keeps fails after that window, where it failed after about a second before; pass `retry_window_ms=1` to fail at once. With a server that does not know the window, opening fails as before, but may take up to 60 s instead of 30 s before it times out.
 - `create_session` and `Session` default to `ttl_ms=10_000` and `tentative_ttl_ms=10_000`, up from 4000 and 1000. Opening a session that spans several units fails less often when a unit answers slowly, because the tentative locks held while opening last long enough to be committed. A session left without `extend` now lasts 10 s instead of 4 s.
+- Requires `quelware-core>=0.10.0`, for `OpenSessionRequest.retry_window_ms`, `Waveform.dense`, `VersionInfo.features` and reading `IqResult.dense_iq_points`, which a server built with it returns.
 - Breaking for a `SessionAgent` implemented outside the client: `open_session` takes `retry_window_ms`, which `Session` passes, so such an implementation needs to accept it.
 - Configuring a timeline sends its waveforms as bytes (`DenseIqArray`) to a unit whose version names `dense_waveform`, and as samples to any other unit. A unit parses the bytes far faster, so it keeps answering other calls while it takes a long timeline. The client reads each unit's version once, when it starts; a unit that does not answer is taken as old.
 - `WorkerAgent.get_version` returns the unit's `UnitVersion` (its version and the features it names that the client knows), or None when the unit does not answer. `UnitVersion.supports("dense_waveform")` says whether the unit named a feature, and raises `ValueError` for a name the client does not know. `AgentContainer.unit_version` holds what the client read at start.
