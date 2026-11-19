@@ -13,7 +13,7 @@
 
 ### Changed
 
-- `quel-soak-test` stops after one round by default (68 runs), or after `--rounds` of them, rather than running until interrupted; `--runs` gives the number of runs instead, with `--duration-sec` alone it still runs for that long, and `--runs 0` runs until interrupted. `run_soak_test` draws a round of kinds by default (`DEFAULT_ROUND`), rather than the runs of `DEFAULT_PROFILE`; pass `profile=DEFAULT_PROFILE` for those.
+- `quel-soak-test` stops after one round by default (68 runs), rather than running until interrupted. `--rounds`, `--runs` and `--duration-sec` set how long it runs, and it stops at whichever of those given comes first; `--duration-sec` alone runs for that long, and `--runs 0` runs until interrupted. `run_soak_test` draws a round of kinds by default (`DEFAULT_ROUND`), rather than the runs of `DEFAULT_PROFILE`; pass `profile=DEFAULT_PROFILE` for those.
 
 ## [0.1.8] - 2026-11-02
 

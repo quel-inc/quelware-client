@@ -1,16 +1,16 @@
 """quel-soak-test: keep QuEL-3 units busy with random trains of waves on every port.
 
-Runs random trains of waves on every tx/trx port of the units at once, every run
-under one trigger, a round of kinds by default, or the given number of rounds, runs
-or seconds (or until interrupted). A round runs light kinds many times and heavy
-kinds a few times, spread out: ``sparse``, waves of many lengths with gaps between
-them; ``spectroscopy``, long capture windows repeated with a short blank;
-``dense-cr``, a few flat pulses of 1 and 4 us; ``packed-sweep``, 50 calibration
+Runs random trains of waves on every tx/trx port of the units at once, every run under
+one trigger, a round of kinds by default, or until the given number of rounds, runs or
+seconds is spent, whichever comes first (or until interrupted). A round runs light kinds
+many times and heavy kinds a few times, spread out: ``sparse``, waves of many lengths
+with gaps between them; ``spectroscopy``, long capture windows repeated with a short
+blank; ``dense-cr``, a few flat pulses of 1 and 4 us; ``packed-sweep``, 50 calibration
 points in one trigger; and ``packed-rb-1024`` and ``packed-rb-2048``, 30 randomized
-benchmarking sequences of that many gates in one trigger. Without ``--unit`` it runs
-on every unit the manager knows. A run refused before it starts counts as a pass; a
-run that fails, times out or breaks otherwise is a failure. Requires idle tx/trx
-ports. Exits non-zero if any run failed.
+benchmarking sequences of that many gates in one trigger. Without ``--unit`` it runs on
+every unit the manager knows. A run refused before it starts counts as a pass; a run
+that fails, times out or breaks otherwise is a failure. Requires idle tx/trx ports.
+Exits non-zero if any run failed.
 
 With ``--check-monitor``, the units are put in monitor loopback (an admin PAT is
 needed, and every instrument on them is discarded) and back in open mode after, and
@@ -30,7 +30,7 @@ from quelware_client.client import create_quelware_client
 from quelware_core.entities.unit import UnitLabel
 
 from quelware_tools.diagnostics import run_soak_test
-from quelware_tools.diagnostics.soak_test import DEFAULT_ROUND, round_order
+from quelware_tools.diagnostics.soak_test import DEFAULT_ROUND
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,14 @@ def _entry(  # noqa: PLR0913
         typer.Option(help="PAT; defaults to the configured PAT"),
     ] = None,
     rounds: Annotated[
-        int, typer.Option(help="number of rounds of the kinds to run")
-    ] = 1,
-    runs: Annotated[
         int | None,
         typer.Option(
-            help="number of runs instead of rounds, 0 for no limit "
-            "(no limit either with --duration-sec)"
+            min=1, help="number of rounds of the kinds to run (default: 1 alone)"
         ),
+    ] = None,
+    runs: Annotated[
+        int | None,
+        typer.Option(min=0, help="number of runs instead of rounds, 0 for no limit"),
     ] = None,
     duration_sec: Annotated[
         float | None, typer.Option(help="stop after this many seconds")
@@ -137,10 +137,11 @@ def _entry(  # noqa: PLR0913
             )
             for e in entries
         ]
-    if runs is None and duration_sec is None:
-        runs = rounds * len(round_order(entries))
-    elif runs == 0:
+    # whichever of the rounds, the runs and the seconds given comes first
+    if runs == 0:
         runs = None
+    elif runs is None and (rounds is not None or duration_sec is None):
+        runs = (rounds or 1) * sum(e.runs for e in entries)
 
     async def _main() -> None:
         qc = create_quelware_client(host, port, pat=pat)

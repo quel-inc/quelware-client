@@ -810,23 +810,24 @@ def _write_timings(
     settings: dict[str, object],
     started_at: float,
 ) -> None:
-    content = {
-        "format": TIMINGS_FORMAT,
-        "units": report.unit_labels,
-        "ports": [str(p) for p in emit_ports],
-        "settings": settings,
-        "versions": {
-            name: importlib.metadata.version(name)
-            for name in ("quelware-tools", "quelware-client")
-        },
-        "started_at": started_at,
-        "finished_at": time.time(),
-        "runs": [asdict(t) for t in report.timings],
-    }
+    # it runs as the soak test ends, so a failure here must not hide the test's own
     try:
+        content = {
+            "format": TIMINGS_FORMAT,
+            "units": report.unit_labels,
+            "ports": [str(p) for p in emit_ports],
+            "settings": settings,
+            "versions": {
+                name: importlib.metadata.version(name)
+                for name in ("quelware-tools", "quelware-client")
+            },
+            "started_at": started_at,
+            "finished_at": time.time(),
+            "runs": [asdict(t) for t in report.timings],
+        }
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(content, indent=1) + "\n")
-    except OSError:
+    except Exception:
         logger.exception("could not write the timings to %s", path)
 
 
