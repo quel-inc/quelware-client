@@ -31,12 +31,12 @@ def _run(
     }
 
 
-def _timings(runs: list[dict], seed: int = 0) -> dict:
+def _timings(runs: list[dict], seed: int = 0, tx_hz: float = 5.1e9) -> dict:
     return {
         "format": TIMINGS_FORMAT,
         "units": ["u"],
         "ports": ["u:tx_p00"],
-        "settings": {"seed": seed},
+        "settings": {"seed": seed, "tx_hz": tx_hz},
         "versions": {},
         "started_at": 0.0,
         "finished_at": 10.0,
@@ -104,15 +104,15 @@ def test_the_table_has_a_difference_column_only_when_runs_are_paired() -> None:
 
 
 def test_runs_of_several_kinds_are_also_compared_kind_by_kind() -> None:
-    a = _timings([_run(0, 2.0, 0.1), _run(1, 4.0, 0.1, kind="pulse-train")])
-    b = _timings([_run(0, 0.2, 0.1), _run(1, 1.0, 0.1, kind="pulse-train")])
+    a = _timings([_run(0, 2.0, 0.1), _run(1, 4.0, 0.1, kind="packed-rb-2048")])
+    b = _timings([_run(0, 0.2, 0.1), _run(1, 1.0, 0.1, kind="packed-rb-2048")])
 
     c = compare_soak_timings(a, b)
 
-    assert set(c.by_kind) == {"sparse", "pulse-train"}
-    pulse_train = next(s for s in c.by_kind["pulse-train"] if s.step == "configure")
-    assert pulse_train.paired_median_diff == pytest.approx(-3.0)
-    assert "pulse-train:" in format_comparison(c)
+    assert set(c.by_kind) == {"sparse", "packed-rb-2048"}
+    packed_rb = next(s for s in c.by_kind["packed-rb-2048"] if s.step == "configure")
+    assert packed_rb.paired_median_diff == pytest.approx(-3.0)
+    assert "packed-rb-2048:" in format_comparison(c)
 
 
 def test_runs_of_one_kind_are_not_broken_down() -> None:
@@ -142,3 +142,35 @@ def test_a_and_b_are_named_by_their_labels() -> None:
 
     assert lines[0] == "A: release-0929 - 1 runs, 0 failed, 10 s"
     assert lines[1] == "B: release-1119 - 2 runs, 1 failed, 10 s"
+
+
+def test_runs_drawn_alike_are_paired_whatever_the_frequency() -> None:
+    a = _timings([_run(0, 2.0, 0.1)], tx_hz=5.1e9)
+    b = _timings([_run(0, 0.2, 0.1)], tx_hz=5.2e9)
+
+    assert compare_soak_timings(a, b).paired
+
+
+def test_a_step_only_b_took_has_no_row_but_counts_in_b_s_total() -> None:
+    a = _timings([_run(0, 2.0, 0.1)])
+    b_run = _run(0, 0.2, 0.1)
+    b_run["steps"] = {"initialize": 0.5, **b_run["steps"]}
+    b = _timings([b_run])
+
+    c = compare_soak_timings(a, b)
+
+    assert "initialize" not in [s.step for s in c.steps]
+    assert _step(c, TOTAL).b_max == pytest.approx(0.5 + 0.2 + 0.3 + 0.1)
+
+
+def test_the_kinds_only_one_file_ran_are_named() -> None:
+    a = _timings([_run(0, 2.0, 0.1)])
+    b = _timings([_run(0, 0.2, 0.1, kind="packed-rb-2048")])
+
+    c = compare_soak_timings(a, b)
+
+    assert (c.kinds_only_in_a, c.kinds_only_in_b) == (["sparse"], ["packed-rb-2048"])
+    assert c.by_kind == {}
+    text = format_comparison(c)
+    assert "only in A: sparse" in text
+    assert "only in B: packed-rb-2048" in text

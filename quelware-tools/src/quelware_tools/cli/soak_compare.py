@@ -3,7 +3,7 @@
 Reads two files written by ``quel-soak-test --timings``, A and B, and prints, as
 Markdown tables, how long each step took in each: the median, the 95th percentile
 and the longest, over the runs that completed. When both drew the same runs (the
-same seed, settings and ports), it also prints the median of each run's difference,
+same seed, kinds and ports), it also prints the median of each run's difference,
 B minus A, which cancels out how heavy each run is. A and B are named after their
 files unless labelled.
 """
@@ -68,6 +68,9 @@ def format_comparison(c: SoakComparison, label_a: str = "", label_b: str = "") -
         "",
         *_table(c.steps, c.paired),
     ]
+    for side, only in (("A", c.kinds_only_in_a), ("B", c.kinds_only_in_b)):
+        if only:
+            lines += ["", f"only in {side}: {', '.join(only)}"]
     for kind, steps in c.by_kind.items():
         if steps:
             lines += ["", f"{kind}:", "", *_table(steps, c.paired)]

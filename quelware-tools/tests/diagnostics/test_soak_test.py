@@ -394,7 +394,7 @@ def test_the_timings_name_the_units_ports_versions_and_every_run(tmp_path) -> No
         ),
         RunTiming(
             1,
-            "pulse-train",
+            "packed-rb-2048",
             3.0,
             {"configure": 0.5, "trigger": 0.8},
             9,

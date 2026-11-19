@@ -43,8 +43,10 @@ class SoakComparison:
     a_duration_sec: float
     b_duration_sec: float
     steps: list[StepComparison]
-    # the same over the runs of each kind drawn in both; empty when runs are of one
+    # the same over the runs of each kind drawn in both; empty when both ran one kind
     by_kind: dict[str, list[StepComparison]]
+    kinds_only_in_a: list[str]
+    kinds_only_in_b: list[str]
 
 
 def load_timings(path: Path) -> dict[str, Any]:
@@ -57,12 +59,18 @@ def load_timings(path: Path) -> dict[str, Any]:
     return content
 
 
+# the settings that shape which runs are drawn; others, such as the frequency, do not
+_DRAW_SETTINGS = ("seed", "profile", "check_monitor")
+
+
 def _plan(run: Mapping[str, Any]) -> tuple[Any, ...]:
-    return run.get("kind", ""), run["waves"], run["iterations"], run["raw"]
+    return run["kind"], run["waves"], run["iterations"], run["raw"]
 
 
 def _same_runs(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
-    if a["settings"] != b["settings"] or a["ports"] != b["ports"]:
+    if a["ports"] != b["ports"] or any(
+        a["settings"].get(k) != b["settings"].get(k) for k in _DRAW_SETTINGS
+    ):
         return False
     a_runs = {r["run"]: r for r in a["runs"]}
     common = [r for r in b["runs"] if r["run"] in a_runs]
@@ -82,12 +90,12 @@ def _compare_steps(
     a_done = {r["run"]: r for r in a_runs if r["failure"] is None}
     b_done = {r["run"]: r for r in b_runs if r["failure"] is None}
     both = sorted(a_done.keys() & b_done.keys())
-    present = [s for s in _STEPS if any(s in r["steps"] for r in a_runs)]
+    present = [s for s in _STEPS if any(s in r["steps"] for r in [*a_runs, *b_runs])]
     steps = []
     for step in [*present, TOTAL]:
-        o = [x for r in a_done.values() if (x := _seconds(r, step)) is not None]
-        n = [x for r in b_done.values() if (x := _seconds(r, step)) is not None]
-        if not o or not n:
+        a_secs = [x for r in a_done.values() if (x := _seconds(r, step)) is not None]
+        b_secs = [x for r in b_done.values() if (x := _seconds(r, step)) is not None]
+        if not a_secs or not b_secs:
             continue
         diffs = [
             b - a
@@ -98,12 +106,12 @@ def _compare_steps(
         steps.append(
             StepComparison(
                 step=step,
-                a_median=float(np.median(o)),
-                b_median=float(np.median(n)),
-                a_p95=float(np.percentile(o, 95)),
-                b_p95=float(np.percentile(n, 95)),
-                a_max=max(o),
-                b_max=max(n),
+                a_median=float(np.median(a_secs)),
+                b_median=float(np.median(b_secs)),
+                a_p95=float(np.percentile(a_secs, 95)),
+                b_p95=float(np.percentile(b_secs, 95)),
+                a_max=max(a_secs),
+                b_max=max(b_secs),
                 paired_median_diff=(
                     float(np.median(diffs)) if paired and diffs else None
                 ),
@@ -115,7 +123,7 @@ def _compare_steps(
 def _by_kind(runs: list[Mapping[str, Any]]) -> dict[str, list[Mapping[str, Any]]]:
     kinds: dict[str, list[Mapping[str, Any]]] = {}
     for r in runs:
-        kinds.setdefault(r.get("kind", ""), []).append(r)
+        kinds.setdefault(r["kind"], []).append(r)
     return kinds
 
 
@@ -126,6 +134,7 @@ def compare_soak_timings(a: Mapping[str, Any], b: Mapping[str, Any]) -> SoakComp
     a_kinds = _by_kind(a["runs"])
     b_kinds = _by_kind(b["runs"])
     kinds = [k for k in a_kinds if k in b_kinds]
+    several = len(a_kinds) > 1 or len(b_kinds) > 1 or a_kinds.keys() != b_kinds.keys()
     return SoakComparison(
         paired=paired,
         a_runs=len(a["runs"]),
@@ -137,9 +146,11 @@ def compare_soak_timings(a: Mapping[str, Any], b: Mapping[str, Any]) -> SoakComp
         steps=_compare_steps(a["runs"], b["runs"], paired),
         by_kind=(
             {k: _compare_steps(a_kinds[k], b_kinds[k], paired) for k in kinds}
-            if len(a_kinds) > 1 or len(b_kinds) > 1
+            if several
             else {}
         ),
+        kinds_only_in_a=[k for k in a_kinds if k not in b_kinds],
+        kinds_only_in_b=[k for k in b_kinds if k not in a_kinds],
     )
 
 
