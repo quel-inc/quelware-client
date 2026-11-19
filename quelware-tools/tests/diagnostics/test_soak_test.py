@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from typing import cast
 
@@ -27,12 +28,16 @@ from quelware_tools.diagnostics.soak_test import (
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
     TICK_NS,
+    TIMINGS_FORMAT,
     RunPlan,
+    RunTiming,
     SoakProfile,
+    SoakReport,
     _classify,
     _draw_shown,
     _judge_monitors,
     _judge_run,
+    _write_timings,
     build_directives,
     draw_plan,
 )
@@ -216,7 +221,7 @@ async def test_a_run_initializes_first_only_when_asked(
     aliases = [info.definition.alias for info in _EMIT_INFOS.values()]
     ids = [info.id for info in _EMIT_INFOS.values()]
 
-    failure, _ = await _judge_run(
+    failure, _, laps = await _judge_run(
         cast(Session, recorder),
         dict.fromkeys(aliases, cast(FixedTimelineInstrumentDriver, recorder)),
         {UnitLabel("u"): aliases},
@@ -230,6 +235,63 @@ async def test_a_run_initializes_first_only_when_asked(
     assert recorder.calls[0] == first
     assert recorder.calls.count("initialize") == int(initialize)
     assert recorder.calls[-2:] == ["trigger", "wait"]
+    assert list(laps) == list(dict.fromkeys(recorder.calls))
+
+
+class _TriggerFails(_Recorder):
+    async def trigger(self, ids) -> int:
+        self.calls.append("trigger")
+        raise GRPCError(Status.UNAVAILABLE, "unit u not reached")
+
+
+@pytest.mark.asyncio
+async def test_a_failed_run_is_timed_up_to_the_step_it_failed_in() -> None:
+    plan = draw_plan(np.random.default_rng([7, 3]), 3, _PORTS)
+    directives = {a: [d] for a, d in build_directives(plan, _EMIT_INFOS).items()}
+    recorder = _TriggerFails()
+    aliases = [info.definition.alias for info in _EMIT_INFOS.values()]
+
+    failure, _, laps = await _judge_run(
+        cast(Session, recorder),
+        dict.fromkeys(aliases, cast(FixedTimelineInstrumentDriver, recorder)),
+        {UnitLabel("u"): aliases},
+        [info.id for info in _EMIT_INFOS.values()],
+        plan,
+        directives,
+    )
+
+    assert failure is not None and failure.kind == "unavailable"
+    assert list(laps) == ["configure", "trigger"]
+
+
+def test_the_timings_name_the_units_ports_versions_and_every_run(tmp_path) -> None:
+    report = SoakReport(["a28", "a29"], runs=2, completed=1)
+    report.timings += [
+        RunTiming(
+            0,
+            1.0,
+            {"configure": 0.4, "trigger": 0.7, "wait": 0.4},
+            12,
+            100,
+            False,
+            None,
+        ),
+        RunTiming(1, 3.0, {"configure": 0.5, "trigger": 0.8}, 9, 10, True, "timeout"),
+    ]
+    path = tmp_path / "out" / "timings.json"
+
+    _write_timings(path, report, [ResourceId(p) for p in _PORTS], {"seed": 5}, 0.5)
+
+    content = json.loads(path.read_text())
+    assert content["format"] == TIMINGS_FORMAT
+    assert content["units"] == ["a28", "a29"]
+    assert content["ports"] == _PORTS
+    assert content["settings"] == {"seed": 5}
+    assert set(content["versions"]) == {"quelware-tools", "quelware-client"}
+    assert content["started_at"] == 0.5
+    assert [r["run"] for r in content["runs"]] == [0, 1]
+    assert content["runs"][1]["steps"] == {"configure": 0.5, "trigger": 0.8}
+    assert content["runs"][1]["failure"] == "timeout"
 
 
 _MONITOR = "u:mon"

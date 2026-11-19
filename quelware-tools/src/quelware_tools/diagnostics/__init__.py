@@ -29,6 +29,7 @@ from .pulse_test import (
 from .soak_test import (
     RunFailure,
     RunPlan,
+    RunTiming,
     SoakProfile,
     SoakReport,
     run_soak_test,
@@ -58,6 +59,7 @@ __all__ = [
     "PulseTestReport",
     "RunFailure",
     "RunPlan",
+    "RunTiming",
     "SoakProfile",
     "SoakReport",
     "ToneResult",

@@ -31,12 +31,20 @@ discarded before returning.
 import asyncio
 import contextlib
 import dataclasses
+import importlib.metadata
 import json
 import logging
 import math
 import time
 from collections import Counter
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -86,6 +94,8 @@ _WAIT_MARGIN_SEC = 10.0
 _SESSION_TTL_MS = 20_000
 _LEASE_EXTEND_SEC = 5.0
 _CONCURRENT_DISCARDS = 32
+# the version of the timings file's layout, raised when a reader would misread it
+TIMINGS_FORMAT = 1
 
 
 @dataclass(frozen=True)
@@ -160,6 +170,20 @@ class RunFailure:
     detail: str
 
 
+@dataclass(frozen=True)
+class RunTiming:
+    run: int
+    # Unix time the run began at
+    started_at: float
+    # seconds each step took, in order; the step a run failed in is the last
+    steps: dict[str, float]
+    waves: int
+    iterations: int
+    raw: bool
+    # None when the run completed, else its failure's kind, "refused" included
+    failure: str | None
+
+
 @dataclass
 class SoakReport:
     unit_labels: list[str]
@@ -167,6 +191,7 @@ class SoakReport:
     completed: int = 0
     refused: Counter[str] = field(default_factory=Counter)
     failures: list[RunFailure] = field(default_factory=list)
+    timings: list[RunTiming] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -438,20 +463,22 @@ async def _judge_run(
     plan: RunPlan,
     directives: Mapping[str, Sequence[FixedTimelineDirective]],
     initialize: bool = False,
-) -> tuple[RunFailure | None, dict[ResourceId, ResultContainer]]:
+) -> tuple[RunFailure | None, dict[ResourceId, ResultContainer], dict[str, float]]:
     """Run one plan on every unit at once, configuring the units in parallel; no
-    failure and the results when it completed, a refusal or a failure otherwise.
-    With ``initialize``, the instruments are initialized first."""
+    failure and the results when it completed, a refusal or a failure otherwise,
+    with the seconds each step took. With ``initialize``, the instruments are
+    initialized first."""
     period_ns = plan.length_ns + plan.iteration_blank_ns
     timeout_sec = plan.iterations * period_ns * 1e-9 + _WAIT_MARGIN_SEC
     laps: dict[str, float] = {}
-    lap_start = time.monotonic()
 
-    def _lap(step: str) -> None:
-        nonlocal lap_start
-        now = time.monotonic()
-        laps[step] = now - lap_start
-        lap_start = now
+    @contextlib.contextmanager
+    def _timed(step: str) -> Iterator[None]:
+        start = time.monotonic()
+        try:
+            yield
+        finally:
+            laps[step] = time.monotonic() - start
 
     async def _configure_unit(aliases: list[str]) -> None:
         for alias in aliases:
@@ -459,16 +486,16 @@ async def _judge_run(
 
     try:
         if initialize:
-            await session.initialize(ids)
-            _lap("initialize")
-        await asyncio.gather(*(_configure_unit(a) for a in unit_aliases.values()))
-        _lap("configure")
-        await session.trigger(ids)
-        _lap("trigger")
-        results = await session.wait_for_results(ids, timeout_sec=timeout_sec)
-        _lap("wait")
+            with _timed("initialize"):
+                await session.initialize(ids)
+        with _timed("configure"):
+            await asyncio.gather(*(_configure_unit(a) for a in unit_aliases.values()))
+        with _timed("trigger"):
+            await session.trigger(ids)
+        with _timed("wait"):
+            results = await session.wait_for_results(ids, timeout_sec=timeout_sec)
     except Exception as e:
-        return RunFailure(plan.run, *_classify(e)), {}
+        return RunFailure(plan.run, *_classify(e)), {}, laps
     finally:
         logger.info(
             "run %d took %s (%d waves, iterations %d%s)",
@@ -478,7 +505,7 @@ async def _judge_run(
             plan.iterations,
             ", raw" if plan.raw else "",
         )
-    return None, results
+    return None, results, laps
 
 
 def _judge_monitors(
@@ -560,7 +587,7 @@ async def _measure_delays(  # noqa: PLR0913
             alias: [mode, timeline] if alias in monitor_aliases else [timeline]
             for alias, timeline in build_directives(plan, infos, check=True).items()
         }
-        failure, results = await _judge_run(
+        failure, results, _ = await _judge_run(
             session, drivers, unit_aliases, ids, plan, directives
         )
         if failure is None:
@@ -596,6 +623,33 @@ def _refusal_reason(message: str) -> str:
     """The kind of refusal, without the numbers that differ from run to run."""
     words = [w for w in message.split() if not any(c.isdigit() for c in w)]
     return " ".join(words)[:80]
+
+
+def _write_timings(
+    path: Path,
+    report: SoakReport,
+    emit_ports: Sequence[ResourceId],
+    settings: dict[str, object],
+    started_at: float,
+) -> None:
+    content = {
+        "format": TIMINGS_FORMAT,
+        "units": report.unit_labels,
+        "ports": [str(p) for p in emit_ports],
+        "settings": settings,
+        "versions": {
+            name: importlib.metadata.version(name)
+            for name in ("quelware-tools", "quelware-client")
+        },
+        "started_at": started_at,
+        "finished_at": time.time(),
+        "runs": [asdict(t) for t in report.timings],
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(content, indent=1) + "\n")
+    except OSError:
+        logger.exception("could not write the timings to %s", path)
 
 
 def _save_failure(save_dir: Path, plan: RunPlan, failure: RunFailure) -> None:
@@ -640,6 +694,7 @@ async def run_soak_test(  # noqa: PLR0913
     initialize_each_run: bool = False,
     check_monitor: bool = False,
     tolerance: correctness.Tolerance = correctness.DEFAULT_TOLERANCE,
+    timings_path: Path | None = None,
 ) -> SoakReport:
     """Run the soak test on the units until ``runs`` or ``duration_sec`` is spent.
 
@@ -653,13 +708,18 @@ async def run_soak_test(  # noqa: PLR0913
     With ``check_monitor``, every instrument on the units is discarded and the
     units are put in monitor loopback, which needs an admin PAT, and put back in
     open mode after; each run's monitor captures are judged within ``tolerance``.
+
+    With ``timings_path``, the units, the ports, the settings, the versions of
+    quelware-tools and quelware-client, and each run's timing are written there as
+    JSON at the end, also when interrupted.
     """
     units = list(unit_labels) if unit_labels else await _find_units(client)
     report = SoakReport([str(u) for u in units])
     emit_ports: list[ResourceId] = []
     monitor_ports: list[ResourceId] = []
     judge = correctness.Judge(tolerance, keep_captures=False)
-    started_at = time.monotonic()
+    started_at = time.time()
+    started_monotonic = time.monotonic()
     try:
         if check_monitor:
             for unit in units:
@@ -732,7 +792,8 @@ async def run_soak_test(  # noqa: PLR0913
 
             run = start_run
             while (runs is None or report.runs < runs) and (
-                duration_sec is None or time.monotonic() - started_at < duration_sec
+                duration_sec is None
+                or time.monotonic() - started_monotonic < duration_sec
             ):
                 if lease.done():
                     exc = lease.exception()
@@ -757,7 +818,8 @@ async def run_soak_test(  # noqa: PLR0913
                         plan, infos, check=check_monitor
                     ).items()
                 }
-                failure, results = await _judge_run(
+                run_started_at = time.time()
+                failure, results, laps = await _judge_run(
                     session,
                     drivers,
                     unit_aliases,
@@ -768,6 +830,17 @@ async def run_soak_test(  # noqa: PLR0913
                 )
                 if failure is None and check_monitor:
                     failure = _judge_monitors(judge, plan, monitors, results)
+                report.timings.append(
+                    RunTiming(
+                        run=run,
+                        started_at=run_started_at,
+                        steps=laps,
+                        waves=sum(len(t) for t in plan.waves.values()),
+                        iterations=plan.iterations,
+                        raw=plan.raw,
+                        failure=None if failure is None else failure.kind,
+                    )
+                )
                 report.runs += 1
                 if failure is None:
                     report.completed += 1
@@ -791,6 +864,21 @@ async def run_soak_test(  # noqa: PLR0913
                 run += 1
         return report
     finally:
+        if timings_path is not None:
+            _write_timings(
+                timings_path,
+                report,
+                emit_ports,
+                {
+                    "seed": seed,
+                    "start_run": start_run,
+                    "profile": asdict(profile),
+                    "tx_hz": tx_hz,
+                    "check_monitor": check_monitor,
+                    "initialize_each_run": initialize_each_run,
+                },
+                started_at,
+            )
         if check_monitor:
             for unit in units:
                 deployed = [
@@ -823,8 +911,10 @@ __all__ = [
     "HIDDEN_AMPLITUDE",
     "MARKER_TICKS",
     "TICK_NS",
+    "TIMINGS_FORMAT",
     "RunFailure",
     "RunPlan",
+    "RunTiming",
     "SoakProfile",
     "SoakReport",
     "Wave",

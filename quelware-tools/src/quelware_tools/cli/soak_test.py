@@ -78,6 +78,10 @@ def _entry(  # noqa: PLR0913
             "(admin PAT; discards every instrument on the units)"
         ),
     ] = False,
+    timings: Annotated[
+        Path | None,
+        typer.Option(help="write the units, the settings and each run's timing here"),
+    ] = None,
     log_level: Annotated[str, typer.Option(help="DEBUG|INFO|WARNING|ERROR")] = "INFO",
 ) -> None:
     """Run the soak test on QuEL-3 units, all at once."""
@@ -105,6 +109,7 @@ def _entry(  # noqa: PLR0913
                 discard_instruments=discard_instruments,
                 initialize_each_run=initialize_each_run,
                 check_monitor=check_monitor,
+                timings_path=timings,
             )
         print(
             f"{report.runs} runs on {', '.join(report.unit_labels)}: "
