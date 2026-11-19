@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-20
+
 ### Added
 
 - `maintenance force-stop <unit> [--port ...]` stops the wave units of the given ports, or of all the unit's ports without `--port`, whichever session runs them.
