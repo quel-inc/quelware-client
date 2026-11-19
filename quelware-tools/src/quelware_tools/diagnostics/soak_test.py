@@ -836,6 +836,7 @@ async def run_soak_test(  # noqa: PLR0913
     start_run: int = 0,
     profile: SoakProfile | Mapping[str, SoakProfile] = DEFAULT_KINDS,
     tx_hz: float = 5.1e9,
+    detune_hz: float = 0.0,
     save_dir: Path | None = None,
     stop_on_failure: bool = False,
     report_every: int = 100,
@@ -859,6 +860,10 @@ async def run_soak_test(  # noqa: PLR0913
     With ``check_monitor``, every instrument on the units is discarded and the
     units are put in monitor loopback, which needs an admin PAT, and put back in
     open mode after; each run's monitor captures are judged within ``tolerance``.
+
+    The instruments are deployed around ``tx_hz`` and set to ``tx_hz + detune_hz``,
+    so a detune off their carrier has the units modulate the waves they send and
+    demodulate what they capture.
 
     With ``timings_path``, the units, the ports, the settings, the versions of
     quelware-tools and quelware-client, and each run's timing are written there as
@@ -919,7 +924,7 @@ async def run_soak_test(  # noqa: PLR0913
 
             async def _set_up(port: ResourceId) -> None:
                 alias = infos[str(port)].definition.alias
-                await drivers[alias].apply([SetFrequency(hz=tx_hz)])
+                await drivers[alias].apply([SetFrequency(hz=tx_hz + detune_hz)])
 
             capture_aliases = {infos[p].definition.alias for p in capture_ports}
 
@@ -1026,6 +1031,7 @@ async def run_soak_test(  # noqa: PLR0913
                     "start_run": start_run,
                     "profile": _settings_of(profile),
                     "tx_hz": tx_hz,
+                    "detune_hz": detune_hz,
                     "check_monitor": check_monitor,
                     "initialize_each_run": initialize_each_run,
                 },

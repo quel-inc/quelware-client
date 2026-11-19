@@ -55,6 +55,13 @@ def _entry(  # noqa: PLR0913
         int, typer.Option(help="index of the first run, to replay one")
     ] = 0,
     tx_hz: Annotated[float, typer.Option(help="transmit frequency in Hz")] = 5.1e9,
+    detune_hz: Annotated[
+        float,
+        typer.Option(
+            help="set every instrument this far off the carrier it is deployed at, "
+            "so the units modulate and demodulate"
+        ),
+    ] = 0.0,
     chosen_kinds: Annotated[
         list[str] | None,
         typer.Option(
@@ -136,6 +143,7 @@ def _entry(  # noqa: PLR0913
                 start_run=start_run,
                 profile=profiles,
                 tx_hz=tx_hz,
+                detune_hz=detune_hz,
                 save_dir=save_dir,
                 stop_on_failure=stop_on_failure,
                 report_every=report_every,
