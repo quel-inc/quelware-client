@@ -27,8 +27,8 @@ start nothing themselves.
   others failed.
 - `quel-soak-test` — keep the units busy with random trains of waves on every
   port, for a number of runs or a duration, and tally the runs that fail. Each
-  run is drawn as one of several kinds, such as long sparse waves or thousands of
-  gate-length pulses as in randomized benchmarking.
+  run is drawn as one of several kinds, such as sparse waves, randomized
+  benchmarking sequences packed into one trigger, or spectroscopy.
 - `quel-soak-compare` — compare how long each step of the runs took in two
   `quel-soak-test --timings` files, run by run when both drew the same runs.
   `--check-monitor` also judges, on each unit's monitor in loopback, what one

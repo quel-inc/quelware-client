@@ -3,17 +3,11 @@
 Runs random trains of waves on every tx/trx port of the units at once, every run
 under one trigger, until the given number of runs or duration is spent, 200 runs by
 default (or until interrupted). Each run is drawn as one of the kinds, each as
-likely: ``sparse``, long waves of many lengths with gaps between them, or
-``pulse-train``, thousands of gate-length pulses per port packed as a randomized
-benchmarking sequence. Without ``--unit`` it runs on every unit the manager
-knows. A run refused before it starts counts as a pass; a run that fails, times out
-or breaks otherwise is a failure. Requires idle tx/trx ports. Exits non-zero if any
-run failed.
-
-With ``--check-monitor``, the units are put in monitor loopback (an admin PAT is
-needed, and every instrument on them is discarded) and back in open mode after, and
-what each unit's monitor captures of one port shown at a time is judged against what
-it sent; a run that comes back otherwise is a failure.
+likely: ``sparse``, waves of many lengths with gaps between them;
+``packed-rb``, 30 randomized benchmarking sequences in one trigger, tens of
+thousands of short pulses per port; ``packed-sweep``, 50 calibration points in one
+trigger; ``spectroscopy``, long capture windows repeated with a short blank; and
+``dense-cr``, a few flat pulses of 1 and 4 us.
 """
 
 import asyncio

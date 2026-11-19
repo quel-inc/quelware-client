@@ -124,28 +124,80 @@ class SoakProfile:
     # a raw run's windows summed over the iterations; returning much more holds up
     # the unit's other calls while it is sent
     max_raw_capture_ns: float = 40_000.0
+    # a run of several jobs, as a client packs points or sequences into one trigger:
+    # each job's waves over the span, then its readout window when ``readout_ticks``
+    # is set (instead of drawn windows), then the blank before the next job
+    jobs: int = 1
+    job_blank_ticks: int = 0
+    readout_ticks: int = 0
 
 
 DEFAULT_PROFILE = SoakProfile()
 
-# Long trains of gate-length pulses packed back to back, as a randomized benchmarking
-# sequence of a few thousand gates: a small waveform library but thousands of events
-# per port, repeated as many shots at a typical shot interval.
-PULSE_TRAIN_PROFILE = SoakProfile(
-    span_ticks=20500,
+# 30 randomized benchmarking sequences of about 2000 gates packed into one trigger,
+# a shot interval apart, each ending in a readout: a small waveform library but tens
+# of thousands of events per port.
+PACKED_RB_PROFILE = SoakProfile(
+    span_ticks=16400,
     wave_ticks=(4, 8),
     max_gap_ticks=(4,),
     zero_gap_probability=0.5,
     iterations=(1024,),
     iteration_blank_ns=(153_600.0,),
-    max_window_ticks=160,
+    raw_share=0.0,
+    max_total_capture_ns=12e6,
+    jobs=30,
+    job_blank_ticks=48000,
+    readout_ticks=160,
+)
+
+# 50 points of a calibration sweep packed into one trigger, a shot interval apart:
+# each a few short pulses and a readout.
+PACKED_SWEEP_PROFILE = SoakProfile(
+    span_ticks=60,
+    wave_ticks=(4, 8, 20),
+    max_gap_ticks=(4, 16),
+    iterations=(1024,),
+    iteration_blank_ns=(153_600.0,),
+    raw_share=0.0,
+    max_total_capture_ns=12e6,
+    jobs=50,
+    job_blank_ticks=48000,
+    readout_ticks=160,
+)
+
+# Capture windows up to 8.3 us long repeated with a short blank, as a resonator or
+# qubit spectroscopy point, which is sent alone.
+SPECTROSCOPY_PROFILE = SoakProfile(
+    span_ticks=2600,
+    wave_ticks=(320,),
+    max_gap_ticks=(1024,),
+    iterations=(1024,),
+    iteration_blank_ns=(1024.0,),
+    max_window_ticks=2600,
+    raw_share=0.0,
+)
+
+# Flat pulses of 1 and 4 us sampled whole, as a cross-resonance tomography point,
+# which is sent alone.
+DENSE_CR_PROFILE = SoakProfile(
+    span_ticks=2600,
+    wave_ticks=(312, 1248),
+    max_gap_ticks=(4,),
+    zero_gap_probability=0.5,
+    iterations=(2048,),
+    iteration_blank_ns=(153_600.0,),
+    max_window_ticks=200,
     raw_share=0.0,
 )
 
 # the kinds of run drawn from by default, each as likely as the others
 DEFAULT_KINDS: Mapping[str, SoakProfile] = {
     "sparse": DEFAULT_PROFILE,
-    "pulse-train": PULSE_TRAIN_PROFILE,
+    "packed-rb": PACKED_RB_PROFILE,
+    "packed-sweep": PACKED_SWEEP_PROFILE,
+    "spectroscopy": SPECTROSCOPY_PROFILE,
+    "dense-cr": DENSE_CR_PROFILE,
 }
 
 
@@ -246,6 +298,42 @@ def _fill_span(
     return spans
 
 
+def _fill_spans_at_once(
+    rng: np.random.Generator, profile: SoakProfile
+) -> tuple[np.ndarray, np.ndarray]:
+    """Starts and lengths of waves over the span, as ``_fill_span`` lays them, drawn
+    with numpy at once for the tens of thousands a packed run holds."""
+    max_gap = int(rng.choice(profile.max_gap_ticks))
+    first = 0 if rng.random() < 0.5 else _draw_ticks(rng, max_gap)
+    n = profile.span_ticks // min(profile.wave_ticks) + 1
+    lengths = rng.choice(np.asarray(profile.wave_ticks), size=n)
+    gaps = np.maximum(
+        4, np.round(np.exp(rng.uniform(0.0, math.log(max_gap), size=n)) / 4) * 4
+    ).astype(int)
+    gaps[rng.random(n) < profile.zero_gap_probability] = 0
+    starts = first + np.concatenate(([0], np.cumsum(lengths + gaps)[:-1]))
+    fits = starts + lengths <= profile.span_ticks
+    return starts[fits], lengths[fits]
+
+
+def _packed_waves(
+    rng: np.random.Generator, profile: SoakProfile, job_ticks: int
+) -> tuple[Wave, ...]:
+    starts, lengths = [], []
+    for j in range(profile.jobs):
+        s, n = _fill_spans_at_once(rng, profile)
+        starts.append(j * job_ticks + s)
+        lengths.append(n)
+    start = np.concatenate(starts) * TICK_NS
+    length = np.concatenate(lengths) * TICK_NS
+    gain = rng.uniform(profile.min_gain, profile.max_gain, size=len(start))
+    phase = rng.uniform(0.0, 360.0, size=len(start))
+    return tuple(
+        Wave(float(a), float(b), float(c), float(d))
+        for a, b, c, d in zip(start, length, gain, phase, strict=True)
+    )
+
+
 def draw_plan(
     rng: np.random.Generator,
     run: int,
@@ -256,8 +344,12 @@ def draw_plan(
     """Draw one run: a train of waves for every port and a train of capture
     windows for every capture port, each as dense as its port draws, and how the
     run repeats."""
+    job_ticks = profile.span_ticks + profile.readout_ticks + profile.job_blank_ticks
     waves: dict[str, tuple[Wave, ...]] = {}
     for port in port_ids:
+        if profile.jobs > 1:
+            waves[port] = _packed_waves(rng, profile, job_ticks)
+            continue
         spans = _fill_span(rng, lambda: int(rng.choice(profile.wave_ticks)), profile)
         waves[port] = tuple(
             Wave(
@@ -270,15 +362,21 @@ def draw_plan(
         )
     windows: dict[str, tuple[Window, ...]] = {}
     for port in capture_port_ids:
-        spans = _fill_span(
-            rng, lambda: _draw_ticks(rng, profile.max_window_ticks), profile
-        )
+        if profile.readout_ticks:
+            spans = [
+                (j * job_ticks + profile.span_ticks, profile.readout_ticks)
+                for j in range(profile.jobs)
+            ]
+        else:
+            spans = _fill_span(
+                rng, lambda: _draw_ticks(rng, profile.max_window_ticks), profile
+            )
         windows[port] = tuple(
             Window(start_ns=start * TICK_NS, length_ns=length * TICK_NS)
             for start, length in spans
         )
 
-    length_ns = profile.span_ticks * TICK_NS
+    length_ns = (profile.jobs * job_ticks - profile.job_blank_ticks) * TICK_NS
     iteration_blank_ns = float(rng.choice(profile.iteration_blank_ns))
     iterations = int(rng.choice(profile.iterations))
     shown_port = str(rng.choice(list(port_ids)))
@@ -963,9 +1061,12 @@ def _draw_shown(
 
 __all__ = [
     "DEFAULT_KINDS",
+    "DENSE_CR_PROFILE",
     "HIDDEN_AMPLITUDE",
     "MARKER_TICKS",
-    "PULSE_TRAIN_PROFILE",
+    "PACKED_RB_PROFILE",
+    "PACKED_SWEEP_PROFILE",
+    "SPECTROSCOPY_PROFILE",
     "TICK_NS",
     "TIMINGS_FORMAT",
     "RunFailure",

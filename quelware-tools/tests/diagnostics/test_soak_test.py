@@ -26,9 +26,12 @@ from quelware_core.entities.waveform.sampled import IqWaveform
 from quelware_tools.diagnostics.correctness import Judge, Record, delay_shot
 from quelware_tools.diagnostics.soak_test import (
     DEFAULT_KINDS,
+    DENSE_CR_PROFILE,
     HIDDEN_AMPLITUDE,
     MARKER_TICKS,
-    PULSE_TRAIN_PROFILE,
+    PACKED_RB_PROFILE,
+    PACKED_SWEEP_PROFILE,
+    SPECTROSCOPY_PROFILE,
     TICK_NS,
     TIMINGS_FORMAT,
     RunPlan,
@@ -173,20 +176,68 @@ def test_every_instrument_shares_the_run_s_length() -> None:
     assert all(d.iterations == plan.iterations for d in directives.values())
 
 
-def test_a_pulse_train_packs_thousands_of_gate_length_pulses_on_each_port() -> None:
-    profile = PULSE_TRAIN_PROFILE
+def test_a_packed_rb_run_sends_tens_of_thousands_of_events_from_a_small_library():
+    profile = PACKED_RB_PROFILE
     plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, profile, [_READOUT])
     directives = build_directives(plan, _EMIT_INFOS)
 
     for port, info in _EMIT_INFOS.items():
         directive = directives[info.definition.alias]
-        assert len(plan.waves[port]) > 2000
+        assert len(plan.waves[port]) > 50_000
         assert len(directive.events) == len(plan.waves[port])
         assert len(directive.waveform_library) <= len(profile.wave_ticks)
     total_ns = sum(w.length_ns for w in plan.windows[_READOUT])
     assert plan.iterations * total_ns <= profile.max_total_capture_ns
-    assert plan.iteration_blank_ns >= 300 * TICK_NS
-    assert not plan.raw
+
+
+@pytest.mark.parametrize("profile", [PACKED_RB_PROFILE, PACKED_SWEEP_PROFILE])
+def test_each_packed_job_sends_its_waves_then_its_readout_then_a_blank(profile):
+    plan = draw_plan(np.random.default_rng([1, 0]), 0, _PORTS, profile, [_READOUT])
+    job_ns = (profile.span_ticks + profile.readout_ticks + profile.job_blank_ticks) * (
+        TICK_NS
+    )
+
+    for train in plan.waves.values():
+        end_ns = 0.0
+        for wave in train:
+            offset_ns = wave.start_ns % job_ns
+            assert offset_ns + wave.length_ns <= profile.span_ticks * TICK_NS + 1e-6
+            assert round(wave.start_ns / TICK_NS) % 4 == 0
+            assert wave.start_ns >= end_ns - 1e-6
+            end_ns = wave.start_ns + wave.length_ns
+    for k, window in enumerate(plan.windows[_READOUT]):
+        assert window.start_ns == pytest.approx(
+            k * job_ns + profile.span_ticks * TICK_NS
+        )
+        assert window.length_ns == pytest.approx(profile.readout_ticks * TICK_NS)
+    assert plan.length_ns == pytest.approx(
+        profile.jobs * job_ns - profile.job_blank_ticks * TICK_NS
+    )
+
+
+def test_a_dense_cr_run_sends_a_few_long_flat_pulses() -> None:
+    plan = draw_plan(np.random.default_rng([0, 0]), 0, _PORTS, DENSE_CR_PROFILE)
+    directive = build_directives(plan, _EMIT_INFOS)["soak_tx_p04"]
+
+    library_samples = sum(len(w.iq_array) for w in directive.waveform_library)
+    assert library_samples > 2000
+    assert len(directive.events) < 10
+
+
+def test_a_spectroscopy_run_captures_long_windows_with_a_short_blank() -> None:
+    plans = [
+        draw_plan(
+            np.random.default_rng([0, run]),
+            run,
+            _PORTS,
+            SPECTROSCOPY_PROFILE,
+            [_READOUT],
+        )
+        for run in range(20)
+    ]
+
+    assert max(w.length_ns for p in plans for w in p.windows[_READOUT]) > 4000
+    assert all(p.iteration_blank_ns == 1024.0 for p in plans)
 
 
 def test_each_kind_is_drawn_about_as_often_and_again_from_its_seed() -> None:
