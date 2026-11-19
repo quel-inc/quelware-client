@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-20
+
 ### Added
 
 - `OpenSessionRequest.retry_window_ms`: how long the server may keep starting new attempts to open the session when an attempt fails for a passing reason, such as a resource in use or a unit that answered too late. 0, what an older client sends, makes one attempt.
@@ -13,7 +15,6 @@
 ### Changed
 
 - `result_container_to_pb` puts the values in `IqResult.dense_iq_points`. `result_container_from_pb` reads them from there, or from `IqPointList` as before. A client older than this one cannot read the values a server built with it returns, so update clients before servers.
-
 - `InstrumentService` documents the session's execution: within a session, each unit has at most one, and other sessions on the unit have their own. `Apply` arms it, replacing the previous one, `Initialize` clears it, and `FetchResult` works only for an instrument in it after it is triggered.
 
 ## [0.9.0] - 2026-09-29
