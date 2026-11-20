@@ -17,7 +17,8 @@ pip install "quelware-tools[plot]"  # + matplotlib, for the commands that plot
 
 The commands use a PAT (see [Access control](../concepts/access-control.md)).
 They default to the PAT configured for `quelware-client`; every command but
-`quel-echo-test` lets you override it with `--pat`.
+`quel-echo-test` lets you override it with `--pat`. `quel-soak-compare` only
+reads files. It does not connect to a system and does not need a PAT.
 
 ## At a glance
 
@@ -28,7 +29,8 @@ They default to the PAT configured for `quelware-client`; every command but
 | [`quel-pulse-test`](#quel-pulse-test) | Health check of pulse timing and length | admin | an idle unit | every tx/trx port of a unit |
 | [`quel-measure-delay`](#quel-measure-delay) | Path delay of each port | admin | an idle unit | every tx/trx port of a unit |
 | [`quel-trigger-wait-test`](#quel-trigger-wait-test) | How short a trigger wait the units start in time on | privileged | free tx/trx ports | one or more units |
-| [`quel-soak-test`](#quel-soak-test) | Load over a long time | privileged | free tx/trx ports | one or more units |
+| [`quel-soak-test`](#quel-soak-test) | Put load on the units and time each step | privileged | free tx/trx ports | one or more units |
+| [`quel-soak-compare`](#quel-soak-compare) | Compare the timings of two soak tests | none | two `--timings` files | your machine |
 | [`quel-unit-config`](#quel-unit-config) | Show or set a unit's controls | any (`show`), admin (`set`) | an idle unit (`set`) | one unit |
 | [`quel-recover-past-counter`](#quel-recover-past-counter) | Back to normal after `past_counter`, without a reboot | privileged | nobody else on the units | every port of the units |
 
@@ -112,18 +114,59 @@ quel-trigger-wait-test <host> --unit <label> --wait-ms 150 --wait-ms 200 --runs-
 
 ### `quel-soak-test`
 
-Keeps the units busy with random trains of waves on every tx/trx port, and
-random capture windows on every trx port, all under one trigger per run. It
-runs until a number of runs or a duration is spent, and logs how long each
-step of a run took. A failed run is counted by its kind; `--save-dir` saves
-its plan as JSON, which you can replay from its seed and run index.
-`--initialize-each-run` initializes the instruments at the start of every run,
-as a client that starts each run afresh does.
+Puts load on the units and measures how long each step takes. The load
+imitates typical tasks for the characterization and calibration of qubits. A
+run is one trigger on every tx/trx port of the units at the same time.
+
+By default, the test does one round of 68 runs and then stops. A round has
+these kinds of runs:
+
+- `sparse`, `spectroscopy` and `dense-cr`: light loads, 20 runs each.
+- `packed-sweep`: 50 points of a calibration sweep in one trigger, 4 runs.
+- `packed-rb-1024` and `packed-rb-2048`: 30 randomized benchmarking sequences
+  of 1024 or 2048 gates in one trigger, 2 runs each.
+
+The order of the kinds in a round is always the same. The seed decides the
+waves and the capture windows of each run. The test counts failed runs by
+kind.
+
+Options:
+
+- `--kind NAME`: use only this kind. Repeat the option to use more kinds.
+- `--rounds N`, `--runs N` and `--duration-sec S`: limit the length of the
+  test. The test stops at the first limit that it reaches. With only
+  `--duration-sec`, it continues for that time. With `--runs 0`, it continues
+  until you stop it.
+- `--save-dir DIR`: save the plan of each failed run as JSON. To repeat a
+  failed run, give its seed and run index, and the same `--kind` options.
+- `--initialize-each-run`: initialize the instruments at the start of each
+  run, like a client that starts each run from a clean state.
 
 ```sh
-quel-soak-test <host> --duration-sec 3600
+quel-soak-test <host> --unit <label>
+quel-soak-test <host> --unit <label> --kind sparse --kind spectroscopy --runs 200
 quel-soak-test <host> --unit <label> --runs 1000 --save-dir ./failed
-quel-soak-test <host> --unit <label> --seed 7 --start-run 42 --runs 1   # replay a run
+quel-soak-test <host> --unit <label> --seed 7 --start-run 42 --runs 1   # repeat a run
+```
+
+### `quel-soak-compare`
+
+Compares the timings of two soak tests, for example before and after a server
+update.
+
+1. Run `quel-soak-test` with `--timings FILE`. The test writes the units, the
+   settings and the time of each step of each run to `FILE` as JSON.
+2. Give two such files to `quel-soak-compare`.
+
+For each step and each kind, it shows the median, the 95th percentile and the
+maximum time of the completed runs. If the two tests used the same seed, the
+same kinds and the same ports, they did the same runs. In that case, it also
+shows the median difference between the runs with the same index.
+
+```sh
+quel-soak-test <host> --unit <label> --timings before.json
+quel-soak-test <host> --unit <label> --timings after.json
+quel-soak-compare before.json after.json --label-a before --label-b after
 ```
 
 ## Configuration
