@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-11-20
+
 ### Fixed
 
 - `quel-soak-test` no longer loses its session while it draws a heavy run on many units. It draws each run off the event loop, so it keeps extending the session meanwhile; on many units a packed run took longer to draw than the session lasts.
