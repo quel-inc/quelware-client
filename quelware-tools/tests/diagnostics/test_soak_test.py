@@ -1,3 +1,4 @@
+import dataclasses
 import json
 from dataclasses import replace
 from typing import cast
@@ -10,6 +11,11 @@ from grpclib.exceptions import StreamTerminatedError
 from quelware_client.core import Session
 from quelware_client.core.exceptions import RunFailedError
 from quelware_client.core.instrument_driver import FixedTimelineInstrumentDriver
+from quelware_core.entities.directives import (
+    CaptureMode,
+    SetCaptureMode,
+    SetFixedTimeline,
+)
 from quelware_core.entities.instrument import (
     FixedTimelineConfig,
     FixedTimelineProfile,
@@ -43,6 +49,7 @@ from quelware_tools.diagnostics.soak_test import (
     _draw_shown,
     _judge_monitors,
     _judge_run,
+    _prepare_run,
     _write_timings,
     build_directives,
     draw_plan,
@@ -568,3 +575,39 @@ def test_a_monitor_capture_from_a_port_whose_delay_was_not_measured_is_a_wrong_r
 
     assert failure is not None
     assert "no delay was measured" in failure.detail
+
+
+@pytest.mark.parametrize("run", [0, 23])
+@pytest.mark.parametrize("shown", [False, True])
+def test_a_prepared_run_is_the_plan_and_timelines_drawn_and_built_directly(
+    run: int, shown: bool
+):
+    shown_from = [ResourceId(_CONTROL), ResourceId(_READOUT)] if shown else None
+    capture_aliases = {_EMIT_INFOS[_READOUT].definition.alias}
+    plan, directives = _prepare_run(
+        np.random.default_rng([0, run]),
+        run,
+        _PORTS,
+        DEFAULT_ROUND,
+        [_READOUT],
+        shown_from,
+        _EMIT_INFOS,
+        capture_aliases,
+    )
+    rng = np.random.default_rng([0, run])
+    expected = draw_run(rng, run, _PORTS, DEFAULT_ROUND, [_READOUT])
+    if shown_from is not None:
+        expected = dataclasses.replace(
+            expected, shown_ports=_draw_shown(rng, shown_from)
+        )
+
+    assert plan == expected
+    mode = CaptureMode.RAW_WAVEFORMS if plan.raw else CaptureMode.AVERAGED_WAVEFORM
+    for alias, timeline in build_directives(plan, _EMIT_INFOS, check=shown).items():
+        *settings, built = directives[alias]
+        assert isinstance(built, SetFixedTimeline)
+        assert (built.events, built.length) == (timeline.events, timeline.length)
+        expected_settings = (
+            [SetCaptureMode(mode=mode)] if alias in capture_aliases else []
+        )
+        assert settings == expected_settings

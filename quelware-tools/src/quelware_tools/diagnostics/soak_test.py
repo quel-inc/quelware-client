@@ -838,6 +838,33 @@ def _save_failure(save_dir: Path, plan: RunPlan, failure: RunFailure) -> None:
     path.write_text(json.dumps({"failure": asdict(failure), "plan": asdict(plan)}))
 
 
+def _prepare_run(
+    rng: np.random.Generator,
+    run: int,
+    port_ids: Sequence[str],
+    profile: SoakProfile | Sequence[RoundEntry],
+    capture_port_ids: Sequence[str],
+    shown_from: Sequence[ResourceId] | None,
+    infos: dict[str, InstrumentInfo],
+    capture_aliases: set[str],
+) -> tuple[RunPlan, dict[str, Sequence[FixedTimelineDirective]]]:
+    """Draw the run and build each instrument's directives; with ``shown_from``,
+    pick the ports whose monitors are to receive their waves."""
+    plan = draw_run(rng, run, port_ids, profile, capture_port_ids)
+    if shown_from is not None:
+        plan = dataclasses.replace(plan, shown_ports=_draw_shown(rng, shown_from))
+    mode = SetCaptureMode(
+        mode=CaptureMode.RAW_WAVEFORMS if plan.raw else CaptureMode.AVERAGED_WAVEFORM
+    )
+    directives: dict[str, Sequence[FixedTimelineDirective]] = {
+        alias: (mode, timeline) if alias in capture_aliases else (timeline,)
+        for alias, timeline in build_directives(
+            plan, infos, check=shown_from is not None
+        ).items()
+    }
+    return plan, directives
+
+
 async def _keep_lease(session: Session) -> None:
     """Extend the session's lease for as long as it runs; returns only by raising."""
     while True:
@@ -987,23 +1014,18 @@ async def run_soak_test(  # noqa: PLR0913
                     report.failures.append(failure)
                     logger.error("lease lost before run %d: %s", run, failure.detail)
                     break
-                rng = np.random.default_rng([seed, run])
-                plan = draw_run(rng, run, list(emit_infos), profile, capture_ports)
-                if check_monitor:
-                    plan = dataclasses.replace(
-                        plan, shown_ports=_draw_shown(rng, emit_ports)
-                    )
-                mode = SetCaptureMode(
-                    mode=CaptureMode.RAW_WAVEFORMS
-                    if plan.raw
-                    else CaptureMode.AVERAGED_WAVEFORM
+                # off the event loop, so the lease is kept while a heavy run is drawn
+                plan, directives = await asyncio.to_thread(
+                    _prepare_run,
+                    np.random.default_rng([seed, run]),
+                    run,
+                    list(emit_infos),
+                    profile,
+                    capture_ports,
+                    emit_ports if check_monitor else None,
+                    infos,
+                    capture_aliases,
                 )
-                directives = {
-                    alias: [mode, timeline] if alias in capture_aliases else [timeline]
-                    for alias, timeline in build_directives(
-                        plan, infos, check=check_monitor
-                    ).items()
-                }
                 run_started_at = time.time()
                 failure, results, laps = await _judge_run(
                     session,
